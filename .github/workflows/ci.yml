@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  gates:
+    name: Publish and asset gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: xtask
+      - name: Asset check
+        run: python3 scripts/check_assets.py
+      - name: Publish check
+        run: cargo run -q -p xtask --locked -- publish-check
+      - name: rustfmt on changed files
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "no base revision to compare against; skipping"
+            exit 0
+          fi
+          scripts/check_fmt_changed.sh "$BASE"
+
+  # No debuginfo: with it the workspace's test build passes 25 GB of target/.
+  build:
+    name: Check and test
+    runs-on: ubuntu-latest
+    env:
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - name: Install Bevy system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ pkg-config libx11-dev libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo check
+        run: cargo check --workspace --all-targets --locked
+      - name: cargo test
+        run: cargo test --workspace --locked
+
+  # Report-only for now: the imported code has deny-level clippy findings and
+  # a few hundred warnings. --cap-lints keeps every crate linted instead of
+  # stopping at the first deny-level finding. Make it blocking once clean.
+  clippy:
+    name: Clippy (report only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - name: Install Bevy system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ pkg-config libx11-dev libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: clippy
+      - name: cargo clippy
+        run: |
+          cargo clippy --workspace --all-targets --locked -- --cap-lints warn 2> clippy.txt || true
+          cat clippy.txt
+          {
+            echo "### Clippy"
+            echo "Findings (deny-level ones capped to warnings): $(grep -c '^warning' clippy.txt || true)"
+          } >> "$GITHUB_STEP_SUMMARY"
