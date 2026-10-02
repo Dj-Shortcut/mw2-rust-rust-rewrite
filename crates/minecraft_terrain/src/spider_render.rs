@@ -13,7 +13,7 @@ use crate::{
 };
 use glam::{Quat, Vec3};
 use minecraftoss_entities::world::SpiderEntity;
-use std::f32::consts::PI;
+use std::f32::consts::{FRAC_PI_4, FRAC_PI_8, PI};
 
 type Part = ([f32; 3], [f32; 3], [f32; 2], [f32; 3]);
 
@@ -25,14 +25,14 @@ const BODY_1: Part = ([-5., -4., -6.], [5., 4., 6.], [0., 12.], [0., 15., 9.]);
 /// it follows (hind, middle hind, middle front, front). Right legs reach
 /// out along -X; left legs are their mirror.
 const LEGS: [([f32; 3], f32, f32, usize); 8] = [
-    ([-4., 15., 2.], 0.785_398_2, -0.785_398_2, 0),
-    ([4., 15., 2.], -0.785_398_2, 0.785_398_2, 0),
-    ([-4., 15., 1.], 0.392_699_1, -0.581_194_64, 1),
-    ([4., 15., 1.], -0.392_699_1, 0.581_194_64, 1),
-    ([-4., 15., 0.], -0.392_699_1, -0.581_194_64, 2),
-    ([4., 15., 0.], 0.392_699_1, 0.581_194_64, 2),
-    ([-4., 15., -1.], -0.785_398_2, -0.785_398_2, 3),
-    ([4., 15., -1.], 0.785_398_2, 0.785_398_2, 3),
+    ([-4., 15., 2.], FRAC_PI_4, -FRAC_PI_4, 0),
+    ([4., 15., 2.], -FRAC_PI_4, FRAC_PI_4, 0),
+    ([-4., 15., 1.], FRAC_PI_8, -0.581_194_64, 1),
+    ([4., 15., 1.], -FRAC_PI_8, 0.581_194_64, 1),
+    ([-4., 15., 0.], -FRAC_PI_8, -0.581_194_64, 2),
+    ([4., 15., 0.], FRAC_PI_8, 0.581_194_64, 2),
+    ([-4., 15., -1.], -FRAC_PI_4, -FRAC_PI_4, 3),
+    ([4., 15., -1.], FRAC_PI_4, FRAC_PI_4, 3),
 ];
 
 /// `SpiderModel.setupAnim`'s leg sweep (yaw) and lift (roll) for each of

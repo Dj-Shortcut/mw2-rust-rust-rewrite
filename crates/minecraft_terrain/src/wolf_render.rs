@@ -191,6 +191,10 @@ fn part_poses(
     head: (f32, f32),
     tail_angle: f32,
 ) -> [Pose; 9] {
+    #[expect(
+        clippy::approx_constant,
+        reason = "-0.5236 is the model's own rounded angle, not FRAC_PI_6"
+    )]
     let mut p = if baby {
         [
             Pose::at([0., 18.25, -4.], 0.),
