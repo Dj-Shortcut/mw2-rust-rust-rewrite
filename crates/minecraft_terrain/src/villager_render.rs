@@ -303,6 +303,10 @@ pub fn append_villagers<'a>(
                     }
                 };
                 // The head and what hangs on it turn with it; the legs swing.
+                #[expect(
+                    clippy::approx_constant,
+                    reason = "-1.0472 is the model's own rounded angle, not FRAC_PI_3"
+                )]
                 let pose = match (baby, index) {
                     (_, 0 | 1) => head,
                     (false, 2) => head.child([0.0; 3], -PI / 2.0, 0.0, 0.0),
