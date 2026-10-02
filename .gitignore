@@ -13,3 +13,12 @@
 .env
 .env.*
 !.env.example
+
+/context/
+/dist/
+/iw4l-artifacts/
+**/target/
+
+# Generated Python caches
+__pycache__/
+*.py[cod]

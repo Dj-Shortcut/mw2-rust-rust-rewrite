@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "license": "CC0-1.0",
+  "units": "meters",
+  "source": "scripts/generate_authored_content.py",
+  "generator_blender": "4.3.2",
+  "assets": [
+    {
+      "name": "masked_operator",
+      "file": "masked_operator.glb",
+      "vertices": 2664,
+      "triangles": 5148,
+      "bounds": [
+        [
+          -0.45751503109931946,
+          -0.2199999988079071,
+          0.007499992847442627
+        ],
+        [
+          0.45751503109931946,
+          0.2199999988079071,
+          1.7990000247955322
+        ]
+      ],
+      "animations": [
+        "Aim",
+        "Idle",
+        "Walk"
+      ],
+      "sha256": "8da7a58f41be4943db0c6b8883b903088122dd1deee1697aa504a2f3313dbe79",
+      "bytes": 486788
+    },
+    {
+      "name": "carbine",
+      "file": "carbine.glb",
+      "vertices": 2776,
+      "triangles": 5340,
+      "bounds": [
+        [
+          -0.032999999821186066,
+          -0.5400000214576721,
+          -0.18626923859119415
+        ],
+        [
+          0.032999999821186066,
+          0.38749998807907104,
+          0.10500000417232513
+        ]
+      ],
+      "animations": [],
+      "sha256": "b09d59754d2319c5a38a1d2bfa9017a45dedee541c09ae8cdbd265818884a353",
+      "bytes": 381732
+    },
+    {
+      "name": "skateboard",
+      "file": "skateboard.glb",
+      "vertices": 500,
+      "triangles": 940,
+      "bounds": [
+        [
+          -0.11900000274181366,
+          -0.4000000059604645,
+          -0.0729999989271164
+        ],
+        [
+          0.11900000274181366,
+          0.4000000059604645,
+          0.07114999741315842
+        ]
+      ],
+      "animations": [],
+      "sha256": "9edcc17a7944b07215c0f09d651f9622b87f1e460553823d92de9d9134b1b1b2",
+      "bytes": 66608
+    },
+    {
+      "name": "timber_construction",
+      "file": "timber_construction.glb",
+      "vertices": 2056,
+      "triangles": 3956,
+      "bounds": [
+        [
+          0.0,
+          -0.07999999821186066,
+          -0.30000001192092896
+        ],
+        [
+          3.0480000972747803,
+          3.0480000972747803,
+          3.0480000972747803
+        ]
+      ],
+      "animations": [],
+      "sha256": "b1b9a23da17026c2386c89ce4d4b6de5305e138238e8fe6601e470cd5d7e138b",
+      "bytes": 282616
+    }
+  ]
+}

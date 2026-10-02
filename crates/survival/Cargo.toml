@@ -1,0 +1,17 @@
+[package]
+name = "survival"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Authored survival-session content built on the shared authoritative simulation."
+
+[dependencies]
+sim.workspace = true
+rust_building.workspace = true
+playerstate_iw4.workspace = true
+weapon_iw4.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

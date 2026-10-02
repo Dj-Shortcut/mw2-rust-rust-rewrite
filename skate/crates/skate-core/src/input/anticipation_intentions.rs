@@ -1,0 +1,27 @@
+//! Right-stick anticipation publication, Fill825999F0:
+//! angle/magnitude 82599AD0..9C4C, emissions 8259AD0C..AD40.
+use super::{
+    angle::left_stick_angle,
+    controller::{DerivedControllerInput, magnitude},
+    riding_intentions::RidingIntent,
+};
+
+pub fn produce(controller: &DerivedControllerInput) -> Vec<RidingIntent> {
+    let words = controller.words();
+    let x = f32::from_bits(words[9]);
+    let y = f32::from_bits(words[10]);
+    if x == 0.0 && y == 0.0 {
+        return Vec::new();
+    }
+    // Unlike steering, these two records have no actor1908 bit gate.
+    vec![
+        RidingIntent {
+            name: "AnticMag",
+            value: magnitude(x.mul_add(x, y * y)),
+        },
+        RidingIntent {
+            name: "AnticAngle",
+            value: left_stick_angle(x, y),
+        },
+    ]
+}
