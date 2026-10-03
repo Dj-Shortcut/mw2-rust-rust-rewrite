@@ -30,6 +30,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 | Inventory, twee recepten, consumables, honger/dorst | Ja | Grenzen/persistentie plus geïntegreerde resourcekosten, healing en ammo geslaagd | Inventorypauze, beide craftkosten en ammo-transfer uitgevoerd | Nee |
 | 30 eindige oogstnodes | Ja | Generatie, reach/occlusie, depletion en pure target/harvest-pariteit geslaagd | Tree-hint, 12 oogsten, verdwijnen bij uitputting en voorraad/depletion na laden uitgevoerd | Nee |
 | Skatecontroller en loop/skate-overgang | Ja | Push/steer/ollie/tricks/bail/collisie en gemonteerde push/handoff geslaagd | Camera/mount, push, ollie/landingsscore en afstappen uitgevoerd | Nee |
+| Eerste authored railgrinds en Engelse grind-HUD | Ja | 26 live railscenario's, 28 landings-/bailcontroles en 14 score-/savegroepen geslaagd | F9 hervatten, keyboard Space→rail→landing en afstappen met scorebehoud uitgevoerd via Mesa en gecontroleerde saves | Nee |
 | Eigen operator, carbine, board en timber-model | Ja | GLB-structuur, scene-aantallen en hashes gecontroleerd | Operator/carbine/board zichtbaar; volledige riganimatie open | Nee |
 | Zeven eigen korte CC0-WAV-cues | Ja | PCM/manifestcontrole en identieke regeneratie geslaagd | Playback nog open | Nee |
 | Native controller, ADS/recoil, inventory-/gather-/skatefeedback en audiohooks | Ja | Workspacecontrole en geoptimaliseerde build slagen | Deel van keyboard/muisflows uitgevoerd; audio/hardware open | Nee |
@@ -67,9 +68,8 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Volledige sessie headless opslaan en laden: positie, snelheid, kijkrichting, health, levend/dood (GSC-lifecycle), wapen, clip/reserve, kills/deaths/score, gemounte skatestaat en -score, plus inventory, bouwresources, needs, depletion, gebouwen en editorobjecten.
 - [x] Dode spelers laden met opgeslagen positie, kijkrichting en snelheid (dood→dood en levend→dood), gecontroleerd vóór commit; probe met twee doden op verschillende plekken, herhaald laden en respawn.
 - [x] Rail grinds headless via `Session::advance`: vangen na een echte ollie (yaw 0/90/37, beide richtingen), afglijden, loslaten aan het eind, ollie-uit en remmen; grindpunten pas bij een veilige landing; bails, near misses, muur en verwijderen/undo vangen niets of vervallen; mid-grind save/load en oude saves gecontroleerd.
-- [ ] Rail grind in het native venster uitvoeren en een grind-HUD tonen (`is_grinding`/`pending_points`; frontend #15).
+- [x] Engelse native grind-HUD met snelheid, verdiende/pending punten en controls uitvoeren: F9 mid-grind → veilig landen met 34 punten → V afstappen behoudt 34; Space vanaf een gecontroleerde approach-save vangt de rail en landt met 32 punten. De startsnelheid van 220 is fixturedata; Xbox-hardware en overige skateobjecten blijven open.
 - [ ] Volledige native editor-/bouw-/gather-/respawnflow en Engelse meldingen verifiëren.
-- [ ] F5/F9 in het native venster uitvoeren; na laden de camerasturing van de frontend gelijkzetten met de herstelde kijkrichting (nu overschrijft de volgende frontendinvoer die).
 
 ## Actuele verificatiefase
 
