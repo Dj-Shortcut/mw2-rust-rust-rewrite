@@ -824,7 +824,11 @@ impl Session {
             .node(cast.node)
             .ok_or("Fishing spot is missing")?
             .position;
-        if (water[0] - origin[0]).hypot(water[1] - origin[1]) > FISHING_REACH {
+        let distance = (0..3)
+            .map(|k| (water[k] - origin[k]).powi(2))
+            .sum::<f32>()
+            .sqrt();
+        if distance > FISHING_REACH {
             self.fishing = None;
             self.message = "Line reeled in: too far from the water".into();
             return Ok(());
