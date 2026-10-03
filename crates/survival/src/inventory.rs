@@ -3,6 +3,10 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 pub const INVENTORY_SLOTS: usize = 24;
 pub const MAX_VITAL_SECONDS: f32 = 3600.;
+pub const BLEED_THRESHOLD: u32 = 15;
+pub const MAX_BLEED: f32 = 40.;
+const BLEED_PER_DAMAGE: f64 = 0.5;
+const BLEED_PER_SECOND: f64 = 1.;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Item {
@@ -189,6 +193,7 @@ impl Inventory {
         Ok(match item {
             Item::Bandage => Effects {
                 heal: 25,
+                stop_bleeding: true,
                 ..Default::default()
             },
             Item::Ammo => Effects {
@@ -277,6 +282,7 @@ pub struct Effects {
     pub hunger: f32,
     pub thirst: f32,
     pub ammo: u32,
+    pub stop_bleeding: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -284,6 +290,7 @@ pub struct Vitals {
     hunger: f64,
     thirst: f64,
     damage_fraction: f64,
+    bleed: f64,
 }
 
 impl Default for Vitals {
@@ -292,6 +299,7 @@ impl Default for Vitals {
             hunger: 100.,
             thirst: 100.,
             damage_fraction: 0.,
+            bleed: 0.,
         }
     }
 }
@@ -305,6 +313,21 @@ impl Vitals {
         self.thirst as f32
     }
 
+    pub fn bleed(&self) -> f32 {
+        self.bleed as f32
+    }
+
+    pub fn is_bleeding(&self) -> bool {
+        self.bleed > 0.
+    }
+
+    pub fn wound(&mut self, damage: u32) {
+        if damage >= BLEED_THRESHOLD {
+            self.bleed =
+                (self.bleed + f64::from(damage) * BLEED_PER_DAMAGE).min(f64::from(MAX_BLEED));
+        }
+    }
+
     pub fn advance(&mut self, dt_seconds: f32) -> Result<u32, String> {
         if !dt_seconds.is_finite() || !(0. ..=MAX_VITAL_SECONDS).contains(&dt_seconds) {
             return Err("Invalid survival time step".into());
@@ -314,7 +337,9 @@ impl Vitals {
         let thirsty_time = (dt - self.thirst / 0.04).max(0.);
         self.hunger = (self.hunger - dt * 0.02).max(0.);
         self.thirst = (self.thirst - dt * 0.04).max(0.);
-        let damage = self.damage_fraction + hungry_time + thirsty_time * 2.;
+        let bled = self.bleed.min(dt * BLEED_PER_SECOND);
+        self.bleed -= bled;
+        let damage = self.damage_fraction + hungry_time + thirsty_time * 2. + bled;
         let whole = damage.floor();
         self.damage_fraction = damage - whole;
         Ok(whole as u32)
@@ -330,6 +355,9 @@ impl Vitals {
         }
         self.hunger = (self.hunger + f64::from(effects.hunger)).min(100.);
         self.thirst = (self.thirst + f64::from(effects.thirst)).min(100.);
+        if effects.stop_bleeding {
+            self.bleed = 0.;
+        }
         Ok(())
     }
 }
@@ -342,6 +370,8 @@ impl<'de> Deserialize<'de> for Vitals {
             hunger: f64,
             thirst: f64,
             damage_fraction: f64,
+            #[serde(default)]
+            bleed: f64,
         }
         let saved = Saved::deserialize(deserializer)?;
         if !saved.hunger.is_finite()
@@ -350,6 +380,7 @@ impl<'de> Deserialize<'de> for Vitals {
             || !(0. ..=100.).contains(&saved.hunger)
             || !(0. ..=100.).contains(&saved.thirst)
             || !(0. ..1.).contains(&saved.damage_fraction)
+            || !(0. ..=f64::from(MAX_BLEED)).contains(&saved.bleed)
         {
             return Err(serde::de::Error::custom("Invalid survival vitals"));
         }
@@ -357,6 +388,7 @@ impl<'de> Deserialize<'de> for Vitals {
             hunger: saved.hunger,
             thirst: saved.thirst,
             damage_fraction: saved.damage_fraction,
+            bleed: saved.bleed,
         })
     }
 }

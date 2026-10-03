@@ -12,7 +12,7 @@ mod skate;
 mod terrain;
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use gathering::{GatheringWorld, Harvest, ResourceKind, ResourceNode};
-pub use inventory::{Inventory, Item, Recipe, Stack, Vitals};
+pub use inventory::{BLEED_THRESHOLD, Inventory, Item, MAX_BLEED, Recipe, Stack, Vitals};
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
@@ -74,6 +74,7 @@ pub struct Session {
     /// Skate score banked while not mounted; carried into the next mount.
     skate_score: u64,
     loot: LootBags,
+    queued_damage: u32,
 }
 
 impl Session {
@@ -239,6 +240,7 @@ impl Session {
             last_skate_event: SkateEvent::None,
             skate_score: 0,
             loot: LootBags::default(),
+            queued_damage: 0,
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -250,9 +252,17 @@ impl Session {
     pub fn advance(&mut self, cmd: UserCmd) -> Result<(), String> {
         self.last_skate_event = SkateEvent::None;
         self.tick = self.tick.checked_add(1).ok_or("Session clock exhausted")?;
+        let health = self.world.player(LOCAL).map_or(0, |p| p.health);
         authority_step(&mut self.world, self.tick, cmd)?;
-        let alive = self.world.player(LOCAL).is_some_and(|p| p.health > 0);
-        if !alive {
+        let after = self.world.player(LOCAL).map_or(0, |p| p.health);
+        let external = u32::try_from(health - after)
+            .unwrap_or(0)
+            .saturating_sub(self.queued_damage);
+        self.queued_damage = 0;
+        let alive = after > 0;
+        if alive {
+            self.vitals.wound(external);
+        } else {
             self.drop_loot()?;
             self.dismount();
             self.world.set_external_motion(LOCAL, false);
@@ -269,6 +279,7 @@ impl Session {
             match step.event {
                 SkateEvent::Bailed => {
                     self.world.queue_environment_damage(LOCAL, 10)?;
+                    self.queued_damage += 10;
                     self.message =
                         "Bail: land in line with the board and complete your flip".into();
                 }
@@ -283,6 +294,7 @@ impl Session {
         let damage = self.vitals.advance(0.017)?;
         if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             self.world.queue_environment_damage(LOCAL, damage)?;
+            self.queued_damage += damage;
         }
         Ok(())
     }
@@ -383,7 +395,10 @@ impl Session {
         let mut vitals = self.vitals;
         vitals.apply(&effects)?;
         if effects.heal > 0 {
-            self.world.heal_player(LOCAL, effects.heal)?;
+            let healed = self.world.heal_player(LOCAL, effects.heal);
+            if !(effects.stop_bleeding && self.vitals.is_bleeding()) {
+                healed?;
+            }
         }
         if effects.ammo > 0 {
             self.world.add_reserve_ammo(LOCAL, effects.ammo)?;
@@ -472,6 +487,7 @@ impl Session {
             )
             .map_err(|e| e.to_string())?;
         self.vitals = Vitals::default();
+        self.queued_damage = 0;
         self.dismount();
         self.world.set_external_motion(LOCAL, false);
         self.skate_input = SkateInput::default();
@@ -853,6 +869,7 @@ impl Session {
         self.skate_input = SkateInput::default();
         self.skate_roll = 0.;
         self.last_skate_event = SkateEvent::None;
+        self.queued_damage = 0;
         Ok(())
     }
 }
