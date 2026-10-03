@@ -154,6 +154,10 @@ pub struct SavedSkate {
     pub release_rail: Option<u32>,
     #[serde(default)]
     pub release_cooldown: f32,
+    /// Outward direction of a steep face the rider was climbing on the
+    /// saved frame; defaults so earlier mounted saves load without one.
+    #[serde(default)]
+    pub vert_lip: Option<[f32; 3]>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -197,6 +201,7 @@ impl SkateState {
             pending_trick: self.pending_trick,
             release_rail: self.release_rail,
             release_cooldown: self.release_cooldown,
+            vert_lip: self.vert_lip,
         }
     }
 
@@ -243,6 +248,16 @@ impl SkateState {
                 && !saved.grounded
                 && !saved.flight
         });
+        let vert_lip = saved.vert_lip.is_none_or(|lip| {
+            lip.iter().all(|v| v.is_finite())
+                && lip[2] == 0.
+                && (length(lip) - 1.).abs() <= 0.01
+                && !saved.grounded
+                && saved.grind.is_none()
+        });
+        if !vert_lip {
+            return Err("Invalid saved skateboard state".into());
+        }
         if !(pending && cooldown && grind) {
             return Err("Invalid saved rail grind state".into());
         }
@@ -253,7 +268,7 @@ impl SkateState {
             total_score: saved.total_score,
             bails: saved.bails,
             ground_normal: normalize(saved.ground_normal),
-            vert_lip: None,
+            vert_lip: saved.vert_lip.map(normalize),
             air_time: saved.air_time,
             air_spin: saved.air_spin,
             flip_angle: saved.flip_angle,
