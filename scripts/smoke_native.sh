@@ -3,7 +3,8 @@
 #
 #   scripts/smoke_native.sh <game-binary> <output-dir> [seconds]
 #
-# Needs Xvfb, a Vulkan driver (Mesa lavapipe works) and ImageMagick `import`.
+# Needs Xvfb, libxkbcommon-x11, a Vulkan driver (Mesa lavapipe works) and
+# ImageMagick `import`.
 # The output directory gets the game's log, a screenshot if the process was
 # still running at the deadline, and result.txt with one of:
 #

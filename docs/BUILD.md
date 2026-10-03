@@ -42,6 +42,7 @@ Then follow `README.md` (Build and run): copy `.env.example`, set
 `IW4L_GAMES`, `make map mp_boneyard`. Portable Windows is
 [`WINDOWS.md`](WINDOWS.md).
 
-Headless start without a GPU: install `xvfb mesa-vulkan-drivers imagemagick`,
-then `scripts/smoke_native.sh target/play/iw4l smoke 30`. It records whether
-the process stayed up and, if so, a screenshot; CI runs it report-only.
+Headless start without a GPU: install `xvfb libxkbcommon-x11-0
+mesa-vulkan-drivers imagemagick`, then
+`scripts/smoke_native.sh target/play/iw4l smoke 30`. It records whether the
+process stayed up and, if so, a screenshot; CI runs it report-only.
