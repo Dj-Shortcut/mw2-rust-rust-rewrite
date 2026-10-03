@@ -27,7 +27,7 @@ pub use airdrop::{
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use cooking::{
     CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COOK_SECONDS, COOK_WOOD, Campfire,
-    Campfires, FireState,
+    Campfires, FireState, TEA_SECONDS, TEA_WARMTH,
 };
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{
@@ -122,6 +122,7 @@ pub struct Session {
     freezing: bool,
     warming: bool,
     irradiated: bool,
+    tea_warmth: f32,
     crates: LootCrates,
     campfires: Campfires,
     airdrops: Airdrops,
@@ -402,6 +403,7 @@ impl Session {
             freezing: false,
             warming: false,
             irradiated: false,
+            tea_warmth: 0.,
             crates,
             campfires,
             airdrops,
@@ -443,6 +445,7 @@ impl Session {
             self.freezing = false;
             self.warming = false;
             self.irradiated = false;
+            self.tea_warmth = 0.;
             self.fishing = None;
             self.refund_crafting()?;
             self.drop_loot()?;
@@ -515,6 +518,7 @@ impl Session {
         if healed > 0 {
             let _ = self.world.heal_player(LOCAL, healed);
         }
+        self.tea_warmth = (self.tea_warmth - 0.017).max(0.);
         let temperature = self.felt_temperature();
         let freezing = temperature < FREEZING_CELSIUS;
         if freezing && !self.freezing {
@@ -596,7 +600,11 @@ impl Session {
         } else {
             0.
         };
-        self.clock.temperature() - self.weather.chill() + self.worn.map_or(0., Item::warmth) + fire
+        let tea = if self.tea_warmth > 0. { TEA_WARMTH } else { 0. };
+        self.clock.temperature() - self.weather.chill()
+            + self.worn.map_or(0., Item::warmth)
+            + fire
+            + tea
     }
 
     pub fn near_campfire(&self) -> bool {
@@ -840,6 +848,9 @@ impl Session {
         }
         if effects.ammo > 0 {
             self.world.add_reserve_ammo(LOCAL, effects.ammo)?;
+        }
+        if effects.warmth_seconds > 0. {
+            self.tea_warmth = effects.warmth_seconds;
         }
         self.inventory = inventory;
         self.vitals = vitals;
@@ -1332,6 +1343,27 @@ impl Session {
         Ok(())
     }
 
+    pub fn brew_tea(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        self.campfire_in_reach().ok_or("No campfire within reach")?;
+        if self.inventory.count(Item::Food) == 0 || self.inventory.count(Item::Water) == 0 {
+            return Err("You need food and water to brew tea".into());
+        }
+        let mut inventory = self.inventory.clone();
+        inventory.take(Item::Food, 1)?;
+        inventory.take(Item::Water, 1)?;
+        inventory
+            .add(Item::BerryTea, 1)
+            .map_err(|_| "Not enough inventory space for the tea")?;
+        self.inventory = inventory;
+        self.message = "Brewed berry tea".into();
+        Ok(())
+    }
+
+    pub fn tea_warmth(&self) -> f32 {
+        self.tea_warmth
+    }
+
     pub fn take_cooked_fish(&mut self) -> Result<(), String> {
         self.require_alive()?;
         let id = self
@@ -1715,6 +1747,7 @@ impl Session {
             airdrops: self.airdrops.saved(),
             garden: self.garden.saved(),
             waypoint: self.waypoint,
+            tea_warmth: self.tea_warmth,
             fishing: self.fishing,
             casts: self.casts,
             gathering: self.gathering.clone(),
@@ -1864,6 +1897,12 @@ impl Session {
                 return Err("Invalid fishing cast".into());
             }
         }
+        let tea_ok = scene.tea_warmth.is_finite()
+            && (0. ..=TEA_SECONDS).contains(&scene.tea_warmth)
+            && (player.alive || scene.tea_warmth == 0.);
+        if !tea_ok {
+            return Err("Saved tea warmth is out of range".into());
+        }
         if !player.alive && !scene.crafting.jobs().is_empty() {
             return Err("A dead player cannot have queued crafting".into());
         }
@@ -1907,6 +1946,7 @@ impl Session {
         self.freezing = false;
         self.warming = false;
         self.irradiated = false;
+        self.tea_warmth = scene.tea_warmth;
         Ok(())
     }
 }

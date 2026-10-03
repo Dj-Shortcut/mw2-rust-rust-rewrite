@@ -1,7 +1,7 @@
 use crate::radiation::{
     RADIATION_DAMAGE_PER_SECOND, RADIATION_DECAY_PER_SECOND, RADIATION_PER_SECOND,
 };
-use crate::{COLD_CELSIUS, FREEZING_CELSIUS, MAX_RADIATION, RADIATION_SICK};
+use crate::{COLD_CELSIUS, FREEZING_CELSIUS, MAX_RADIATION, RADIATION_SICK, TEA_SECONDS};
 use rust_building::Resources;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeSet;
@@ -35,10 +35,11 @@ pub enum Item {
     BerrySeeds,
     Bait,
     Fertilizer,
+    BerryTea,
 }
 
 impl Item {
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 17] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
@@ -55,6 +56,7 @@ impl Item {
         Self::BerrySeeds,
         Self::Bait,
         Self::Fertilizer,
+        Self::BerryTea,
     ];
 
     pub fn name(self) -> &'static str {
@@ -75,6 +77,7 @@ impl Item {
             Self::BerrySeeds => "Berry seeds",
             Self::Bait => "Fishing bait",
             Self::Fertilizer => "Fertilizer",
+            Self::BerryTea => "Berry tea",
         }
     }
 
@@ -100,7 +103,12 @@ impl Item {
 
     pub fn stack_limit(self) -> u32 {
         match self {
-            Self::Bandage | Self::Water | Self::Fish | Self::CookedFish | Self::AntiRadPills => 10,
+            Self::Bandage
+            | Self::Water
+            | Self::Fish
+            | Self::CookedFish
+            | Self::AntiRadPills
+            | Self::BerryTea => 10,
             Self::Ammo => 60,
             Self::Food | Self::BerrySeeds | Self::Bait | Self::Fertilizer => 20,
             Self::Syringe => 5,
@@ -473,6 +481,11 @@ impl Inventory {
                 radiation: 50.,
                 ..Default::default()
             },
+            Item::BerryTea => Effects {
+                thirst: 30.,
+                warmth_seconds: TEA_SECONDS,
+                ..Default::default()
+            },
             Item::Hatchet
             | Item::Pickaxe
             | Item::Jacket
@@ -582,6 +595,7 @@ pub struct Effects {
     pub ammo: u32,
     pub regen: f32,
     pub radiation: f32,
+    pub warmth_seconds: f32,
     pub stop_bleeding: bool,
 }
 
