@@ -10,6 +10,7 @@ mod crates;
 mod editor;
 mod farming;
 mod fishing;
+mod fishtrap;
 mod gathering;
 mod inventory;
 mod loot;
@@ -42,6 +43,7 @@ pub use farming::{
 pub use fishing::{
     BAIT_PER_FOOD, BAITED_CATCH_PERCENT, CAST_SECONDS, CATCH_PERCENT, Cast, FISHING_REACH,
 };
+pub use fishtrap::{FishTrap, SavedTrap, TRAP_BAIT, TRAP_CATCH_SECONDS, TRAP_FISH, TRAP_REACH};
 pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
     SIP_THIRST,
@@ -133,6 +135,7 @@ pub struct Session {
     garden: Garden,
     trader: TradingPost,
     stash: Stash,
+    fish_trap: FishTrap,
     waypoint: Option<Waypoint>,
     fishing: Option<Cast>,
     casts: u32,
@@ -360,6 +363,7 @@ impl Session {
         let garden = Garden::new(&terrain)?;
         let trader = TradingPost::new(&terrain)?;
         let stash = Stash::new(&terrain)?;
+        let fish_trap = FishTrap::new(&terrain)?;
         world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
@@ -417,6 +421,7 @@ impl Session {
             garden,
             trader,
             stash,
+            fish_trap,
             waypoint: None,
             fishing: None,
             casts: 0,
@@ -445,6 +450,7 @@ impl Session {
         let drops = self.airdrops.advance(0.017)?;
         // Before the weather step: a tick grows at the rain state it started with.
         let ripened = self.garden.advance(0.017, self.weather.is_raining())?;
+        let trapped = self.fish_trap.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         if alive {
@@ -471,6 +477,9 @@ impl Session {
         }
         if ripened {
             self.message = "Your berries are ripe".into();
+        }
+        if trapped {
+            self.message = "Your fish trap caught a fish".into();
         }
         if drops.lost {
             self.message = "The supply drop was lost".into();
@@ -509,6 +518,7 @@ impl Session {
         let event = unlocked
             || cooked
             || ripened
+            || trapped
             || drops.lost
             || weather_changed
             || matches!(
@@ -1216,6 +1226,7 @@ impl Session {
         );
         markers.push(at(MarkerKind::TradingPost, self.trader.position()));
         markers.push(at(MarkerKind::Stash, self.stash.position()));
+        markers.push(at(MarkerKind::FishTrap, self.fish_trap.position()));
         markers.extend(
             self.crates
                 .crates()
@@ -1323,6 +1334,48 @@ impl Session {
         self.inventory = inventory;
         self.stash.set_inventory(stored);
         self.message = format!("Took {} {}", moved.quantity, moved.item.name());
+        Ok(())
+    }
+
+    pub fn fish_trap(&self) -> &FishTrap {
+        &self.fish_trap
+    }
+
+    pub fn fish_trap_in_reach(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| self.fish_trap.in_reach(p.origin))
+    }
+
+    pub fn stock_fish_trap(&mut self, quantity: u32) -> Result<(), String> {
+        self.require_alive()?;
+        if !self.fish_trap_in_reach() {
+            return Err("No fish trap within reach".into());
+        }
+        if self.inventory.count(Item::Bait) < quantity {
+            return Err("You do not have that much bait".into());
+        }
+        let mut trap = self.fish_trap.clone();
+        trap.stock(quantity)?;
+        self.inventory.take(Item::Bait, quantity)?;
+        self.fish_trap = trap;
+        self.message = format!("Stocked the fish trap with {quantity} bait");
+        Ok(())
+    }
+
+    pub fn empty_fish_trap(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if !self.fish_trap_in_reach() {
+            return Err("No fish trap within reach".into());
+        }
+        let mut trap = self.fish_trap.clone();
+        let fish = trap.take_fish()?;
+        self.inventory
+            .add(Item::Fish, fish)
+            .map_err(|_| "Not enough inventory space for the fish")?;
+        self.fish_trap = trap;
+        self.message = format!("Took {fish} fish from the trap");
         Ok(())
     }
 
@@ -1839,6 +1892,7 @@ impl Session {
             garden: self.garden.saved(),
             waypoint: self.waypoint,
             stash: self.stash.inventory().clone(),
+            fish_trap: self.fish_trap.saved(),
             tea_warmth: self.tea_warmth,
             fishing: self.fishing,
             casts: self.casts,
@@ -2034,6 +2088,7 @@ impl Session {
         self.garden = garden;
         self.waypoint = scene.waypoint;
         self.stash.set_inventory(scene.stash);
+        self.fish_trap.restore(scene.fish_trap);
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
