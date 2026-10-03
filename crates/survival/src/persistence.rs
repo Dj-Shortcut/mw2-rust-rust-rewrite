@@ -10,7 +10,7 @@
 
 use crate::{
     Blueprints, CraftQueue, GatheringWorld, Inventory, LootBags, PlacedObject, SavedSkate, Vitals,
-    WORLD_HALF,
+    WORLD_HALF, WorldClock,
 };
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -48,6 +48,8 @@ pub(crate) struct SavedSession {
     pub crafting: CraftQueue,
     #[serde(default)]
     pub blueprints: Blueprints,
+    #[serde(default)]
+    pub clock: WorldClock,
     pub gathering: GatheringWorld,
     pub player: SavedPlayer,
 }
@@ -201,6 +203,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     pending_damage: 0,
                     crafting: CraftQueue::default(),
                     blueprints: Blueprints::default(),
+                    clock: WorldClock::default(),
                     gathering: old.gathering,
                     player: SavedPlayer::v2_default(),
                 },

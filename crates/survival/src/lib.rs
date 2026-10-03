@@ -2,6 +2,7 @@ use playerstate_iw4::UserCmd;
 use rust_building::{BuildingWorld, CELL, Grade, Kind, Piece, Resources, Socket, WALL_HEIGHT};
 use sim::{ClientId, SimBrush, SimContentBuilder, SimWorld, Tick, TickInput};
 use std::path::Path;
+mod climate;
 mod crafting;
 mod editor;
 mod gathering;
@@ -11,6 +12,7 @@ mod persistence;
 mod rules;
 mod skate;
 mod terrain;
+pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use gathering::{
@@ -84,6 +86,7 @@ pub struct Session {
     queued_damage: u32,
     crafting: CraftQueue,
     blueprints: Blueprints,
+    clock: WorldClock,
 }
 
 impl Session {
@@ -345,6 +348,7 @@ impl Session {
             queued_damage: 0,
             crafting: CraftQueue::default(),
             blueprints: Blueprints::default(),
+            clock: WorldClock::default(),
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -364,6 +368,8 @@ impl Session {
             .saturating_sub(self.queued_damage);
         self.queued_damage = 0;
         self.regrow_resources();
+        let was_freezing = self.clock.temperature() < FREEZING_CELSIUS;
+        self.clock.advance(0.017)?;
         let alive = after > 0;
         if alive {
             self.vitals.wound(external);
@@ -404,7 +410,11 @@ impl Session {
         if healed > 0 {
             let _ = self.world.heal_player(LOCAL, healed);
         }
-        let damage = self.vitals.advance(0.017)?;
+        let temperature = self.clock.temperature();
+        if !was_freezing && temperature < FREEZING_CELSIUS {
+            self.message = "You are freezing".into();
+        }
+        let damage = self.vitals.advance(0.017, temperature)?;
         if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             self.world.queue_environment_damage(LOCAL, damage)?;
             self.queued_damage += damage;
@@ -444,6 +454,10 @@ impl Session {
         if let Some(skate) = self.skate.take() {
             self.skate_score = skate.total_score;
         }
+    }
+
+    pub fn clock(&self) -> WorldClock {
+        self.clock
     }
 
     pub fn blueprints(&self) -> &Blueprints {
@@ -1062,6 +1076,7 @@ impl Session {
             pending_damage: self.queued_damage,
             crafting: self.crafting.clone(),
             blueprints: self.blueprints.clone(),
+            clock: self.clock,
             gathering: self.gathering.clone(),
             player: saved,
         };
@@ -1215,6 +1230,7 @@ impl Session {
         self.queued_damage = queued_damage;
         self.crafting = scene.crafting;
         self.blueprints = scene.blueprints;
+        self.clock = scene.clock;
         Ok(())
     }
 }

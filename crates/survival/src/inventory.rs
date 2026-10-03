@@ -1,3 +1,4 @@
+use crate::{COLD_CELSIUS, FREEZING_CELSIUS};
 use rust_building::Resources;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeSet;
@@ -8,6 +9,7 @@ pub const BLEED_THRESHOLD: u32 = 15;
 pub const MAX_BLEED: f32 = 40.;
 const BLEED_PER_DAMAGE: f64 = 0.5;
 const BLEED_PER_SECOND: f64 = 1.;
+const FREEZE_PER_SECOND: f64 = 0.05;
 pub const MAX_REGEN: f32 = 40.;
 const REGEN_PER_SECOND: f64 = 2.;
 pub const MAX_TOOL_WEAR: u32 = 50;
@@ -527,18 +529,31 @@ impl Vitals {
         }
     }
 
-    pub fn advance(&mut self, dt_seconds: f32) -> Result<u32, String> {
+    pub fn advance(&mut self, dt_seconds: f32, temperature: f32) -> Result<u32, String> {
         if !dt_seconds.is_finite() || !(0. ..=MAX_VITAL_SECONDS).contains(&dt_seconds) {
             return Err("Invalid survival time step".into());
         }
+        if !temperature.is_finite() {
+            return Err("Invalid temperature".into());
+        }
         let dt = f64::from(dt_seconds);
-        let hungry_time = (dt - self.hunger / 0.02).max(0.);
+        let hunger_rate = if temperature < COLD_CELSIUS {
+            0.04
+        } else {
+            0.02
+        };
+        let freezing = if temperature < FREEZING_CELSIUS {
+            dt * FREEZE_PER_SECOND
+        } else {
+            0.
+        };
+        let hungry_time = (dt - self.hunger / hunger_rate).max(0.);
         let thirsty_time = (dt - self.thirst / 0.04).max(0.);
-        self.hunger = (self.hunger - dt * 0.02).max(0.);
+        self.hunger = (self.hunger - dt * hunger_rate).max(0.);
         self.thirst = (self.thirst - dt * 0.04).max(0.);
         let bled = self.bleed.min(dt * BLEED_PER_SECOND);
         self.bleed -= bled;
-        let damage = self.damage_fraction + hungry_time + thirsty_time * 2. + bled;
+        let damage = self.damage_fraction + hungry_time + thirsty_time * 2. + bled + freezing;
         let whole = damage.floor();
         self.damage_fraction = damage - whole;
         Ok(whole as u32)
