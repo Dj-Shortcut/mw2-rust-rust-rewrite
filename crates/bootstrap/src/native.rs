@@ -12,7 +12,9 @@ use survival::{
     Item, LOCAL, PlacedObject, PropKind, Recipe, ResourceNode, Session, UNITS_TO_METERS,
 };
 
+mod campfires;
 mod clothing;
+mod fishing;
 mod inventory;
 mod loot;
 mod research;
@@ -50,6 +52,8 @@ enum WorldAction {
     Gather,
     PickUpLoot,
     OpenCrate,
+    Fishing,
+    Campfire,
     PlaceProp(PropKind, f32),
     RemoveProp,
     Undo,
@@ -219,6 +223,7 @@ pub fn run() -> Result<(), String> {
                 refresh_props,
                 refresh_gathering,
                 loot::refresh,
+                campfires::refresh,
                 present_skate,
                 hit_feedback,
                 refresh_placement,
@@ -409,6 +414,7 @@ fn setup(
         materials: node_materials,
     });
     loot::setup(&mut commands, &mut meshes, &mut materials);
+    campfires::setup(&mut commands, &mut meshes, &mut materials);
     let terrain = &game.0.terrain;
     commands.spawn((
         Mesh3d(meshes.add(surface_mesh(
@@ -805,6 +811,17 @@ fn input(
     {
         controls.queue(interaction_action(&game.0));
     }
+    if can_interact(&controls, &game.0) {
+        let fish = keys.just_pressed(KeyCode::KeyL) || pad_just_pressed(GamepadButton::DPadRight);
+        let cook = keys.just_pressed(KeyCode::KeyG) || pad_just_pressed(GamepadButton::DPadLeft);
+        if fish != cook {
+            controls.queue(if fish {
+                WorldAction::Fishing
+            } else {
+                WorldAction::Campfire
+            });
+        }
+    }
     let held = |key| i8::from(keys.pressed(key));
     let movement = pad.map_or(Vec2::ZERO, |pad| filtered_stick(pad.left_stick()));
     let mut cmd = UserCmd {
@@ -1104,7 +1121,7 @@ fn inventory_input(
         controls.inventory.sync(game);
         return;
     }
-    if pressed(GamepadButton::South) {
+    if keys.just_pressed(KeyCode::KeyI) || pressed(GamepadButton::South) {
         controls.inventory.apply(InventoryAction::Cancel, game);
         if let Some(stack) = game.inventory.stacks().get(controls.inventory.slot) {
             let item = stack.item;
@@ -1187,7 +1204,7 @@ fn update_inventory(
             ));
         }
         content.push_str(&format!(
-            "{}\nArrow keys slot | Q/E quantity | S split | Enter move/confirm\nT repair | N recycle (confirm) | Delete discard (destroys items)\nBackspace cancel/close | Tab close | H bandage | J food | K water | U ammo\n1-{} / PgUp/PgDn recipe | C craft | R research\nXbox: D-pad slot | LT/RT quantity | RS split | Y move/confirm\nLS discard | B cancel/close | LB/RB recipe | X craft | A use | Back research",
+            "{}\nArrow keys slot | Q/E quantity | S split | Enter move/confirm | I use\nT repair | N recycle (confirm) | Delete discard (destroys items)\nBackspace cancel/close | Tab close | H bandage | J food | K water | U ammo\n1-{} / PgUp/PgDn recipe | C craft | R research\nXbox: D-pad slot | LT/RT quantity | RS split | Y move/confirm\nLS discard | B cancel/close | LB/RB recipe | X craft | A use | Back research",
             research::status(&game.0, Recipe::ALL[controls.recipe]),
             Recipe::ALL.len().min(9)
         ));
@@ -1390,7 +1407,11 @@ fn advance(
         }
         if matches!(
             &action,
-            WorldAction::Gather | WorldAction::PickUpLoot | WorldAction::OpenCrate
+            WorldAction::Gather
+                | WorldAction::PickUpLoot
+                | WorldAction::OpenCrate
+                | WorldAction::Fishing
+                | WorldAction::Campfire
         ) && !can_interact(&controls, &game.0)
         {
             continue;
@@ -1405,6 +1426,12 @@ fn advance(
                 sound(&mut commands, &sounds.ui);
             }),
             WorldAction::OpenCrate => open_crate(&mut game.0).inspect(|_| {
+                sound(&mut commands, &sounds.ui);
+            }),
+            WorldAction::Fishing => fishing::toggle(&mut game.0).inspect(|_| {
+                sound(&mut commands, &sounds.ui);
+            }),
+            WorldAction::Campfire => campfires::apply(&mut game.0).inspect(|_| {
                 sound(&mut commands, &sounds.ui);
             }),
             WorldAction::PlaceProp(kind, yaw) => game
@@ -1868,15 +1895,17 @@ fn update_hud(
     } else if controls.building {
         "1-4 building piece | R rotate | LMB place | RMB door | B close"
     } else {
-        "LMB shoot | RMB ADS | R reload | F gather/loot/crate\nB build | E editor | V skate"
+        "LMB shoot | RMB ADS | R reload | F gather/loot/crate\nL cast/reel | G cook/take fish | B build | E editor | V skate"
     };
     let pad_controls = if controls.pad.is_some() {
         if grinding {
             "Xbox grind: LT brake | A ollie off | LB/RB + Y dismount\nRS camera | Start pause\n"
         } else if game.0.skate.is_some() {
             "Xbox skate: LS push/steer | RT push / LT brake | A ollie | LB/RB spin | X flip\nLB/RB + Y dismount | RS camera | Start pause\n"
+        } else if controls.building || controls.editor {
+            "Xbox: LS move / RS look | RT place | A jump\nLS click sprint | B crouch | X door/remove | Y gather/loot/crate\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
         } else {
-            "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather/loot/crate\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
+            "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather/loot/crate\nD-pad Right cast/reel | D-pad Left cook/take fish\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
         }
     } else {
         ""
@@ -1905,6 +1934,12 @@ fn update_hud(
             content.push_str(&format!("\n{}", placement.status));
         }
         if can_interact(&controls, &game.0) {
+            if let Some(hint) = fishing::hint(&game.0) {
+                content.push_str(&format!("\n{hint}"));
+            }
+            if let Some(hint) = campfires::hint(&game.0) {
+                content.push_str(&format!("\n{hint}"));
+            }
             if let Some(hint) = loot_hint(&game.0) {
                 content.push_str(&format!("\n{hint}"));
             } else if let Some(hint) = crate_hint(&game.0) {
