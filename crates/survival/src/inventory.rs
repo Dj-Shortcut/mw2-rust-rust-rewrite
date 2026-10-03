@@ -1,4 +1,7 @@
-use crate::{COLD_CELSIUS, FREEZING_CELSIUS};
+use crate::radiation::{
+    RADIATION_DAMAGE_PER_SECOND, RADIATION_DECAY_PER_SECOND, RADIATION_PER_SECOND,
+};
+use crate::{COLD_CELSIUS, FREEZING_CELSIUS, MAX_RADIATION, RADIATION_SICK};
 use rust_building::Resources;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeSet;
@@ -26,10 +29,11 @@ pub enum Item {
     Jacket,
     FishingRod,
     Fish,
+    AntiRadPills,
 }
 
 impl Item {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
@@ -40,6 +44,7 @@ impl Item {
         Self::Jacket,
         Self::FishingRod,
         Self::Fish,
+        Self::AntiRadPills,
     ];
 
     pub fn name(self) -> &'static str {
@@ -54,6 +59,7 @@ impl Item {
             Self::Jacket => "Padded jacket",
             Self::FishingRod => "Fishing rod",
             Self::Fish => "Raw fish",
+            Self::AntiRadPills => "Anti-radiation pills",
         }
     }
 
@@ -71,7 +77,7 @@ impl Item {
 
     pub fn stack_limit(self) -> u32 {
         match self {
-            Self::Bandage | Self::Water | Self::Fish => 10,
+            Self::Bandage | Self::Water | Self::Fish | Self::AntiRadPills => 10,
             Self::Ammo => 60,
             Self::Food => 20,
             Self::Syringe => 5,
@@ -89,10 +95,11 @@ pub enum Recipe {
     Pickaxe,
     Jacket,
     FishingRod,
+    AntiRadPills,
 }
 
 impl Recipe {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::Bandage,
         Self::Ammo,
         Self::Syringe,
@@ -100,6 +107,7 @@ impl Recipe {
         Self::Pickaxe,
         Self::Jacket,
         Self::FishingRod,
+        Self::AntiRadPills,
     ];
 
     pub fn name(self) -> &'static str {
@@ -111,6 +119,7 @@ impl Recipe {
             Self::Pickaxe => "Stone pickaxe",
             Self::Jacket => "Padded jacket",
             Self::FishingRod => "Fishing rod",
+            Self::AntiRadPills => "Anti-radiation pills",
         }
     }
 
@@ -145,6 +154,11 @@ impl Recipe {
                 metal: 5,
                 ..Default::default()
             },
+            Self::AntiRadPills => Resources {
+                wood: 10,
+                metal: 15,
+                ..Default::default()
+            },
         }
     }
 
@@ -174,6 +188,7 @@ impl Recipe {
             Self::Hatchet | Self::Pickaxe => 8.,
             Self::Jacket => 6.,
             Self::FishingRod => 5.,
+            Self::AntiRadPills => 3.,
         }
     }
 
@@ -216,6 +231,7 @@ impl Recipe {
             Self::Pickaxe => (Item::Pickaxe, 1),
             Self::Jacket => (Item::Jacket, 1),
             Self::FishingRod => (Item::FishingRod, 1),
+            Self::AntiRadPills => (Item::AntiRadPills, 1),
         }
     }
 }
@@ -415,6 +431,10 @@ impl Inventory {
                 hunger: 20.,
                 ..Default::default()
             },
+            Item::AntiRadPills => Effects {
+                radiation: 50.,
+                ..Default::default()
+            },
             Item::Hatchet | Item::Pickaxe | Item::Jacket | Item::FishingRod => {
                 return Err("That item cannot be used".into());
             }
@@ -511,6 +531,7 @@ pub struct Effects {
     pub thirst: f32,
     pub ammo: u32,
     pub regen: f32,
+    pub radiation: f32,
     pub stop_bleeding: bool,
 }
 
@@ -521,6 +542,7 @@ pub struct Vitals {
     damage_fraction: f64,
     bleed: f64,
     regen: f64,
+    radiation: f64,
 }
 
 impl Default for Vitals {
@@ -531,6 +553,7 @@ impl Default for Vitals {
             damage_fraction: 0.,
             bleed: 0.,
             regen: 0.,
+            radiation: 0.,
         }
     }
 }
@@ -556,6 +579,10 @@ impl Vitals {
         self.regen as f32
     }
 
+    pub fn radiation(&self) -> f32 {
+        self.radiation as f32
+    }
+
     pub fn regenerate(&mut self, dt_seconds: f32) -> Result<u32, String> {
         if !dt_seconds.is_finite() || !(0. ..=MAX_VITAL_SECONDS).contains(&dt_seconds) {
             return Err("Invalid survival time step".into());
@@ -573,6 +600,15 @@ impl Vitals {
     }
 
     pub fn advance(&mut self, dt_seconds: f32, temperature: f32) -> Result<u32, String> {
+        self.advance_exposed(dt_seconds, temperature, false)
+    }
+
+    pub fn advance_exposed(
+        &mut self,
+        dt_seconds: f32,
+        temperature: f32,
+        irradiated: bool,
+    ) -> Result<u32, String> {
         if !dt_seconds.is_finite() || !(0. ..=MAX_VITAL_SECONDS).contains(&dt_seconds) {
             return Err("Invalid survival time step".into());
         }
@@ -590,13 +626,26 @@ impl Vitals {
         } else {
             0.
         };
+        let sick = f64::from(RADIATION_SICK);
+        let sick_time = if irradiated {
+            (dt - ((sick - self.radiation) / RADIATION_PER_SECOND).max(0.)).max(0.)
+        } else {
+            ((self.radiation - sick) / RADIATION_DECAY_PER_SECOND).clamp(0., dt)
+        };
+        let sickness = sick_time * RADIATION_DAMAGE_PER_SECOND;
+        self.radiation = if irradiated {
+            (self.radiation + dt * RADIATION_PER_SECOND).min(f64::from(MAX_RADIATION))
+        } else {
+            (self.radiation - dt * RADIATION_DECAY_PER_SECOND).max(0.)
+        };
         let hungry_time = (dt - self.hunger / hunger_rate).max(0.);
         let thirsty_time = (dt - self.thirst / 0.04).max(0.);
         self.hunger = (self.hunger - dt * hunger_rate).max(0.);
         self.thirst = (self.thirst - dt * 0.04).max(0.);
         let bled = self.bleed.min(dt * BLEED_PER_SECOND);
         self.bleed -= bled;
-        let damage = self.damage_fraction + hungry_time + thirsty_time * 2. + bled + freezing;
+        let damage =
+            self.damage_fraction + hungry_time + thirsty_time * 2. + bled + freezing + sickness;
         let whole = damage.floor();
         self.damage_fraction = damage - whole;
         Ok(whole as u32)
@@ -609,12 +658,15 @@ impl Vitals {
             || !(0. ..=100.).contains(&effects.thirst)
             || !effects.regen.is_finite()
             || !(0. ..=MAX_REGEN).contains(&effects.regen)
+            || !effects.radiation.is_finite()
+            || !(0. ..=MAX_RADIATION).contains(&effects.radiation)
         {
             return Err("Invalid consumable vital effects".into());
         }
         self.hunger = (self.hunger + f64::from(effects.hunger)).min(100.);
         self.thirst = (self.thirst + f64::from(effects.thirst)).min(100.);
         self.regen = (self.regen + f64::from(effects.regen)).min(f64::from(MAX_REGEN));
+        self.radiation = (self.radiation - f64::from(effects.radiation)).max(0.);
         if effects.stop_bleeding {
             self.bleed = 0.;
         }
@@ -634,6 +686,8 @@ impl<'de> Deserialize<'de> for Vitals {
             bleed: f64,
             #[serde(default)]
             regen: f64,
+            #[serde(default)]
+            radiation: f64,
         }
         let saved = Saved::deserialize(deserializer)?;
         if !saved.hunger.is_finite()
@@ -644,6 +698,7 @@ impl<'de> Deserialize<'de> for Vitals {
             || !(0. ..1.).contains(&saved.damage_fraction)
             || !(0. ..=f64::from(MAX_BLEED)).contains(&saved.bleed)
             || !(0. ..=f64::from(MAX_REGEN)).contains(&saved.regen)
+            || !(0. ..=f64::from(MAX_RADIATION)).contains(&saved.radiation)
         {
             return Err(serde::de::Error::custom("Invalid survival vitals"));
         }
@@ -653,6 +708,7 @@ impl<'de> Deserialize<'de> for Vitals {
             damage_fraction: saved.damage_fraction,
             bleed: saved.bleed,
             regen: saved.regen,
+            radiation: saved.radiation,
         })
     }
 }
