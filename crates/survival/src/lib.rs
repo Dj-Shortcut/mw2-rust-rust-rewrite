@@ -522,13 +522,16 @@ impl Session {
     pub fn gather_from_view(&mut self) -> Result<Harvest, String> {
         let (start, end, obstacle_fraction) = self.gathering_ray_from_view()?;
         let mut gathering = self.gathering.clone();
-        let tool = self.inventory.count(Item::Hatchet) > 0;
-        let mut harvested = gathering.harvest_from_ray(start, end, obstacle_fraction, tool)?;
+        let carried = |kind: ResourceKind| kind.tool().filter(|&t| self.inventory.count(t) > 0);
+        let mut harvested = gathering.harvest_from_ray(start, end, obstacle_fraction, |kind| {
+            carried(kind).is_some()
+        })?;
         let mut inventory = self.inventory.clone();
-        harvested.tool_broke =
-            tool && harvested.kind.is_solid() && inventory.wear_tool(Item::Hatchet) == Some(true);
-        if harvested.tool_broke {
-            self.message = "Your stone hatchet broke".into();
+        if let Some(tool) = carried(harvested.kind) {
+            harvested.tool_broke = inventory.wear_tool(tool) == Some(true);
+            if harvested.tool_broke {
+                self.message = format!("Your {} broke", tool.name().to_lowercase());
+            }
         }
         match harvested.kind {
             ResourceKind::Berry => inventory.add(Item::Food, harvested.amount)?,

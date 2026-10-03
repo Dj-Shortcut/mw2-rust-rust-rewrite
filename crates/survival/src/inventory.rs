@@ -19,16 +19,18 @@ pub enum Item {
     Water,
     Syringe,
     Hatchet,
+    Pickaxe,
 }
 
 impl Item {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
         Self::Water,
         Self::Syringe,
         Self::Hatchet,
+        Self::Pickaxe,
     ];
 
     pub fn name(self) -> &'static str {
@@ -39,11 +41,12 @@ impl Item {
             Self::Water => "Water",
             Self::Syringe => "Medical syringe",
             Self::Hatchet => "Stone hatchet",
+            Self::Pickaxe => "Stone pickaxe",
         }
     }
 
     pub fn is_tool(self) -> bool {
-        self == Self::Hatchet
+        matches!(self, Self::Hatchet | Self::Pickaxe)
     }
 
     pub fn stack_limit(self) -> u32 {
@@ -52,7 +55,7 @@ impl Item {
             Self::Ammo => 60,
             Self::Food => 20,
             Self::Syringe => 5,
-            Self::Hatchet => 1,
+            Self::Hatchet | Self::Pickaxe => 1,
         }
     }
 }
@@ -63,10 +66,17 @@ pub enum Recipe {
     Ammo,
     Syringe,
     Hatchet,
+    Pickaxe,
 }
 
 impl Recipe {
-    pub const ALL: [Self; 4] = [Self::Bandage, Self::Ammo, Self::Syringe, Self::Hatchet];
+    pub const ALL: [Self; 5] = [
+        Self::Bandage,
+        Self::Ammo,
+        Self::Syringe,
+        Self::Hatchet,
+        Self::Pickaxe,
+    ];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -74,6 +84,7 @@ impl Recipe {
             Self::Ammo => "30 carbine rounds",
             Self::Syringe => "Medical syringe",
             Self::Hatchet => "Stone hatchet",
+            Self::Pickaxe => "Stone pickaxe",
         }
     }
 
@@ -93,7 +104,7 @@ impl Recipe {
                 metal: 20,
                 ..Default::default()
             },
-            Self::Hatchet => Resources {
+            Self::Hatchet | Self::Pickaxe => Resources {
                 wood: 100,
                 stone: 50,
                 ..Default::default()
@@ -124,7 +135,7 @@ impl Recipe {
             Self::Bandage => 3.,
             Self::Ammo => 5.,
             Self::Syringe => 10.,
-            Self::Hatchet => 8.,
+            Self::Hatchet | Self::Pickaxe => 8.,
         }
     }
 
@@ -151,6 +162,7 @@ impl Recipe {
             Self::Ammo => (Item::Ammo, 30),
             Self::Syringe => (Item::Syringe, 1),
             Self::Hatchet => (Item::Hatchet, 1),
+            Self::Pickaxe => (Item::Pickaxe, 1),
         }
     }
 }
@@ -315,7 +327,7 @@ impl Inventory {
                 stop_bleeding: true,
                 ..Default::default()
             },
-            Item::Hatchet => return Err("That item cannot be used".into()),
+            Item::Hatchet | Item::Pickaxe => return Err("That item cannot be used".into()),
         };
         if quantity == 0 || item != Item::Ammo && quantity != 1 {
             return Err("Use one consumable or a positive number of rounds".into());
