@@ -27,7 +27,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 | Zelfstandige sessie met eigen gamescripts | Ja | Start, bewegen, schieten, NPC-kill, dood en respawn geslaagd | FPS/ammo/ADS en dood/respawn via tijdelijke schadefixture uitgevoerd; bewegen/schieten na respawn werkt | Nee |
 | Klein eigen eiland en zes skateobjecttypen | Ja | 15 terreintraces, plaatsing/rejectie, undo/redo en save/load geslaagd | Ramp plaatsen/verwijderen, undo/redo, scene save/load en railrotatie uitgevoerd | Nee |
 | Read-only bouw-/objectpreview met groen/rood voorbeeld | Ja | Exacte preview/commit-pariteit, kosten en geen mutatie gecontroleerd | Groen/rood, foundationplaatsing met 200 hout en bezette-plekfeedback uitgevoerd | Nee |
-| Inventory, twee recepten, consumables, honger/dorst | Ja | Grenzen/persistentie plus geïntegreerde resourcekosten, healing en ammo geslaagd | Inventorypauze, beide craftkosten en ammo-transfer uitgevoerd | Nee |
+| Inventory, twee recepten, consumables, honger/dorst, weggooien | Ja | Grenzen/persistentie plus geïntegreerde resourcekosten, healing, ammo en discard (#30-probe) geslaagd | Inventorypauze, beide craftkosten en ammo-transfer uitgevoerd; discard nog zonder native-binding | Nee |
 | 30 eindige oogstnodes | Ja | Generatie, reach/occlusie, depletion en pure target/harvest-pariteit geslaagd | Tree-hint, 12 oogsten, verdwijnen bij uitputting en voorraad/depletion na laden uitgevoerd | Nee |
 | Skatecontroller en loop/skate-overgang | Ja | Push/steer/ollie/tricks/bail/collisie en gemonteerde push/handoff geslaagd | Camera/mount, push, ollie/landingsscore en afstappen uitgevoerd | Nee |
 | Eigen operator, carbine, board en timber-model | Ja | GLB-structuur, scene-aantallen en hashes gecontroleerd | Operator/carbine/board zichtbaar; volledige riganimatie open | Nee |
@@ -46,6 +46,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Eigen terrein en editorplaatsing/collisie/undo/redo/save/load headless uitgevoerd.
 - [x] Craftkosten, bandagegebruik/healing, ammo-refill en finite harvesting geïntegreerd gecontroleerd.
 - [x] Dode spelers kunnen niet craften/healen/gatheren; respawn en schade na respawn gecontroleerd.
+- [x] Inventory weggooien headless geverifieerd (#30): `Inventory::discard`/`Session::discard_item` verwijdert exact het gevraagde aantal over stacks heen zonder gebruikseffect; 0/te-veel-afwijzing en dood-speler-afwijzing zijn atomair; volle inventory blokkeert craft tot discard ruimte vrijmaakt; save/load behoudt de inventory na discard; craft/use/gather blijven slagen. Alleen headless via `context/discard-probe`; geen native-binding, geen gronddrop/oppakken, geen grafische verificatie.
 - [x] Gemount skaten, pushen en terug naar lopen geïntegreerd gecontroleerd.
 - [x] Eigen WAV-pack gecontroleerd en byte voor byte geregenereerd.
 - [x] Geoptimaliseerde native executable bouwen en eigen modellen/terrein in het venster controleren.
@@ -109,7 +110,7 @@ De overdracht voor Claude staat in [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
 ## Survival: bewegen, verzamelen, inventory en crafting
 
 - [ ] Lopen, sprinten, springen, hurken, zwemmen, vallen en ondergrondgedrag.
-- [ ] Itemcatalogus, inventory/hotbar, stapelen, splitsen, droppen en containers.
+- [ ] Itemcatalogus, inventory/hotbar, stapelen, splitsen en containers; weggooien als destroy is aanwezig (#30), gronddrop/oppakken blijft open.
 - [ ] Bomen, stenen, ertsen, planten en oogstbaar materiaal in de wereld.
 - [ ] Gereedschap, gathering-opbrengsten, slijtage, reparaties en recycling.
 - [ ] Craftingrecepten, wachtrij, werkbanken, onderzoek en blueprintprogressie.

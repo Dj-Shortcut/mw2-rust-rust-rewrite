@@ -159,16 +159,7 @@ impl Inventory {
         if self.count(item) < quantity {
             return Err("Item is not available".into());
         }
-        let mut remaining = quantity;
-        for stack in self.slots.iter_mut().filter(|s| s.item == item) {
-            let taken = remaining.min(stack.quantity);
-            stack.quantity -= taken;
-            remaining -= taken;
-            if remaining == 0 {
-                break;
-            }
-        }
-        self.slots.retain(|s| s.quantity > 0);
+        self.take(item, quantity);
         Ok(match item {
             Item::Bandage => Effects {
                 heal: 25,
@@ -187,6 +178,30 @@ impl Inventory {
                 ..Default::default()
             },
         })
+    }
+
+    pub fn discard(&mut self, item: Item, quantity: u32) -> Result<(), String> {
+        if quantity == 0 {
+            return Err("Discard quantity must be positive".into());
+        }
+        if self.count(item) < quantity {
+            return Err("Not enough items to discard".into());
+        }
+        self.take(item, quantity);
+        Ok(())
+    }
+
+    fn take(&mut self, item: Item, quantity: u32) {
+        let mut remaining = quantity;
+        for stack in self.slots.iter_mut().filter(|s| s.item == item) {
+            let taken = remaining.min(stack.quantity);
+            stack.quantity -= taken;
+            remaining -= taken;
+            if remaining == 0 {
+                break;
+            }
+        }
+        self.slots.retain(|s| s.quantity > 0);
     }
 }
 

@@ -388,6 +388,14 @@ impl Session {
         Ok(())
     }
 
+    pub fn discard_item(&mut self, item: Item, quantity: u32) -> Result<(), String> {
+        self.require_alive()?;
+        let mut inventory = self.inventory.clone();
+        inventory.discard(item, quantity)?;
+        self.inventory = inventory;
+        Ok(())
+    }
+
     fn require_alive(&self) -> Result<(), String> {
         if self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             Ok(())
