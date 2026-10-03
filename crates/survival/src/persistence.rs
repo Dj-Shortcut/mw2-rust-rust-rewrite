@@ -54,10 +54,10 @@ pub(crate) struct SavedPlayer {
     pub deaths: i32,
     pub score: i32,
     pub skate: Option<SavedSkate>,
-    /// Banked skate score, kept across dismount, death and respawn. Older
-    /// format-3 saves omit it.
+    /// Banked skate score, kept across dismount, death and respawn. `None`
+    /// only for older format-3 saves that omit it.
     #[serde(default)]
-    pub skate_score: u64,
+    pub skate_score: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -99,7 +99,7 @@ impl SavedPlayer {
             deaths: 0,
             score: 0,
             skate: None,
-            skate_score: 0,
+            skate_score: None,
         }
     }
 
@@ -140,7 +140,7 @@ impl SavedPlayer {
         {
             return Err("Saved kills, deaths or score are out of range".into());
         }
-        if self.skate_score > MAX_SKATE_SCORE {
+        if self.skate_score.is_some_and(|s| s > MAX_SKATE_SCORE) {
             return Err("Saved skate score is out of range".into());
         }
         if self.skate.is_some() && !self.alive {

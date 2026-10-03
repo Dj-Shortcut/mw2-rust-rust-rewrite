@@ -494,7 +494,7 @@ impl Session {
             deaths: meta.deaths,
             score: meta.score,
             skate: self.skate.as_ref().map(SkateState::saved),
-            skate_score: self.skate_score(),
+            skate_score: Some(self.skate_score()),
         };
         saved.validate(player.max_health, facts.clip_size, facts.max_ammo)?;
         let scene = persistence::SavedSession {
@@ -556,14 +556,13 @@ impl Session {
             .max_health;
         let mut player = scene.player;
         let skate = player.skate.map(SkateState::from_saved).transpose()?;
-        // Saves from before the session-level score carry only the mounted
-        // total; otherwise both must agree.
-        let skate_score = match &skate {
-            Some(k) if player.skate_score == 0 || player.skate_score == k.total_score => {
-                k.total_score
-            }
-            Some(_) => return Err("Saved skate scores do not match".into()),
-            None => player.skate_score,
+        // Saves from before the session-level score omit it and carry only
+        // the mounted total; otherwise both must agree.
+        let skate_score = match (&skate, player.skate_score) {
+            (Some(k), None) => k.total_score,
+            (Some(k), Some(score)) if score == k.total_score => score,
+            (Some(_), Some(_)) => return Err("Saved skate scores do not match".into()),
+            (None, score) => score.unwrap_or(0),
         };
 
         let mut world = self.world.clone();
