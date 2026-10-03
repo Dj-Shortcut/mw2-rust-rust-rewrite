@@ -757,6 +757,7 @@ impl Session {
             inventory: self.inventory.clone(),
             loot: self.loot.clone(),
             vitals: self.vitals,
+            pending_damage: self.queued_damage,
             gathering: self.gathering.clone(),
             player: saved,
         };
@@ -885,6 +886,12 @@ impl Session {
         if !player.alive {
             bag_inventory(&world, player.origin, &mut inventory, &mut loot)?;
         }
+        let queued_damage = if player.alive && scene.pending_damage > 0 {
+            world.queue_environment_damage(LOCAL, scene.pending_damage)?;
+            scene.pending_damage
+        } else {
+            0
+        };
 
         self.world = world;
         self.tick = tick;
@@ -898,7 +905,7 @@ impl Session {
         self.skate_input = SkateInput::default();
         self.skate_roll = 0.;
         self.last_skate_event = SkateEvent::None;
-        self.queued_damage = 0;
+        self.queued_damage = queued_damage;
         Ok(())
     }
 }

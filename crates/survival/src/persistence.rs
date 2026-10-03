@@ -39,6 +39,8 @@ pub(crate) struct SavedSession {
     #[serde(default)]
     pub loot: LootBags,
     pub vitals: Vitals,
+    #[serde(default)]
+    pub pending_damage: u32,
     pub gathering: GatheringWorld,
     pub player: SavedPlayer,
 }
@@ -189,6 +191,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     inventory: old.inventory,
                     loot: LootBags::default(),
                     vitals: old.vitals,
+                    pending_damage: 0,
                     gathering: old.gathering,
                     player: SavedPlayer::v2_default(),
                 },
