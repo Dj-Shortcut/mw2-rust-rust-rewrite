@@ -258,7 +258,8 @@ impl PlacedObject {
     }
     pub fn brushes(&self) -> Vec<SimBrush> {
         let (sin, cos) = self.yaw.to_radians().sin_cos();
-        self.kind
+        let mut solids: Vec<Vec<[f32; 4]>> = self
+            .kind
             .solids()
             .into_iter()
             .map(|(x, y, z)| {
@@ -268,14 +269,28 @@ impl PlacedObject {
                 } else {
                     0.
                 };
-                let mut planes = vec![
+                vec![
                     [1., 0., 0., x[1]],
                     [-1., 0., 0., -x[0]],
                     [0., 1., 0., y[1]],
                     [0., -1., 0., -y[0]],
                     [-slope, 0., 1., z[0] - slope * x[0]],
                     [0., 0., -1., -bottom],
-                ];
+                ]
+            })
+            .collect();
+        if self.kind == PropKind::Funbox {
+            // The funbox profile (kicker, deck, kicker) is convex, so collide
+            // with it as one brush. Three touching boxes leave the deck's end
+            // faces as seams that a rider coming up a kicker runs into.
+            let [up, deck, down] = [&solids[0], &solids[1], &solids[2]];
+            solids = vec![vec![
+                down[0], up[1], deck[2], deck[3], up[4], deck[4], down[4], deck[5],
+            ]];
+        }
+        solids
+            .into_iter()
+            .map(|mut planes| {
                 for plane in &mut planes {
                     let length =
                         (plane[0] * plane[0] + plane[1] * plane[1] + plane[2] * plane[2]).sqrt();
