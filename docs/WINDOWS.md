@@ -43,3 +43,7 @@ release-manifest defaults, created only when missing and never overwritten.
 from [`MASTER.md`](MASTER.md). An unreachable master is not a launch error: the browser keeps retrying. All
 writable state stays below `iw4l-artifacts/` (including `settings.cfg`, unless
 `IW4L_SETTINGS_PATH` overrides it); shortcut targets are never output paths.
+
+**CI dev build.** The `Windows build` workflow uploads `iw4l.exe` with
+`assets/authored/` and licence files as an unsigned artifact. CI never runs
+it: it proves the Windows build links, not that the game starts.

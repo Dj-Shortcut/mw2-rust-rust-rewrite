@@ -1,0 +1,40 @@
+name: Windows build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+# Builds and packages the game binary only. Nothing here runs it: the artifact
+# is an unreleased development build, not a release or a playable product.
+# The updater is left out because it needs the release CA (`make release`).
+jobs:
+  windows:
+    name: Build and package (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: windows-play
+      - name: Asset check
+        run: python scripts/check_assets.py
+      - name: cargo build (play profile)
+        run: cargo build --profile play --locked -p launcher
+      - name: Package
+        run: python scripts/package_dev_build.py target/play/iw4l.exe dist/iw4l-windows-dev
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iw4l-windows-dev-${{ github.sha }}
+          path: dist/iw4l-windows-dev
+          retention-days: 14
