@@ -73,7 +73,6 @@ pub struct Session {
     pub last_skate_event: SkateEvent,
     /// Skate score banked while not mounted; carried into the next mount.
     skate_score: u64,
-    /// What dead players left behind.
     loot: LootBags,
 }
 
@@ -394,38 +393,30 @@ impl Session {
         Ok(())
     }
 
-    /// Splits `quantity` items off the stack in `slot` into a free slot.
     pub fn split_stack(&mut self, slot: usize, quantity: u32) -> Result<(), String> {
         self.require_alive()?;
         self.inventory.split(slot, quantity)
     }
 
-    /// Merges the stack in `from` into `to`, or swaps them if the items differ.
     pub fn move_stack(&mut self, from: usize, to: usize) -> Result<(), String> {
         self.require_alive()?;
         self.inventory.move_stack(from, to)
     }
 
-    /// Destroys `quantity` items from the stack in `slot`.
     pub fn discard_stack(&mut self, slot: usize, quantity: u32) -> Result<Stack, String> {
         self.require_alive()?;
         self.inventory.discard(slot, quantity)
     }
 
-    /// Loot bags in the world, oldest first.
     pub fn loot_bags(&self) -> &[LootBag] {
         self.loot.bags()
     }
 
-    /// The bag a pickup would take: the nearest within [`LOOT_REACH`] of
-    /// a living player.
     pub fn loot_bag_in_reach(&self) -> Option<&LootBag> {
         let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
         self.loot.nearest(player.origin)
     }
 
-    /// Moves as much of the nearest bag into the inventory as fits and
-    /// returns the number of items taken.
     pub fn pick_up_loot(&mut self) -> Result<u32, String> {
         self.require_alive()?;
         let id = self
@@ -441,21 +432,12 @@ impl Session {
         Ok(taken)
     }
 
-    /// Leaves a dead player's inventory in a bag on the ground below them.
     fn drop_loot(&mut self) -> Result<(), String> {
         if self.inventory.stacks().is_empty() {
             return Ok(());
         }
         let origin = self.world.player(LOCAL).ok_or("Player is missing")?.origin;
-        let below = [origin[0], origin[1], origin[2] - 4096.];
-        let ground = self.world.trace_world(origin, below, [0.; 3], [0.; 3], 1);
-        let position = if ground.startsolid != 0 {
-            origin
-        } else {
-            ground.endpos
-        };
-        let inventory = std::mem::take(&mut self.inventory);
-        self.loot.drop_bag(position, inventory)?;
+        bag_inventory(&self.world, origin, &mut self.inventory, &mut self.loot)?;
         self.message = "You died; your items are in a bag where you fell".into();
         Ok(())
     }
@@ -473,6 +455,8 @@ impl Session {
         if player.health > 0 {
             return Err("Player is already alive".into());
         }
+        self.drop_loot()?;
+        let player = self.world.player(LOCAL).ok_or("Player is missing")?;
         let angles = player.viewangles;
         let origin = free_spawn(&self.world)
             .ok_or("Spawn area is blocked; remove nearby structures before respawning")?;
@@ -851,12 +835,17 @@ impl Session {
             return Err(format!("Restoring the player failed: {fault}"));
         }
         verify_restored(&world, &player)?;
+        let mut inventory = scene.inventory;
+        let mut loot = scene.loot;
+        if !player.alive {
+            bag_inventory(&world, player.origin, &mut inventory, &mut loot)?;
+        }
 
         self.world = world;
         self.tick = tick;
         self.editor = editor;
-        self.inventory = scene.inventory;
-        self.loot = scene.loot;
+        self.inventory = inventory;
+        self.loot = loot;
         self.vitals = scene.vitals;
         self.gathering = scene.gathering;
         self.skate = skate;
@@ -866,6 +855,24 @@ impl Session {
         self.last_skate_event = SkateEvent::None;
         Ok(())
     }
+}
+
+fn bag_inventory(
+    world: &SimWorld,
+    origin: [f32; 3],
+    inventory: &mut Inventory,
+    loot: &mut LootBags,
+) -> Result<(), String> {
+    let below = [origin[0], origin[1], origin[2] - 4096.];
+    let ground = world.trace_world(origin, below, [0.; 3], [0.; 3], 1);
+    let position = if ground.startsolid != 0 {
+        origin
+    } else {
+        ground.endpos
+    };
+    loot.drop_bag(position, inventory.clone())?;
+    *inventory = Inventory::default();
+    Ok(())
 }
 
 fn authority_step(world: &mut SimWorld, tick: u32, mut cmd: UserCmd) -> Result<(), String> {

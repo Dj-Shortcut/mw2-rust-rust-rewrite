@@ -1,12 +1,6 @@
-//! Loot bags: what a player carried when they died, left on the ground where
-//! they fell until someone picks it up.
-
 use crate::{Inventory, WORLD_HALF};
 use serde::{Deserialize, Deserializer, Serialize};
-
-/// The oldest bag is removed when a new one would exceed this.
 pub const MAX_LOOT_BAGS: usize = 16;
-/// Distance from the player's origin to a bag's position for a pickup.
 pub const LOOT_REACH: f32 = 100.;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -73,13 +67,9 @@ impl Default for LootBags {
 }
 
 impl LootBags {
-    /// Bags from oldest to newest.
     pub fn bags(&self) -> &[LootBag] {
         &self.bags
     }
-
-    /// Leaves `inventory` in a new bag at `position`. Nothing is left for an
-    /// empty inventory. Returns the new bag's ID.
     pub(crate) fn drop_bag(
         &mut self,
         position: [f32; 3],
@@ -107,8 +97,6 @@ impl LootBags {
         self.next_id = next_id;
         Ok(Some(id))
     }
-
-    /// The nearest bag within [`LOOT_REACH`] of `origin`.
     pub fn nearest(&self, origin: [f32; 3]) -> Option<&LootBag> {
         let distance = |bag: &LootBag| {
             let p = bag.position();
@@ -120,9 +108,6 @@ impl LootBags {
             .filter(|b| distance(b) <= LOOT_REACH)
             .min_by(|a, b| distance(a).total_cmp(&distance(b)))
     }
-
-    /// Moves as much of bag `id` into `inventory` as fits and returns the
-    /// number of items moved. An emptied bag is removed.
     pub(crate) fn take(&mut self, id: u32, inventory: &mut Inventory) -> Result<u32, String> {
         let index = self
             .bags
@@ -169,6 +154,7 @@ impl<'de> Deserialize<'de> for LootBags {
             || ids.len() != saved.bags.len()
             || ids.last().is_some_and(|&max| max >= saved.next_id)
             || saved.next_id == 0
+            || saved.next_id == u32::MAX
         {
             return Err(serde::de::Error::custom("Invalid loot bags"));
         }
