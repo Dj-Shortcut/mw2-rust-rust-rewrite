@@ -88,7 +88,6 @@ impl<'de> Deserialize<'de> for SavedAirdrops {
     }
 }
 
-/// What happened to the supply drops during one step.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct DropEvents {
     pub landed: bool,
@@ -135,7 +134,6 @@ impl Airdrops {
         self.state.active
     }
 
-    /// Position of the active supply drop.
     pub fn position(&self) -> Option<[f32; 3]> {
         self.state.active.map(|d| self.sites[d.site as usize])
     }

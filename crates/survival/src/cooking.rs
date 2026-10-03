@@ -111,7 +111,6 @@ impl Campfires {
         &self.fires
     }
 
-    /// The nearest campfire within reach of `origin`.
     pub fn in_reach(&self, origin: [f32; 3]) -> Option<&Campfire> {
         self.fires
             .iter()
@@ -158,7 +157,6 @@ impl Campfires {
         }
     }
 
-    /// Advances every fire; returns true when a fish finished cooking.
     pub(crate) fn advance(&mut self, dt_seconds: f32) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Invalid cooking time step".into());
