@@ -128,6 +128,23 @@ impl Recipe {
         }
     }
 
+    pub fn repair_cost(item: Item, wear: u32) -> Result<Resources, String> {
+        let recipe = Self::ALL
+            .into_iter()
+            .find(|r| r.output().0 == item && item.is_tool())
+            .ok_or("That item cannot be repaired")?;
+        if wear == 0 {
+            return Err("That tool is not worn".into());
+        }
+        let cost = recipe.cost();
+        let part = |n: u32| (n * wear).div_ceil(2 * MAX_TOOL_WEAR);
+        Ok(Resources {
+            wood: part(cost.wood),
+            stone: part(cost.stone),
+            metal: part(cost.metal),
+        })
+    }
+
     pub fn output(self) -> (Item, u32) {
         match self {
             Self::Bandage => (Item::Bandage, 1),
@@ -227,6 +244,12 @@ impl Inventory {
             return Err("Inventory is full".into());
         }
         self.slots.push(stack);
+        Ok(())
+    }
+
+    pub(crate) fn repair(&mut self, slot: usize) -> Result<(), String> {
+        let stack = self.slots.get_mut(slot).ok_or("No stack in that slot")?;
+        stack.wear = 0;
         Ok(())
     }
 
