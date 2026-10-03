@@ -8,6 +8,7 @@
 //! Format 2 saves (scene only) are migrated with the explicit defaults in
 //! [`SavedPlayer::v2_default`].
 
+use crate::cooking::SavedFires;
 use crate::crates::{SavedCrates, SavedLocked};
 use crate::{
     Blueprints, Cast, CraftQueue, GatheringWorld, Inventory, Item, LootBags, PlacedObject,
@@ -59,6 +60,8 @@ pub(crate) struct SavedSession {
     pub crates: Option<SavedCrates>,
     #[serde(default)]
     pub locked_crate: SavedLocked,
+    #[serde(default)]
+    pub campfires: SavedFires,
     #[serde(default)]
     pub fishing: Option<Cast>,
     #[serde(default)]
@@ -227,6 +230,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     worn: None,
                     crates: None,
                     locked_crate: SavedLocked::default(),
+                    campfires: SavedFires::default(),
                     fishing: None,
                     casts: 0,
                     gathering: old.gathering,
