@@ -37,10 +37,11 @@ pub enum Item {
     Fertilizer,
     BerryTea,
     Raincoat,
+    FishStew,
 }
 
 impl Item {
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 19] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
@@ -59,6 +60,7 @@ impl Item {
         Self::Fertilizer,
         Self::BerryTea,
         Self::Raincoat,
+        Self::FishStew,
     ];
 
     pub fn name(self) -> &'static str {
@@ -81,6 +83,7 @@ impl Item {
             Self::Fertilizer => "Fertilizer",
             Self::BerryTea => "Berry tea",
             Self::Raincoat => "Raincoat",
+            Self::FishStew => "Fish stew",
         }
     }
 
@@ -115,7 +118,8 @@ impl Item {
             | Self::Fish
             | Self::CookedFish
             | Self::AntiRadPills
-            | Self::BerryTea => 10,
+            | Self::BerryTea
+            | Self::FishStew => 10,
             Self::Ammo => 60,
             Self::Food | Self::BerrySeeds | Self::Bait | Self::Fertilizer => 20,
             Self::Syringe => 5,
@@ -491,6 +495,12 @@ impl Inventory {
             },
             Item::AntiRadPills => Effects {
                 radiation: 50.,
+                ..Default::default()
+            },
+            Item::FishStew => Effects {
+                heal: 10,
+                hunger: 60.,
+                thirst: 20.,
                 ..Default::default()
             },
             Item::BerryTea => Effects {
