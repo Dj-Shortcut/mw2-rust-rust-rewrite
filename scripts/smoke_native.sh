@@ -21,6 +21,7 @@ seconds=${3:-30}
 root=$(cd "$(dirname "$0")/.." && pwd)
 
 mkdir -p "$out"
+rm -f "$out/screenshot.png" "$out/result.txt" "$out/game.log" "$out/xvfb.log"
 work=$(mktemp -d)
 display=:${SMOKE_DISPLAY:-97}
 
