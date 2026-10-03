@@ -1,8 +1,11 @@
 # Portable Windows folder
 
-`make launcher windows` creates `dist/windows/iw4l-windows-{dev,prod}.zip`. Both
-archives use the password `contextrot` and are self-contained — the game binary
-is inside, so the folder runs with no network at all.
+`make launcher windows` creates `dist/windows/iw4l-windows-{dev,prod}.zip`.
+Export `IW4L_ARCHIVE_PASSWORD` in the build process environment first; a missing,
+empty or invalid UTF-8 value fails before building or changing existing bundles.
+Keep the value out of version control and share it with archive recipients.
+Both password-protected archives contain the game binary, so the extracted
+folder runs with no network at all.
 
 ```text
 iw4l-portable/
