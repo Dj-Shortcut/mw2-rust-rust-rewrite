@@ -7,6 +7,8 @@ pub const COOK_WOOD: u32 = 5;
 pub const CAMPFIRE_REACH: f32 = 100.;
 pub const CAMPFIRE_WARMTH: f32 = 10.;
 pub const CAMPFIRE_WARMTH_RADIUS: f32 = 150.;
+pub const TEA_WARMTH: f32 = 8.;
+pub const TEA_SECONDS: f32 = 300.;
 const LAYOUT: [[f32; 2]; 2] = [[-260., -140.], [820., 260.]];
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]

@@ -72,6 +72,8 @@ pub(crate) struct SavedSession {
     #[serde(default)]
     pub waypoint: Option<Waypoint>,
     #[serde(default)]
+    pub tea_warmth: f32,
+    #[serde(default)]
     pub fishing: Option<Cast>,
     #[serde(default)]
     pub casts: u32,
@@ -243,6 +245,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     airdrops: SavedAirdrops::default(),
                     garden: SavedGarden::default(),
                     waypoint: None,
+                    tea_warmth: 0.,
                     fishing: None,
                     casts: 0,
                     gathering: old.gathering,
