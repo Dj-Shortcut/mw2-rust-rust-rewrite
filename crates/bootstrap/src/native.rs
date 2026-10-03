@@ -1592,6 +1592,11 @@ fn update_hud(
     let health = player.map_or(0, |p| p.health);
     let resources = game.0.world.buildings().inventory(LOCAL.0);
     let (clip, reserve) = game.0.ammo();
+    let grinding = game
+        .0
+        .skate
+        .as_ref()
+        .is_some_and(|skate| skate.is_grinding());
     let mode = if health <= 0 {
         "DEAD | Enter / Xbox A to respawn".into()
     } else if controls.inventory_open {
@@ -1616,14 +1621,20 @@ fn update_hud(
             * UNITS_TO_METERS
             * 3.6;
         format!(
-            "SKATE / {:.0} km/h / score {} / bails {}",
-            speed, skate.total_score, skate.bails
+            "{} / {:.0} km/h / banked {} / pending {} / bails {}",
+            if grinding { "GRIND" } else { "SKATE" },
+            speed,
+            game.0.skate_score(),
+            skate.pending_points(),
+            skate.bails
         )
     } else {
-        "FPS / SURVIVAL".into()
+        format!("FPS / SURVIVAL / skate score {}", game.0.skate_score())
     };
-    let mode_controls = if game.0.skate.is_some() {
-        "W push | A/D steer | S brake | Space ollie | Q/E spin | R flip | V dismount"
+    let mode_controls = if grinding {
+        "S brake | Space ollie off | V dismount\nLand safely to bank pending points; bails lose them"
+    } else if game.0.skate.is_some() {
+        "W push | A/D steer | S brake | Space ollie | Q/E spin | R flip | V dismount\nGrind: align with a rail, then ollie onto it to catch automatically.\nLand safely to bank pending points; bails lose them"
     } else if controls.editor {
         "1-6 object | Q/R rotate | LMB place | RMB remove | Ctrl-Z/Y undo/redo"
     } else if controls.building {
@@ -1632,7 +1643,9 @@ fn update_hud(
         "LMB shoot | RMB ADS | R reload | F gather | B build | E editor | V skate"
     };
     let pad_controls = if controls.pad.is_some() {
-        if game.0.skate.is_some() {
+        if grinding {
+            "Xbox grind: LT brake | A ollie off | LB/RB + Y dismount\nRS camera | Start pause\n"
+        } else if game.0.skate.is_some() {
             "Xbox skate: LS push/steer | RT push / LT brake | A ollie | LB/RB spin | X flip\nLB/RB + Y dismount | RS camera | Start pause\n"
         } else {
             "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
