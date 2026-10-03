@@ -142,6 +142,24 @@ impl Inventory {
         Ok(())
     }
 
+    /// Adds as many of `quantity` items as fit and returns how many that was.
+    pub fn add_up_to(&mut self, item: Item, quantity: u32) -> u32 {
+        let limit = item.stack_limit();
+        let room = self
+            .slots
+            .iter()
+            .filter(|s| s.item == item)
+            .map(|s| limit - s.quantity)
+            .sum::<u32>()
+            + (INVENTORY_SLOTS - self.slots.len()) as u32 * limit;
+        let added = quantity.min(room);
+        if added > 0 {
+            self.add(item, added)
+                .expect("added quantity fits by construction");
+        }
+        added
+    }
+
     pub fn craft(&mut self, recipe: Recipe, available: Resources) -> Result<Resources, String> {
         let cost = recipe.cost();
         if !available.covers(cost) {

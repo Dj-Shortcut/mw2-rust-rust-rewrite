@@ -49,6 +49,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Dode spelers kunnen niet craften/healen/gatheren; respawn en schade na respawn gecontroleerd.
 - [x] Gemount skaten, pushen en terug naar lopen geïntegreerd gecontroleerd.
 - [x] Inventorystapels splitsen, samenvoegen/wisselen en weggooien headless via `Session` gecontroleerd, inclusief geweigerde acties zonder wijziging, volle inventory, dode speler en save/load ([#31](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/31)). Nog geen native bediening, wereld-drops of containers.
+- [x] Lootbag bij dood headless via `Session` gecontroleerd: inventory valt in een tas op de grond, na respawn teruglopen en (gedeeltelijk) oprapen, maximaal 16 tassen, dode/oude saves en geweigerde gemanipuleerde saves ([#36](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/36)). De tas wordt nog niet getekend en heeft nog geen native oprapentoets.
 - [x] Eigen WAV-pack gecontroleerd en byte voor byte geregenereerd.
 - [x] Geoptimaliseerde native executable bouwen en eigen modellen/terrein in het venster controleren.
 - [x] Inventorypauze, crafting/resourcekosten/ammo, schieten/schade/herladen/ADS grafisch uitvoeren.

@@ -5,6 +5,7 @@ use std::path::Path;
 mod editor;
 mod gathering;
 mod inventory;
+mod loot;
 mod persistence;
 mod rules;
 mod skate;
@@ -12,6 +13,7 @@ mod terrain;
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use gathering::{GatheringWorld, Harvest, ResourceKind, ResourceNode};
 pub use inventory::{Inventory, Item, Recipe, Stack, Vitals};
+pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
 
@@ -71,6 +73,8 @@ pub struct Session {
     pub last_skate_event: SkateEvent,
     /// Skate score banked while not mounted; carried into the next mount.
     skate_score: u64,
+    /// What dead players left behind.
+    loot: LootBags,
 }
 
 impl Session {
@@ -235,6 +239,7 @@ impl Session {
             skate_roll: 0.,
             last_skate_event: SkateEvent::None,
             skate_score: 0,
+            loot: LootBags::default(),
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -249,6 +254,7 @@ impl Session {
         authority_step(&mut self.world, self.tick, cmd)?;
         let alive = self.world.player(LOCAL).is_some_and(|p| p.health > 0);
         if !alive {
+            self.drop_loot()?;
             self.dismount();
             self.world.set_external_motion(LOCAL, false);
             self.skate_input = SkateInput::default();
@@ -404,6 +410,54 @@ impl Session {
     pub fn discard_stack(&mut self, slot: usize, quantity: u32) -> Result<Stack, String> {
         self.require_alive()?;
         self.inventory.discard(slot, quantity)
+    }
+
+    /// Loot bags in the world, oldest first.
+    pub fn loot_bags(&self) -> &[LootBag] {
+        self.loot.bags()
+    }
+
+    /// The bag a pickup would take: the nearest within [`LOOT_REACH`] of
+    /// a living player.
+    pub fn loot_bag_in_reach(&self) -> Option<&LootBag> {
+        let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
+        self.loot.nearest(player.origin)
+    }
+
+    /// Moves as much of the nearest bag into the inventory as fits and
+    /// returns the number of items taken.
+    pub fn pick_up_loot(&mut self) -> Result<u32, String> {
+        self.require_alive()?;
+        let id = self
+            .loot_bag_in_reach()
+            .ok_or("No loot bag within reach")?
+            .id();
+        let mut inventory = self.inventory.clone();
+        let mut loot = self.loot.clone();
+        let taken = loot.take(id, &mut inventory)?;
+        self.inventory = inventory;
+        self.loot = loot;
+        self.message = format!("Picked up {taken} items");
+        Ok(taken)
+    }
+
+    /// Leaves a dead player's inventory in a bag on the ground below them.
+    fn drop_loot(&mut self) -> Result<(), String> {
+        if self.inventory.stacks().is_empty() {
+            return Ok(());
+        }
+        let origin = self.world.player(LOCAL).ok_or("Player is missing")?.origin;
+        let below = [origin[0], origin[1], origin[2] - 4096.];
+        let ground = self.world.trace_world(origin, below, [0.; 3], [0.; 3], 1);
+        let position = if ground.startsolid != 0 {
+            origin
+        } else {
+            ground.endpos
+        };
+        let inventory = std::mem::take(&mut self.inventory);
+        self.loot.drop_bag(position, inventory)?;
+        self.message = "You died; your items are in a bag where you fell".into();
+        Ok(())
     }
 
     fn require_alive(&self) -> Result<(), String> {
@@ -672,6 +726,7 @@ impl Session {
             .map_err(|e| e.to_string())?,
             objects: self.editor.objects().cloned().collect(),
             inventory: self.inventory.clone(),
+            loot: self.loot.clone(),
             vitals: self.vitals,
             gathering: self.gathering.clone(),
             player: saved,
@@ -801,6 +856,7 @@ impl Session {
         self.tick = tick;
         self.editor = editor;
         self.inventory = scene.inventory;
+        self.loot = scene.loot;
         self.vitals = scene.vitals;
         self.gathering = scene.gathering;
         self.skate = skate;
