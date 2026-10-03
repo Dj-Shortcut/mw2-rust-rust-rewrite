@@ -18,6 +18,7 @@ mod radiation;
 mod rules;
 mod skate;
 mod terrain;
+mod trading;
 mod weather;
 pub use airdrop::{
     Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, FIRST_DROP_SECONDS, SupplyDrop,
@@ -50,6 +51,7 @@ pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use radiation::{MAX_RADIATION, RADIATION_RADIUS, RADIATION_SICK};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
+pub use trading::{TRADE_OFFERS, TRADER_REACH, TradeOffer, TradingPost};
 pub use weather::{MAX_SPELL_SECONDS, MIN_SPELL_SECONDS, RAIN_CHILL_CELSIUS, Weather};
 
 pub const UNITS_TO_METERS: f32 = 0.0254;
@@ -122,6 +124,7 @@ pub struct Session {
     campfires: Campfires,
     airdrops: Airdrops,
     garden: Garden,
+    trader: TradingPost,
     fishing: Option<Cast>,
     casts: u32,
 }
@@ -346,6 +349,7 @@ impl Session {
         let campfires = Campfires::new(&terrain)?;
         let airdrops = Airdrops::new(&terrain)?;
         let garden = Garden::new(&terrain)?;
+        let trader = TradingPost::new(&terrain)?;
         world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
@@ -399,6 +403,7 @@ impl Session {
             campfires,
             airdrops,
             garden,
+            trader,
             fishing: None,
             casts: 0,
         };
@@ -1131,6 +1136,36 @@ impl Session {
         self.garden = garden;
         self.inventory = inventory;
         self.message = format!("Planted berry seeds: ripe in {GROW_SECONDS:.0} s");
+        Ok(())
+    }
+
+    pub fn trading_post(&self) -> &TradingPost {
+        &self.trader
+    }
+
+    pub fn trader_in_reach(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| self.trader.in_reach(p.origin))
+    }
+
+    pub fn trade_offers(&self) -> &'static [TradeOffer] {
+        &TRADE_OFFERS
+    }
+
+    pub fn trade(&mut self, offer: usize) -> Result<(), String> {
+        self.require_alive()?;
+        if !self.trader_in_reach() {
+            return Err("No trading post within reach".into());
+        }
+        let done = TradingPost::trade(&mut self.inventory, offer)?;
+        let ((paid, price), (item, quantity)) = (done.price, done.goods);
+        self.message = format!(
+            "Traded {price} {} for {quantity} {}",
+            paid.name(),
+            item.name()
+        );
         Ok(())
     }
 
