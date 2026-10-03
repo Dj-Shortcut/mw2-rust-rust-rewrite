@@ -6,6 +6,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# The jobs only read the repository; nothing here needs write access.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
