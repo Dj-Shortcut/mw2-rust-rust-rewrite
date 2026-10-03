@@ -1,0 +1,65 @@
+name: Native smoke run
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+# Report-only: the native start is known to stop at session bootstrap. Once it
+# stays up, make this blocking. "Running" means the process lived for the
+# whole window with no input; it is not a gameplay check.
+jobs:
+  smoke:
+    name: Start on a virtual display (report only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      - name: Install Bevy libraries, Xvfb and software Vulkan
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            g++ pkg-config libx11-dev libasound2-dev libudev-dev libwayland-dev libxkbcommon-dev \
+            xvfb libxkbcommon-x11-0 mesa-vulkan-drivers libvulkan1 imagemagick
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: linux-play
+      - name: cargo build (play profile)
+        run: cargo build --profile play --locked -p launcher
+      - name: Start the game for 30 seconds
+        id: smoke
+        run: scripts/smoke_native.sh target/play/iw4l smoke 30
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Native smoke run"
+            echo "Result: $(cat smoke/result.txt 2>/dev/null || echo 'no result')"
+            echo
+            echo "No input is sent and the screen is not checked; this is not a gameplay test."
+            echo
+            echo '```'
+            tail -n 20 smoke/game.log 2>/dev/null
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-smoke-${{ github.sha }}
+          path: smoke
+          retention-days: 14
