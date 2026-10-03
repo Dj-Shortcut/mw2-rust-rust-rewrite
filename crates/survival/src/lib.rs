@@ -11,7 +11,9 @@ mod rules;
 mod skate;
 mod terrain;
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
-pub use gathering::{GatheringWorld, Harvest, ResourceKind, ResourceNode};
+pub use gathering::{
+    GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
+};
 pub use inventory::{BLEED_THRESHOLD, Inventory, Item, MAX_BLEED, Recipe, Stack, Vitals};
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
@@ -259,6 +261,7 @@ impl Session {
             .unwrap_or(0)
             .saturating_sub(self.queued_damage);
         self.queued_damage = 0;
+        self.regrow_resources();
         let alive = after > 0;
         if alive {
             self.vitals.wound(external);
@@ -381,6 +384,33 @@ impl Session {
         self.inventory = inventory;
         self.gathering = gathering;
         Ok(harvested)
+    }
+
+    fn regrow_resources(&mut self) {
+        let (world, editor) = (&self.world, &self.editor);
+        let regrown = self.gathering.advance(0.017, |node| {
+            let (lo, hi) = node.bounds();
+            node.brush()
+                .is_some_and(|b| brushes_overlap_players(world, &[b]))
+                || editor
+                    .brushes()
+                    .iter()
+                    .any(|b| box_overlaps_brush(lo, hi, b))
+                || world.buildings().pieces().any(|p| {
+                    world
+                        .buildings()
+                        .bounds(p)
+                        .iter()
+                        .any(|(a, b)| (0..3).all(|k| a[k] <= hi[k] + 1. && lo[k] - 1. <= b[k]))
+                })
+        });
+        if !regrown.is_empty() {
+            self.world.install_content(authored_content(
+                &self.terrain,
+                &self.editor,
+                &self.gathering,
+            ));
+        }
     }
 
     pub fn use_item(&mut self, item: Item) -> Result<(), String> {
@@ -1073,6 +1103,15 @@ fn brushes_overlap_players(world: &SimWorld, brushes: &[SimBrush]) -> bool {
         });
     });
     overlap
+}
+
+fn box_overlaps_brush(lo: [f32; 3], hi: [f32; 3], brush: &SimBrush) -> bool {
+    let center: [f32; 3] = std::array::from_fn(|k| (lo[k] + hi[k]) / 2.);
+    let half: [f32; 3] = std::array::from_fn(|k| (hi[k] - lo[k]) / 2.);
+    brush.planes.iter().all(|plane| {
+        let extent = plane[0].abs() * half[0] + plane[1].abs() * half[1] + plane[2].abs() * half[2];
+        dot([plane[0], plane[1], plane[2]], center) - extent < plane[3] - 0.1
+    })
 }
 
 fn intersect(brush: &SimBrush, start: [f32; 3], end: [f32; 3]) -> Option<f32> {
