@@ -24,10 +24,12 @@ pub enum Item {
     Hatchet,
     Pickaxe,
     Jacket,
+    FishingRod,
+    Fish,
 }
 
 impl Item {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 10] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
@@ -36,6 +38,8 @@ impl Item {
         Self::Hatchet,
         Self::Pickaxe,
         Self::Jacket,
+        Self::FishingRod,
+        Self::Fish,
     ];
 
     pub fn name(self) -> &'static str {
@@ -48,6 +52,8 @@ impl Item {
             Self::Hatchet => "Stone hatchet",
             Self::Pickaxe => "Stone pickaxe",
             Self::Jacket => "Padded jacket",
+            Self::FishingRod => "Fishing rod",
+            Self::Fish => "Raw fish",
         }
     }
 
@@ -60,16 +66,16 @@ impl Item {
     }
 
     pub fn is_tool(self) -> bool {
-        matches!(self, Self::Hatchet | Self::Pickaxe)
+        matches!(self, Self::Hatchet | Self::Pickaxe | Self::FishingRod)
     }
 
     pub fn stack_limit(self) -> u32 {
         match self {
-            Self::Bandage | Self::Water => 10,
+            Self::Bandage | Self::Water | Self::Fish => 10,
             Self::Ammo => 60,
             Self::Food => 20,
             Self::Syringe => 5,
-            Self::Hatchet | Self::Pickaxe | Self::Jacket => 1,
+            Self::Hatchet | Self::Pickaxe | Self::Jacket | Self::FishingRod => 1,
         }
     }
 }
@@ -82,16 +88,18 @@ pub enum Recipe {
     Hatchet,
     Pickaxe,
     Jacket,
+    FishingRod,
 }
 
 impl Recipe {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Bandage,
         Self::Ammo,
         Self::Syringe,
         Self::Hatchet,
         Self::Pickaxe,
         Self::Jacket,
+        Self::FishingRod,
     ];
 
     pub fn name(self) -> &'static str {
@@ -102,6 +110,7 @@ impl Recipe {
             Self::Hatchet => "Stone hatchet",
             Self::Pickaxe => "Stone pickaxe",
             Self::Jacket => "Padded jacket",
+            Self::FishingRod => "Fishing rod",
         }
     }
 
@@ -129,6 +138,11 @@ impl Recipe {
             Self::Jacket => Resources {
                 wood: 60,
                 metal: 10,
+                ..Default::default()
+            },
+            Self::FishingRod => Resources {
+                wood: 60,
+                metal: 5,
                 ..Default::default()
             },
         }
@@ -159,6 +173,7 @@ impl Recipe {
             Self::Syringe => 10.,
             Self::Hatchet | Self::Pickaxe => 8.,
             Self::Jacket => 6.,
+            Self::FishingRod => 5.,
         }
     }
 
@@ -200,6 +215,7 @@ impl Recipe {
             Self::Hatchet => (Item::Hatchet, 1),
             Self::Pickaxe => (Item::Pickaxe, 1),
             Self::Jacket => (Item::Jacket, 1),
+            Self::FishingRod => (Item::FishingRod, 1),
         }
     }
 }
@@ -395,7 +411,11 @@ impl Inventory {
                 stop_bleeding: true,
                 ..Default::default()
             },
-            Item::Hatchet | Item::Pickaxe | Item::Jacket => {
+            Item::Fish => Effects {
+                hunger: 20.,
+                ..Default::default()
+            },
+            Item::Hatchet | Item::Pickaxe | Item::Jacket | Item::FishingRod => {
                 return Err("That item cannot be used".into());
             }
         };
