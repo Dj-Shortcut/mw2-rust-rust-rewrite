@@ -677,10 +677,7 @@ fn verify_restored(world: &SimWorld, saved: &persistence::SavedPlayer) -> Result
             let d = (player.viewangles[k] - saved.view[k]).rem_euclid(360.);
             d.min(360. - d) > 0.1
         });
-        if player.weapon != saved.weapon
-            || clip != saved.clip
-            || reserve != saved.reserve
-            || turned
+        if player.weapon != saved.weapon || clip != saved.clip || reserve != saved.reserve || turned
         {
             return Err(failed());
         }
