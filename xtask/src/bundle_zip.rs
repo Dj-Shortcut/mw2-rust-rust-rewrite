@@ -7,6 +7,20 @@ use zip::CompressionMethod;
 use zip::unstable::write::FileOptionsExt;
 use zip::write::SimpleFileOptions;
 
+pub(crate) fn archive_password() -> Result<Vec<u8>, String> {
+    let password = std::env::var("IW4L_ARCHIVE_PASSWORD").map_err(|error| {
+        match error {
+            std::env::VarError::NotPresent => "IW4L_ARCHIVE_PASSWORD is not set",
+            std::env::VarError::NotUnicode(_) => "IW4L_ARCHIVE_PASSWORD must be valid UTF-8",
+        }
+        .to_owned()
+    })?;
+    if password.is_empty() {
+        return Err("IW4L_ARCHIVE_PASSWORD is empty".to_owned());
+    }
+    Ok(password.into_bytes())
+}
+
 pub fn run(args: Vec<String>) -> Result<(), String> {
     let [archive, files @ ..] = args.as_slice() else {
         return Err("usage: cargo xtask bundle-zip ARCHIVE FILE...".to_owned());
@@ -14,16 +28,10 @@ pub fn run(args: Vec<String>) -> Result<(), String> {
     if files.is_empty() {
         return Err("at least one input file is required".to_owned());
     }
-    let password = std::env::var("IW4L_ARCHIVE_PASSWORD")
-        .map_err(|_| "IW4L_ARCHIVE_PASSWORD is not set".to_owned())?;
-    if password.is_empty() {
-        return Err("IW4L_ARCHIVE_PASSWORD is empty".to_owned());
-    }
-    write_archive(Path::new(archive), files, password.as_bytes())
+    let password = archive_password()?;
+    write_archive(Path::new(archive), files, &password)
 }
 
-/// Also the in-process entry point for `cargo xtask release bundles`, which
-/// knows the password without going through the environment.
 pub fn write_archive(archive: &Path, files: &[String], password: &[u8]) -> Result<(), String> {
     let mut names = BTreeSet::new();
     let inputs = files
