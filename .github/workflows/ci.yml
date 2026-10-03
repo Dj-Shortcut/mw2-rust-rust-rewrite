@@ -69,13 +69,13 @@ jobs:
       - name: cargo test
         run: cargo test --workspace --locked
 
-  # Report-only for now: the imported code has deny-level clippy findings and
-  # a few hundred warnings. --cap-lints keeps every crate linted instead of
-  # stopping at the first deny-level finding. Make it blocking once clean.
+  # Blocking per package: scripts/clippy_gate.py fails only on findings in a
+  # package listed in scripts/clippy_clean.txt; the rest of the imported code
+  # (about 1,300 findings) is reported, not enforced. --cap-lints keeps every
+  # crate linted instead of stopping at the first deny-level finding.
   clippy:
-    name: Clippy (report only)
+    name: Clippy (blocking for clean packages)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Free disk space
@@ -93,9 +93,15 @@ jobs:
           shared-key: clippy
       - name: cargo clippy
         run: |
-          cargo clippy --workspace --all-targets --locked -- --cap-lints warn 2> clippy.txt || true
-          cat clippy.txt
+          set -o pipefail
+          cargo clippy --workspace --all-targets --locked --message-format=json -- --cap-lints warn \
+            | python3 scripts/clippy_gate.py | tee clippy.txt
+      - name: Summary
+        if: always()
+        run: |
           {
             echo "### Clippy"
-            echo "Findings (deny-level ones capped to warnings): $(grep -c '^warning' clippy.txt || true)"
+            echo '```'
+            sed -n '/^clippy: /,$p' clippy.txt
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
