@@ -88,6 +88,7 @@ pub struct Session {
     blueprints: Blueprints,
     clock: WorldClock,
     worn: Option<Item>,
+    freezing: bool,
 }
 
 impl Session {
@@ -351,6 +352,7 @@ impl Session {
             blueprints: Blueprints::default(),
             clock: WorldClock::default(),
             worn: None,
+            freezing: false,
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -370,12 +372,12 @@ impl Session {
             .saturating_sub(self.queued_damage);
         self.queued_damage = 0;
         self.regrow_resources();
-        let was_freezing = self.felt_temperature() < FREEZING_CELSIUS;
         self.clock.advance(0.017)?;
         let alive = after > 0;
         if alive {
             self.vitals.wound(external);
         } else {
+            self.freezing = false;
             self.refund_crafting()?;
             self.drop_loot()?;
             self.dismount();
@@ -413,9 +415,11 @@ impl Session {
             let _ = self.world.heal_player(LOCAL, healed);
         }
         let temperature = self.felt_temperature();
-        if !was_freezing && temperature < FREEZING_CELSIUS {
+        let freezing = temperature < FREEZING_CELSIUS;
+        if freezing && !self.freezing {
             self.message = "You are freezing".into();
         }
+        self.freezing = freezing;
         let damage = self.vitals.advance(0.017, temperature)?;
         if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             self.world.queue_environment_damage(LOCAL, damage)?;
@@ -1286,6 +1290,7 @@ impl Session {
         self.blueprints = scene.blueprints;
         self.clock = scene.clock;
         self.worn = scene.worn;
+        self.freezing = false;
         Ok(())
     }
 }
