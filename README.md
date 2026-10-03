@@ -35,7 +35,8 @@ speelbare release leveren.
 - Inventory met 24 slots, eindige startvoorraad, bandage-/munitierecepten,
   voedsel/water en honger/dorst; 30 eindige oogstbare materiaal-/voedselnodes.
 - Eigen ramps, quarterpipes, rails, trappen, platforms en funboxes, met plaatsing,
-  rotatie, verwijderen, undo/redo en gevalideerde scene-opslag.
+  rotatie, verwijderen, undo/redo en gevalideerde sessie-opslag. Groen/rode previews
+  tonen plaatsingsregels; bouwpreviews tonen de werkelijke materiaalkosten.
 - Skatecontroller met pushen, sturen, remmen, ollies, spins/flips, landingspunten,
   bails en collisie met hetzelfde terrein en geplaatste ramps.
 - Vier eigen 3D-modellen en zeven procedureel gemaakte CC0-geluiden, met
@@ -50,7 +51,11 @@ skatecamera, controllerbindings en geluidscues. De uitgebreide compilercontrole
 en geoptimaliseerde executablebuild slagen. In een echt Bevy-venster op een
 virtueel Linux-scherm zijn de eigen modellen, inventory/crafting, munitieverbruik,
 schade, herladen, ADS en de skatecamera met ollie/landingspunten uitgevoerd.
-Editorplaatsing en de overige native flows worden verder gecontroleerd.
+Ook rampplaatsing/verwijderen/undo/redo, scene save/load, foundationkosten en
+eindige tree-harvesting zijn via de native bediening uitgevoerd. Inventory-,
+pauze- en focusovergangen behouden het camerabeeld. Native dood/respawn en
+opnieuw bewegen/schieten zijn met een tijdelijke schadefixture geverifieerd;
+die fixture is uit de productcode verwijderd.
 Een volledige wereld, de overige survivalsystemen en multiplayerloops moeten
 nog worden afgemaakt.
 [TODO.md](TODO.md) scheidt implementatie, headless bewijs, grafische verificatie
@@ -73,6 +78,13 @@ cargo run -p launcher --profile play --locked -- game
 
 De launcher kiest standaard hetzelfde zelfstandige native startpad. De eigen
 content staat onder `assets/authored/` en wordt vanuit de repository gevonden.
+F1 toont de bediening; Tab opent inventory, B bouwen, E de objecteditor en V skaten.
+Richt op bereikbaar materiaal voor de verzamelhint; F oogst. F5/F9 bewaren/laden
+de lokale sessie: scene, spelerpositie/kijkrichting, gezondheid, ammo en
+gemonteerde skatestaat. Lopen/skaten, kijkrichting en ammo na laden zijn native
+gecontroleerd. Herstel van een dode save naar een andere dode speler bevat nog
+een [bekende posefout](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/14).
+NPC's, wachtende scriptacties en editor-undo/redo worden niet opgeslagen.
 Dit startpad is op Linux geverifieerd; Windows/macOS-builds zijn nog niet
 geverifieerd. Er is nog geen kant-en-klare release-executable.
 De bestaande [RUN.md](docs/RUN.md) en [SKATE.md](docs/SKATE.md) beschrijven de

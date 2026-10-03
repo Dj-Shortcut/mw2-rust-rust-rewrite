@@ -62,7 +62,12 @@ impl EditorState {
         self.undo.push(self.objects.clone());
         self.redo.clear();
     }
-    pub fn place(&mut self, kind: PropKind, position: [f32; 3], yaw: f32) -> Result<u32, String> {
+    pub fn placement_candidate(
+        &self,
+        kind: PropKind,
+        position: [f32; 3],
+        yaw: f32,
+    ) -> Result<PlacedObject, String> {
         if self.objects.len() >= MAX_PROPS {
             return Err("Editor object limit reached".into());
         }
@@ -74,6 +79,11 @@ impl EditorState {
             yaw: yaw.rem_euclid(360.),
         };
         validate(&object)?;
+        Ok(object)
+    }
+    pub fn place(&mut self, kind: PropKind, position: [f32; 3], yaw: f32) -> Result<u32, String> {
+        let object = self.placement_candidate(kind, position, yaw)?;
+        let id = object.id;
         self.checkpoint();
         self.objects.insert(id, object);
         self.next_id = id;

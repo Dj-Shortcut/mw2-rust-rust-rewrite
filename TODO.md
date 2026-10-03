@@ -24,15 +24,16 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 | SDK-v9-mapreader | Ja, optionele inspectietool | 8 validatieprobes en synthetische inspectie geslaagd | Niet van toepassing | Geen gamewereldimport |
 | Bouwstukken in snapshots en loopcollisie | Ja | Compilercontrole en lokale collisionprobes | Nee; netwerkflow open | Nee |
 | Procedurele bouwmaterialen | Ja | WGSL/Naga-validatie geslaagd | Nee | Nee |
-| Zelfstandige sessie met eigen gamescripts | Ja | Start, bewegen, schieten, NPC-kill, dood en respawn geslaagd | FPS, ammo, NPC-schade/kill, herladen en ADS uitgevoerd; dood/respawn open | Nee |
-| Klein eigen eiland en zes skateobjecttypen | Ja | 15 terreintraces, plaatsing/rejectie, undo/redo en save/load geslaagd | Terrein zichtbaar; editorflow in uitvoering | Nee |
+| Zelfstandige sessie met eigen gamescripts | Ja | Start, bewegen, schieten, NPC-kill, dood en respawn geslaagd | FPS/ammo/ADS en dood/respawn via tijdelijke schadefixture uitgevoerd; bewegen/schieten na respawn werkt | Nee |
+| Klein eigen eiland en zes skateobjecttypen | Ja | 15 terreintraces, plaatsing/rejectie, undo/redo en save/load geslaagd | Ramp plaatsen/verwijderen, undo/redo, scene save/load en railrotatie uitgevoerd | Nee |
+| Read-only bouw-/objectpreview met groen/rood voorbeeld | Ja | Exacte preview/commit-pariteit, kosten en geen mutatie gecontroleerd | Groen/rood, foundationplaatsing met 200 hout en bezette-plekfeedback uitgevoerd | Nee |
 | Inventory, twee recepten, consumables, honger/dorst | Ja | Grenzen/persistentie plus geïntegreerde resourcekosten, healing en ammo geslaagd | Inventorypauze, beide craftkosten en ammo-transfer uitgevoerd | Nee |
-| 30 eindige oogstnodes | Ja | Generatie, reach/occlusie, depletion en geïntegreerde tree-harvest/opslag geslaagd | Nodes zichtbaar; interactie open | Nee |
+| 30 eindige oogstnodes | Ja | Generatie, reach/occlusie, depletion en pure target/harvest-pariteit geslaagd | Tree-hint, 12 oogsten, verdwijnen bij uitputting en voorraad/depletion na laden uitgevoerd | Nee |
 | Skatecontroller en loop/skate-overgang | Ja | Push/steer/ollie/tricks/bail/collisie en gemonteerde push/handoff geslaagd | Camera/mount, push, ollie/landingsscore en afstappen uitgevoerd | Nee |
 | Eigen operator, carbine, board en timber-model | Ja | GLB-structuur, scene-aantallen en hashes gecontroleerd | Operator/carbine/board zichtbaar; volledige riganimatie open | Nee |
 | Zeven eigen korte CC0-WAV-cues | Ja | PCM/manifestcontrole en identieke regeneratie geslaagd | Playback nog open | Nee |
 | Native controller, ADS/recoil, inventory-/gather-/skatefeedback en audiohooks | Ja | Workspacecontrole en geoptimaliseerde build slagen | Deel van keyboard/muisflows uitgevoerd; audio/hardware open | Nee |
-| Volledige sessie-save/load (formaat 3, migratie van formaat 2) | Ja | Headless probe: 146 controles geslaagd (round-trips levend/dood, gewond/lege ammo, gemount/lopend, v2-migratie, 30+ ongeldige of botsende saves) | Nee; F5/F9 nog niet grafisch uitgevoerd | Nee |
+| Lokale sessie-save/load (formaat 3, migratie van formaat 2) | Ja | Backendprobes en cameradelta-controle uitgevoerd; dead→dead-posefout open in #14 | F5/F9: lopen/gemount, positie/kijkrichting/ammo, ongeldige load en verder spelen gecontroleerd | Nee |
 | Engelse in-game tekst | Ja, vaste projectregel | HUD, inventory, controls, feedback en backenderrors nagekeken | HUD/inventory/editor/pauze in Engelse build uitgevoerd | Nee |
 
 - [x] Bestaande bouwscenario's, schadeprobes en mapvalidatie uitgevoerd.
@@ -51,9 +52,16 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Inventorypauze, crafting/resourcekosten/ammo, schieten/schade/herladen/ADS grafisch uitvoeren.
 - [x] Skatecamera, pushen, ollie en landing met score via keyboard uitvoeren.
 - [x] Alle in-game teksten naar Engels omzetten; Engels als vaste bijdragersregel vastleggen.
-- [x] Volledige sessie headless opslaan en laden: positie, snelheid, kijkrichting, health, levend/dood (GSC-lifecycle), wapen, clip/reserve, kills/deaths/score, gemounte skatestaat en -score, plus inventory, bouwresources, needs, depletion, gebouwen en editorobjecten.
-- [ ] Volledige native editor-/bouw-/gather-/respawnflow en Engelse meldingen verifiëren.
-- [ ] F5/F9 in het native venster uitvoeren; na laden de camerasturing van de frontend gelijkzetten met de herstelde kijkrichting (nu overschrijft de volgende frontendinvoer die).
+- [x] F5/F9 native uitvoeren: positie/kijkrichting/ammo herstellen, lopen/gemount herstellen en ongeldige load weigeren zonder speelstaatverlies.
+- [x] Native invoer synchroniseren met geladen kijkrichting en cameradelta; effectieve pitch begrenzen zodat volgende invoer de herstelde hoek behoudt.
+- [x] F5 bij dood, F9 dood→levend/levend→dood, 75° kijkhoek na respawn, action gate en verder spelen via tijdelijke native fixture uitvoeren.
+- [ ] Dode save naar een andere dode speler correct herstellen en verifiëren: positie, kijkrichting en snelheid. [Claude-taak #14](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/14).
+- [x] Pure previews verifiëren: alle zes objecttypen, geldige/ongeldige bouwkosten en geen wijzigingen vóór plaatsing.
+- [x] Ramp plaatsen/verwijderen, undo/redo, scene save/load en foundationkosten via native bediening uitvoeren.
+- [x] Gerichte verzamelhint, finite tree-harvest/depletion en herstel van voorraad/depletion grafisch uitvoeren.
+- [x] Ongewijzigd camerabeeld na inventory sluiten, pauze hervatten en focus terugkrijgen controleren.
+- [x] Native dood/respawn en opnieuw bewegen/schieten via tijdelijke schadefixture uitvoeren; fixture verwijderen.
+- [ ] Alle objectvarianten, deur-/upgrade-/sloopbediening en gekoppelde skatecollisie grafisch doorlopen.
 
 ## Actuele verificatiefase
 
@@ -62,8 +70,17 @@ geïntegreerde backendprobes, uitgebreide workspacecontrole en geoptimaliseerde
 executablebuild slagen. Het eigen terrein en de modellen verschijnen in een echt
 Bevy-venster via Mesa-software-rendering. Inventory/crafting, schieten/schade,
 herladen/ADS en skatecamera/push/ollie/landingspunten zijn via keyboard/muis uitgevoerd.
-De editor en overige flows worden verder gecontroleerd. Alle spelteksten zijn
-Engels; nieuwe bijdragen moeten die taal behouden.
+Daarbij zijn nu rampplaatsing/verwijderen/undo/redo, scene save/load, foundationkosten,
+groen/rode previews en eindige tree-harvesting met herstel na laden gecontroleerd.
+Inventory-, pauze- en focusovergangen behouden hetzelfde camerabeeld. Een tijdelijke
+schadefixture controleert native dood/respawn en opnieuw bewegen/schieten; die fixture
+zit niet in de productcode. Alle spelteksten blijven Engels; F1 toont de bediening.
+Claude's formaat-3 opslag is geïntegreerd met de native invoer. F5/F9 herstelt de
+lopende/gemonteerde speler en behoudt positie, kijkrichting en ammo; een ongeldige
+load laat de sessie bruikbaar. De afzonderlijk gereproduceerde dead→dead-posefout
+blijft open in #14. Volledige persistente wereldstaat en multiplayer blijven open.
+De native schadefixture controleert ook opslag tijdens dood, laden tussen levend
+en dood en een geladen kijkhoek van 75° na respawn. Geen fixturecode wordt geleverd.
 Xbox-controllerbindings betekenen nog geen hardwareverificatie. Native audio
 playback is nog niet bewezen. Geen van deze stappen is een releaseverklaring.
 
@@ -130,14 +147,14 @@ De overdracht voor Claude staat in [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
 - [ ] Dezelfde terreingeometrie gebruiken voor rendering en loop-/skatecollisie.
 - [ ] Editor aan/uit met E; eigen ramps, quarterpipes, rails, trappen, platforms en funboxes.
 - [ ] Objecttype kiezen, op gericht terrein plaatsen en per 15° draaien.
-- [ ] Plaatsingsghost met geldige/ongeldige feedback en collisiecontrole.
+- [x] Plaatsingsghost met geldige/ongeldige feedback en collisiecontrole.
 - [ ] Bestaande objecten selecteren, verplaatsen, roteren en laten snappen.
 - [ ] Raster-/hoogte-/hoek-snapping en kopiëren/dupliceren van objecten.
-- [ ] Objecten verwijderen en wijzigingen ongedaan/opnieuw met Ctrl-Z/Ctrl-Y.
+- [x] Objecten verwijderen en wijzigingen ongedaan/opnieuw met Ctrl-Z/Ctrl-Y.
 - [ ] Terrein/objectstaat samen opslaan/laden, met begrensde validatie en versies.
 - [ ] Ramps/quarterpipes volgen met skatefysica en grinds op geplaatste rails.
 - [ ] Speler/objectoverlap, bullet-/vehicle-/skatecollisie en netwerkbouwrechten.
-- [ ] Native editorflow en save-load/undo-redo zelf grafisch verifiëren.
+- [x] Native ramp-editorflow en scene save-load/undo-redo zelf grafisch verifiëren.
 
 ## Voertuigen en vervoer
 
