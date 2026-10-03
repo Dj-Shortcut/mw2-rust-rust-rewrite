@@ -91,9 +91,6 @@ pub struct SkateState {
     pending_trick: u32,
     release_rail: Option<u32>,
     release_cooldown: f32,
-    /// Points from safe landings within the current step; banked at its end
-    /// whatever event the step reports.
-    step_points: u32,
 }
 
 /// An active grind: the rail's editor ID, the rider's signed distance from
@@ -125,7 +122,6 @@ impl Default for SkateState {
             pending_trick: 0,
             release_rail: None,
             release_cooldown: 0.,
-            step_points: 0,
         }
     }
 }
@@ -272,7 +268,6 @@ impl SkateState {
             pending_trick: saved.pending_trick,
             release_rail: saved.release_rail,
             release_cooldown: saved.release_cooldown,
-            step_points: 0,
         })
     }
 
@@ -404,13 +399,12 @@ impl SkateState {
                 self.bail(&mut event);
             }
         }
-        // Safe landings bank their points once, independent of the event
-        // that presents the step (a later bail in the same step still shows).
-        // The total stops at the save bound so a capped session stays savable.
-        self.total_score = self
-            .total_score
-            .saturating_add(u64::from(std::mem::take(&mut self.step_points)))
-            .min(MAX_SAVED_SCORE);
+        if let SkateEvent::Landed { points } = event {
+            self.total_score = self
+                .total_score
+                .saturating_add(u64::from(points))
+                .min(MAX_SAVED_SCORE);
+        }
         Ok(SkateStep {
             origin,
             velocity: self.velocity,
@@ -771,7 +765,7 @@ impl SkateState {
 
     /// A safe landing reports the flight's trick points plus any pending
     /// grind points as `Landed`; [`Self::advance`] banks them at the end of
-    /// the step.
+    /// the step unless it bailed.
     fn land(&mut self, normal: [f32; 3], impact: f32, event: &mut SkateEvent) {
         let bailed = self.flight && {
             let horizontal = [self.velocity[0], self.velocity[1], 0.];
@@ -790,7 +784,6 @@ impl SkateState {
             }
             self.clear_pending();
             if points > 0 {
-                self.step_points = self.step_points.saturating_add(points);
                 match event {
                     SkateEvent::Bailed => {}
                     SkateEvent::Landed { points: earlier } => {
