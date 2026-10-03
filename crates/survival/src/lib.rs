@@ -448,7 +448,11 @@ impl Session {
         let temperature = self.felt_temperature();
         let freezing = temperature < FREEZING_CELSIUS;
         if freezing && !self.freezing {
-            self.message = "You are freezing".into();
+            self.message = if weather_changed && self.weather.is_raining() {
+                "It started raining and you are freezing".into()
+            } else {
+                "You are freezing".into()
+            };
         }
         self.freezing = freezing;
         let irradiated = self.in_radiation_zone();

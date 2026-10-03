@@ -49,7 +49,7 @@ impl Weather {
         let mut left = dt_seconds;
         while left >= self.remaining {
             left -= self.remaining;
-            self.spells = self.spells.checked_add(1).ok_or("Weather exhausted")?;
+            self.spells = self.spells.wrapping_add(1);
             let mut state = (u64::from(seed) << 32) ^ u64::from(self.spells) ^ 0x5EA7_0000;
             let roll = splitmix(&mut state);
             self.raining = roll % 100 < RAIN_PERCENT;
