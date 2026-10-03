@@ -119,7 +119,6 @@ impl Campfires {
             .min_by(|a, b| a.distance(origin).total_cmp(&b.distance(origin)))
     }
 
-    /// Whether any campfire is close enough to warm `origin`.
     pub fn warms(&self, origin: [f32; 3]) -> bool {
         self.fires
             .iter()

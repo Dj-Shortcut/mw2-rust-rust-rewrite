@@ -436,12 +436,6 @@ impl Session {
             self.skate_input = SkateInput::default();
             return Ok(());
         }
-        // Lowest priority: any other event this tick replaces it.
-        let warming = self.near_campfire();
-        if warming && !self.warming {
-            self.message = "You warm up by the campfire".into();
-        }
-        self.warming = warming;
         if unlocked {
             self.message = "The locked crate is unlocked".into();
         }
@@ -483,6 +477,21 @@ impl Session {
         }
         self.skate_input.ollie = false;
         self.skate_input.flip = false;
+        // After skating moves the player; never replaces an event message from this tick.
+        let warming = self.near_campfire();
+        let event = unlocked
+            || cooked
+            || ripened
+            || drops.lost
+            || weather_changed
+            || matches!(
+                self.last_skate_event,
+                SkateEvent::Bailed | SkateEvent::Landed { .. }
+            );
+        if warming && !self.warming && !event {
+            self.message = "You warm up by the campfire".into();
+        }
+        self.warming = warming;
         if let Some(recipe) = self.crafting.advance(0.017, &mut self.inventory)? {
             self.message = format!("Crafted {}", recipe.name());
         }
@@ -575,7 +584,6 @@ impl Session {
         self.clock.temperature() - self.weather.chill() + self.worn.map_or(0., Item::warmth) + fire
     }
 
-    /// Whether the living player is close enough to a campfire to feel its warmth.
     pub fn near_campfire(&self) -> bool {
         self.world
             .player(LOCAL)
