@@ -76,6 +76,11 @@ pub struct SkateState {
     pub total_score: u64,
     pub bails: u32,
     ground_normal: [f32; 3],
+    /// Horizontal direction into the steep transition the rider is riding
+    /// up (a quarterpipe's vert section). When the rider leaves it still
+    /// rising, motion across the lip is removed so the air goes straight up
+    /// and comes back down into the transition instead of over the back.
+    vert_lip: Option<[f32; 3]>,
     air_time: f32,
     air_spin: f32,
     flip_angle: f32,
@@ -109,6 +114,7 @@ impl Default for SkateState {
             total_score: 0,
             bails: 0,
             ground_normal: [0., 0., 1.],
+            vert_lip: None,
             air_time: 0.,
             air_spin: 0.,
             flip_angle: 0.,
@@ -251,6 +257,7 @@ impl SkateState {
             total_score: saved.total_score,
             bails: saved.bails,
             ground_normal: normalize(saved.ground_normal),
+            vert_lip: None,
             air_time: saved.air_time,
             air_spin: saved.air_spin,
             flip_angle: saved.flip_angle,
@@ -463,7 +470,14 @@ impl SkateState {
         if speed > MAX_SPEED {
             self.velocity = scale(self.velocity, MAX_SPEED / speed);
         }
-        self.sweep(world, rails, dt, origin, event)?;
+        let on_vert = self.sweep(world, rails, dt, origin, event)?;
+        if let Some(lip) = self.vert_lip.filter(|_| !on_vert) {
+            self.vert_lip = None;
+            let across = dot(self.velocity, lip);
+            if self.velocity[2] > 0. && across > 0. {
+                self.velocity = sub(self.velocity, scale(lip, across));
+            }
+        }
         self.find_ground(world, rails, origin, event);
         Ok(())
     }
@@ -646,9 +660,10 @@ impl SkateState {
         dt: f32,
         origin: &mut [f32; 3],
         event: &mut SkateEvent,
-    ) -> Result<(), String> {
+    ) -> Result<bool, String> {
         let mut remaining = dt;
         let mut planes = Vec::with_capacity(5);
+        let mut on_vert = false;
         for _ in 0..5 {
             let end = add(*origin, scale(self.velocity, remaining));
             let hit = world.trace_world(*origin, end, MINS, MAXS, 1);
@@ -674,6 +689,13 @@ impl SkateState {
                 }
             }
             let impact = -dot(self.velocity, normal);
+            if normal[2] > 0. && normal[2] < GROUND_NORMAL && self.velocity[2] > 0. {
+                let lip = normalize([-normal[0], -normal[1], 0.]);
+                if dot(self.velocity, lip) > 0. {
+                    self.vert_lip = Some(lip);
+                    on_vert = true;
+                }
+            }
             if normal[2] >= GROUND_NORMAL && self.velocity[2] <= 0. {
                 if self.try_catch(world, rails, origin, normal, impact) {
                     break;
@@ -699,7 +721,7 @@ impl SkateState {
                 break;
             }
         }
-        Ok(())
+        Ok(on_vert)
     }
 
     fn find_ground(
@@ -797,6 +819,7 @@ impl SkateState {
         self.velocity = [0.; 3];
         self.end_flight();
         self.grind = None;
+        self.vert_lip = None;
         self.clear_pending();
         if *event != SkateEvent::Bailed {
             self.bails = self.bails.saturating_add(1);
