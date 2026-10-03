@@ -8,6 +8,7 @@ pub const HARVEST_REACH: f32 = 120.;
 pub const MAX_RESOURCE_NODES: usize = 64;
 pub const REGROW_SECONDS: f32 = 300.;
 pub const REGROW_RETRY_SECONDS: f32 = 5.;
+pub const SIP_THIRST: f32 = 10.;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ResourceKind {

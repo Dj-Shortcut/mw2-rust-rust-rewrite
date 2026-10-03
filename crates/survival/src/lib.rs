@@ -43,6 +43,7 @@ pub use fishing::{
 };
 pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
+    SIP_THIRST,
 };
 pub use inventory::{
     BLEED_THRESHOLD, Blueprints, Inventory, Item, MAX_BLEED, MAX_REGEN, MAX_TOOL_WEAR, Recipe,
@@ -985,6 +986,22 @@ impl Session {
             "Line cast"
         }
         .into();
+        Ok(())
+    }
+
+    pub fn drink_from_water(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        self.gather_target_from_view()?
+            .filter(|n| n.kind == ResourceKind::Water)
+            .ok_or("Aim at water within reach")?;
+        if self.vitals.thirst() >= 100. {
+            return Err("You are not thirsty".into());
+        }
+        self.vitals.apply(&inventory::Effects {
+            thirst: SIP_THIRST,
+            ..Default::default()
+        })?;
+        self.message = "You drink some water".into();
         Ok(())
     }
 
