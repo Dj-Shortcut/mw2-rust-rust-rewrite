@@ -40,7 +40,6 @@ impl CraftQueue {
         Ok(self.jobs.remove(index).recipe)
     }
 
-    /// Returns the cost of every job and empties the queue.
     pub(crate) fn clear(&mut self) -> Resources {
         let mut refund = Resources::default();
         for job in self.jobs.drain(..) {
@@ -49,8 +48,6 @@ impl CraftQueue {
         refund
     }
 
-    /// Advances the first job and delivers it once finished. A finished job
-    /// whose output does not fit stays at the front and is retried.
     pub(crate) fn advance(
         &mut self,
         dt_seconds: f32,

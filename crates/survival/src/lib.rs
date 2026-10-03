@@ -459,7 +459,6 @@ impl Session {
         self.crafting.jobs()
     }
 
-    /// Pays for `recipe` now; the item arrives after its craft time.
     pub fn queue_craft(&mut self, recipe: Recipe) -> Result<(), String> {
         self.require_alive()?;
         let mut crafting = self.crafting.clone();
@@ -492,7 +491,6 @@ impl Session {
         Ok(refund)
     }
 
-    /// Refunds every queued job up to the storage limit.
     fn refund_crafting(&mut self) -> Result<(), String> {
         let mut refund = self.crafting.clear();
         let balance = self.world.buildings().inventory(LOCAL.0);
