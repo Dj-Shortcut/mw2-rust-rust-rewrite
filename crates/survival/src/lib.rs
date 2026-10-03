@@ -159,10 +159,18 @@ impl Session {
     }
 
     pub fn remove_prop_from_view(&mut self) -> Result<(), String> {
+        let id = self.aimed_prop_id()?;
+        let mut editor = self.editor.clone();
+        editor.remove(id)?;
+        self.install_editor(editor)
+    }
+
+    /// The editor prop under the crosshair, independent of any background:
+    /// removal and rotation need no destination behind it.
+    fn aimed_prop_id(&self) -> Result<u32, String> {
         let (start, end) = self.view_ray()?;
         let world_hit = self.world.trace_world(start, end, [0.; 3], [0.; 3], 1);
-        let id = self
-            .editor
+        self.editor
             .objects()
             .filter_map(|o| {
                 o.brushes()
@@ -174,10 +182,95 @@ impl Session {
             .filter(|(_, t)| *t <= world_hit.fraction + 0.002)
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
-            .ok_or("Aim at an editor object within reach")?;
+            .ok_or("Aim at an editor object within reach".into())
+    }
+
+    /// The point the same ray reaches without the aimed prop: the move
+    /// destination. Editor brushes are part of the installed world content,
+    /// so it is traced against terrain, resource nodes, the other props
+    /// and building pieces instead. Only upward faces count, like normal
+    /// prop placement, so a prop never lands centered on a wall.
+    fn prop_destination(&self, ignore: u32) -> Result<[f32; 3], String> {
+        let (start, end) = self.view_ray()?;
+        let mut best: Option<(f32, [f32; 3])> = None;
+        let mut consider = |t: f32, normal: [f32; 3]| {
+            if t < best.map_or(1., |(known, _)| known) {
+                best = Some((t, normal));
+            }
+        };
+        let mut solids = self.terrain.brushes();
+        solids.extend(self.gathering.brushes());
+        solids.extend(
+            self.editor
+                .objects()
+                .filter(|o| o.id != ignore)
+                .flat_map(PlacedObject::brushes),
+        );
+        for brush in &solids {
+            if let Some((t, normal)) = intersect_entry(brush, start, end) {
+                consider(t, normal);
+            }
+        }
+        let (hit, _) = self
+            .world
+            .buildings()
+            .trace_hit(start, end, [0.; 3], [0.; 3], 1);
+        if hit.startsolid == 0 && hit.fraction < 1. {
+            consider(hit.fraction, hit.normal);
+        }
+        let Some((t, normal)) = best else {
+            return Err("Aim at a flat surface within reach".into());
+        };
+        if normal[2] < 0.7 {
+            return Err("Aim at a flat surface within reach".into());
+        }
+        Ok(std::array::from_fn(|k| start[k] + (end[k] - start[k]) * t))
+    }
+
+    /// Relocating the rail or ledge being ground would teleport the rider
+    /// to the moved segment, so it is rejected until the grind ends.
+    fn require_grind_clear(&self, id: u32) -> Result<(), String> {
+        if self
+            .skate
+            .as_ref()
+            .is_some_and(|s| s.grind_rail() == Some(id))
+        {
+            return Err("Leave the grind before moving this".into());
+        }
+        Ok(())
+    }
+
+    /// Moves the aimed prop to the surface point under the crosshair,
+    /// keeping its yaw. Player overlap is rejected without moving.
+    pub fn move_prop_to_view(&mut self) -> Result<u32, String> {
+        let id = self.aimed_prop_id()?;
+        self.require_grind_clear(id)?;
+        let position = self.prop_destination(id)?;
+        let yaw = self
+            .editor
+            .objects()
+            .find(|o| o.id == id)
+            .ok_or("Object no longer exists")?
+            .yaw;
         let mut editor = self.editor.clone();
-        editor.remove(id)?;
-        self.install_editor(editor)
+        editor.relocate(id, position, yaw)?;
+        self.install_editor(editor)?;
+        Ok(id)
+    }
+
+    /// Rotates the aimed prop in place over the given degrees.
+    pub fn rotate_prop_from_view(&mut self, step_degrees: f32) -> Result<u32, String> {
+        let id = self.aimed_prop_id()?;
+        self.require_grind_clear(id)?;
+        let object = self
+            .editor
+            .objects()
+            .find(|o| o.id == id)
+            .ok_or("Object no longer exists")?;
+        let mut editor = self.editor.clone();
+        editor.relocate(id, object.position, object.yaw + step_degrees)?;
+        self.install_editor(editor)?;
+        Ok(id)
     }
 
     pub fn undo_props(&mut self) -> Result<(), String> {
@@ -1171,8 +1264,16 @@ fn box_overlaps_brush(lo: [f32; 3], hi: [f32; 3], brush: &SimBrush) -> bool {
 }
 
 fn intersect(brush: &SimBrush, start: [f32; 3], end: [f32; 3]) -> Option<f32> {
+    intersect_entry(brush, start, end).map(|(t, _)| t)
+}
+
+/// Like [`intersect`], but also reports the entry plane's outward normal
+/// for the nearest contact. A ray starting inside yields fraction zero
+/// with a zero normal, which never passes an upward-face check.
+fn intersect_entry(brush: &SimBrush, start: [f32; 3], end: [f32; 3]) -> Option<(f32, [f32; 3])> {
     let mut enter: f32 = 0.;
     let mut leave: f32 = 1.;
+    let mut normal = [0.; 3];
     for plane in &brush.planes {
         let n = [plane[0], plane[1], plane[2]];
         let a = dot(n, start) - plane[3];
@@ -1185,7 +1286,10 @@ fn intersect(brush: &SimBrush, start: [f32; 3], end: [f32; 3]) -> Option<f32> {
         }
         let t = a / (a - b);
         if a > b {
-            enter = enter.max(t);
+            if t > enter {
+                enter = t;
+                normal = n;
+            }
         } else {
             leave = leave.min(t);
         }
@@ -1193,7 +1297,7 @@ fn intersect(brush: &SimBrush, start: [f32; 3], end: [f32; 3]) -> Option<f32> {
             return None;
         }
     }
-    Some(enter)
+    Some((enter, normal))
 }
 
 fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {

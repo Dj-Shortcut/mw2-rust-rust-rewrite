@@ -323,6 +323,11 @@ impl SkateState {
         self.grind.is_some()
     }
 
+    /// The editor object ID of the rail or ledge being ground, if any.
+    pub fn grind_rail(&self) -> Option<u32> {
+        self.grind.map(|g| g.rail)
+    }
+
     /// Trick and grind points waiting for the next safe landing.
     pub fn pending_points(&self) -> u32 {
         let distance = (self.pending_distance / GRIND_POINT_DISTANCE).floor() as u32;

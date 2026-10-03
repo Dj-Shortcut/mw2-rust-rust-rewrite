@@ -128,6 +128,19 @@ impl EditorState {
         self.objects.remove(&id);
         Ok(())
     }
+    pub fn relocate(&mut self, id: u32, position: [f32; 3], yaw: f32) -> Result<(), String> {
+        let object = self.objects.get(&id).ok_or("Object no longer exists")?;
+        let moved = PlacedObject {
+            id,
+            kind: object.kind,
+            position,
+            yaw: yaw.rem_euclid(360.),
+        };
+        validate(&moved)?;
+        self.checkpoint();
+        self.objects.insert(id, moved);
+        Ok(())
+    }
     pub fn undo(&mut self) -> Result<(), String> {
         let previous = self.undo.pop().ok_or("Nothing to undo")?;
         self.redo
