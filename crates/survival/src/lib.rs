@@ -671,6 +671,36 @@ impl Session {
         Ok(())
     }
 
+    pub fn repair_from_view(&mut self) -> Result<(), String> {
+        let (start, end) = self.view_ray()?;
+        let outcome = self.world.bullet_trace(
+            sim::BulletTraceQuery {
+                start,
+                end,
+                mask: 1,
+                ignore: Some(LOCAL),
+                ignore_hit: None,
+                ignore_model: None,
+            },
+            None,
+        );
+        let sim::TraceOutcome::Hit {
+            collider:
+                sim::ColliderId::World {
+                    building_id: Some(id),
+                    ..
+                },
+            ..
+        } = outcome
+        else {
+            return Err("Aim at a building within reach".into());
+        };
+        self.world
+            .buildings_mut()
+            .repair(LOCAL.0, id)
+            .map_err(|e| e.to_string())
+    }
+
     /// Writes the complete session (scene and local player) atomically.
     /// See `persistence` for the exact list of persisted state.
     pub fn save(&self, path: &Path) -> Result<(), String> {
