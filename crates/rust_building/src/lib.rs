@@ -127,6 +127,7 @@ pub enum BuildError {
     Missing,
     Limit,
     InvalidGrade,
+    FullHealth,
     InvalidSave,
 }
 
@@ -141,6 +142,7 @@ impl std::fmt::Display for BuildError {
             Self::Missing => "Building piece no longer exists",
             Self::Limit => "Building data limit reached",
             Self::InvalidGrade => "Choose a higher material grade",
+            Self::FullHealth => "Building is already at full health",
             Self::InvalidSave => "Invalid building save",
         })
     }
@@ -149,6 +151,17 @@ impl std::error::Error for BuildError {}
 
 fn deck(kind: Kind) -> bool {
     matches!(kind, Kind::Foundation | Kind::Floor)
+}
+
+/// Proportional share of a full grade cost for the missing health fraction,
+/// rounded up so any real damage costs at least one unit of each resource
+/// the grade cost uses. Resources the grade cost does not use stay zero.
+fn proportional(total: u32, missing: u32, max: u32) -> u32 {
+    if total == 0 || missing == 0 {
+        return 0;
+    }
+    let share = (u64::from(total) * u64::from(missing)).div_ceil(u64::from(max));
+    (share as u32).max(1)
 }
 
 impl BuildingWorld {
@@ -335,6 +348,30 @@ impl BuildingWorld {
         let p = self.pieces.get_mut(&id).ok_or(BuildError::Missing)?;
         p.grade = grade;
         p.health = grade.health();
+        Ok(())
+    }
+    pub fn repair(&mut self, owner: u32, id: u32) -> Result<(), BuildError> {
+        let piece = self.owned(owner, id)?;
+        let max = piece.grade.health();
+        if piece.health >= max {
+            return Err(BuildError::FullHealth);
+        }
+        let missing = max - piece.health;
+        let full = piece.grade.cost(piece.kind);
+        let cost = Resources {
+            wood: proportional(full.wood, missing, max),
+            stone: proportional(full.stone, missing, max),
+            metal: proportional(full.metal, missing, max),
+        };
+        if !self.inventory(owner).covers(cost) {
+            return Err(BuildError::InsufficientResources);
+        }
+        self.inventories
+            .get_mut(&owner)
+            .ok_or(BuildError::InsufficientResources)?
+            .spend(cost);
+        let piece = self.pieces.get_mut(&id).ok_or(BuildError::Missing)?;
+        piece.health = max;
         Ok(())
     }
     pub fn toggle_door(&mut self, owner: u32, id: u32) -> Result<(), BuildError> {
