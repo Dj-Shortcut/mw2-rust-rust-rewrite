@@ -85,6 +85,24 @@ impl Recipe {
         }
     }
 
+    pub fn recycle_yield(item: Item, quantity: u32) -> Result<Resources, String> {
+        let recipe = Self::ALL
+            .into_iter()
+            .find(|r| r.output().0 == item)
+            .ok_or("That item cannot be recycled")?;
+        let batch = recipe.output().1;
+        if quantity == 0 || quantity % batch != 0 {
+            return Err(format!("Recycle {} in batches of {batch}", item.name()));
+        }
+        let batches = quantity / batch;
+        let cost = recipe.cost();
+        Ok(Resources {
+            wood: cost.wood * batches / 2,
+            stone: cost.stone * batches / 2,
+            metal: cost.metal * batches / 2,
+        })
+    }
+
     pub fn output(self) -> (Item, u32) {
         match self {
             Self::Bandage => (Item::Bandage, 1),
