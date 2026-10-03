@@ -11,7 +11,7 @@ mod skate;
 mod terrain;
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use gathering::{GatheringWorld, Harvest, ResourceKind, ResourceNode};
-pub use inventory::{Inventory, Item, Recipe, Vitals};
+pub use inventory::{Inventory, Item, Recipe, Stack, Vitals};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
 
@@ -388,12 +388,22 @@ impl Session {
         Ok(())
     }
 
-    pub fn discard_item(&mut self, item: Item, quantity: u32) -> Result<(), String> {
+    /// Splits `quantity` items off the stack in `slot` into a free slot.
+    pub fn split_stack(&mut self, slot: usize, quantity: u32) -> Result<(), String> {
         self.require_alive()?;
-        let mut inventory = self.inventory.clone();
-        inventory.discard(item, quantity)?;
-        self.inventory = inventory;
-        Ok(())
+        self.inventory.split(slot, quantity)
+    }
+
+    /// Merges the stack in `from` into `to`, or swaps them if the items differ.
+    pub fn move_stack(&mut self, from: usize, to: usize) -> Result<(), String> {
+        self.require_alive()?;
+        self.inventory.move_stack(from, to)
+    }
+
+    /// Destroys `quantity` items from the stack in `slot`.
+    pub fn discard_stack(&mut self, slot: usize, quantity: u32) -> Result<Stack, String> {
+        self.require_alive()?;
+        self.inventory.discard(slot, quantity)
     }
 
     fn require_alive(&self) -> Result<(), String> {

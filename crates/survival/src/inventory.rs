@@ -180,28 +180,63 @@ impl Inventory {
         })
     }
 
-    pub fn discard(&mut self, item: Item, quantity: u32) -> Result<(), String> {
-        if quantity == 0 {
-            return Err("Discard quantity must be positive".into());
+    /// Moves `quantity` items from the stack in `slot` into a new stack in
+    /// the next free slot. Both stacks stay non-empty.
+    pub fn split(&mut self, slot: usize, quantity: u32) -> Result<(), String> {
+        let stack = *self.slots.get(slot).ok_or("No stack in that slot")?;
+        if quantity == 0 || quantity >= stack.quantity {
+            return Err("Split part of a stack, leaving at least one item".into());
         }
-        if self.count(item) < quantity {
-            return Err("Not enough items to discard".into());
+        if self.slots.len() >= INVENTORY_SLOTS {
+            return Err("Inventory is full".into());
         }
-        self.take(item, quantity);
+        self.slots[slot].quantity -= quantity;
+        self.slots.push(Stack {
+            item: stack.item,
+            quantity,
+        });
         Ok(())
     }
 
-    fn take(&mut self, item: Item, quantity: u32) {
-        let mut remaining = quantity;
-        for stack in self.slots.iter_mut().filter(|s| s.item == item) {
-            let taken = remaining.min(stack.quantity);
-            stack.quantity -= taken;
-            remaining -= taken;
-            if remaining == 0 {
-                break;
-            }
+    /// Moves the stack in `from` onto `to`. Stacks of the same item merge up
+    /// to the stack limit and any rest stays in `from`; different items swap
+    /// slots.
+    pub fn move_stack(&mut self, from: usize, to: usize) -> Result<(), String> {
+        if from == to || from >= self.slots.len() || to >= self.slots.len() {
+            return Err("Move a stack onto another occupied slot".into());
         }
-        self.slots.retain(|s| s.quantity > 0);
+        let (source, target) = (self.slots[from], self.slots[to]);
+        if source.item != target.item {
+            self.slots.swap(from, to);
+            return Ok(());
+        }
+        let moved = source
+            .quantity
+            .min(target.item.stack_limit() - target.quantity);
+        if moved == 0 {
+            return Err("That stack is already full".into());
+        }
+        self.slots[to].quantity += moved;
+        self.slots[from].quantity -= moved;
+        if self.slots[from].quantity == 0 {
+            self.slots.remove(from);
+        }
+        Ok(())
+    }
+
+    /// Removes `quantity` items from the stack in `slot` and returns what
+    /// was removed. The items are destroyed; there are no world drops yet.
+    pub fn discard(&mut self, slot: usize, quantity: u32) -> Result<Stack, String> {
+        let stack = self.slots.get_mut(slot).ok_or("No stack in that slot")?;
+        if quantity == 0 || quantity > stack.quantity {
+            return Err("Discard between one item and the whole stack".into());
+        }
+        stack.quantity -= quantity;
+        let item = stack.item;
+        if stack.quantity == 0 {
+            self.slots.remove(slot);
+        }
+        Ok(Stack { item, quantity })
     }
 }
 
