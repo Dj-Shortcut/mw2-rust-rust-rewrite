@@ -11,7 +11,7 @@
 use crate::crates::SavedCrates;
 use crate::{
     Blueprints, Cast, CraftQueue, GatheringWorld, Inventory, Item, LootBags, PlacedObject,
-    SavedSkate, Vitals, WORLD_HALF, WorldClock,
+    SavedSkate, Vitals, WORLD_HALF, Weather, WorldClock,
 };
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -51,6 +51,8 @@ pub(crate) struct SavedSession {
     pub blueprints: Blueprints,
     #[serde(default)]
     pub clock: WorldClock,
+    #[serde(default)]
+    pub weather: Weather,
     #[serde(default)]
     pub worn: Option<Item>,
     #[serde(default, deserialize_with = "present_crates")]
@@ -219,6 +221,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     crafting: CraftQueue::default(),
                     blueprints: Blueprints::default(),
                     clock: WorldClock::default(),
+                    weather: Weather::default(),
                     worn: None,
                     crates: None,
                     fishing: None,

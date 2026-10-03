@@ -15,6 +15,7 @@ mod radiation;
 mod rules;
 mod skate;
 mod terrain;
+mod weather;
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{CRATE_REACH, CrateTier, LootCrate, LootCrates};
@@ -31,6 +32,7 @@ pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use radiation::{MAX_RADIATION, RADIATION_RADIUS, RADIATION_SICK};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
+pub use weather::{MAX_SPELL_SECONDS, MIN_SPELL_SECONDS, RAIN_CHILL_CELSIUS, Weather};
 
 pub const UNITS_TO_METERS: f32 = 0.0254;
 pub const WORLD_HALF: f32 = 4000.;
@@ -93,6 +95,7 @@ pub struct Session {
     crafting: CraftQueue,
     blueprints: Blueprints,
     clock: WorldClock,
+    weather: Weather,
     worn: Option<Item>,
     freezing: bool,
     irradiated: bool,
@@ -362,6 +365,7 @@ impl Session {
             crafting: CraftQueue::default(),
             blueprints: Blueprints::default(),
             clock: WorldClock::default(),
+            weather: Weather::default(),
             worn: None,
             freezing: false,
             irradiated: false,
@@ -389,6 +393,7 @@ impl Session {
         self.regrow_resources();
         self.clock.advance(0.017)?;
         self.crates.advance(0.017)?;
+        let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         if alive {
             self.vitals.wound(external);
@@ -402,6 +407,13 @@ impl Session {
             self.world.set_external_motion(LOCAL, false);
             self.skate_input = SkateInput::default();
             return Ok(());
+        }
+        if weather_changed {
+            self.message = if self.weather.is_raining() {
+                "It started raining".into()
+            } else {
+                "The rain stopped".into()
+            };
         }
         if let Some(skate) = &mut self.skate {
             let origin = self.world.player(LOCAL).ok_or("Player is missing")?.origin;
@@ -496,8 +508,12 @@ impl Session {
         self.worn
     }
 
+    pub fn weather(&self) -> Weather {
+        self.weather
+    }
+
     pub fn felt_temperature(&self) -> f32 {
-        self.clock.temperature() + self.worn.map_or(0., Item::warmth)
+        self.clock.temperature() - self.weather.chill() + self.worn.map_or(0., Item::warmth)
     }
 
     pub fn radiation_exposure(&self) -> f32 {
@@ -1275,6 +1291,7 @@ impl Session {
             crafting: self.crafting.clone(),
             blueprints: self.blueprints.clone(),
             clock: self.clock,
+            weather: self.weather,
             worn: self.worn,
             crates: Some(self.crates.saved()),
             fishing: self.fishing,
@@ -1450,6 +1467,7 @@ impl Session {
         self.crafting = scene.crafting;
         self.blueprints = scene.blueprints;
         self.clock = scene.clock;
+        self.weather = scene.weather;
         self.worn = scene.worn;
         self.crates = crates;
         self.fishing = scene.fishing;
