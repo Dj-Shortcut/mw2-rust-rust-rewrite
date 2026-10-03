@@ -12,6 +12,9 @@ use survival::{
     Item, LOCAL, PlacedObject, PropKind, Recipe, ResourceNode, Session, UNITS_TO_METERS,
 };
 
+mod inventory;
+use inventory::{Action as InventoryAction, InventoryUi};
+
 #[derive(Resource)]
 struct GameSession(Session);
 
@@ -32,7 +35,7 @@ struct Controls {
     pad: Option<Entity>,
     inventory_open: bool,
     recipe: usize,
-    inventory_slot: usize,
+    inventory: InventoryUi,
     capture_frames: u8,
     captured: bool,
     help: bool,
@@ -514,7 +517,7 @@ fn setup(
         InventoryText,
         Text::new(""),
         TextFont {
-            font_size: FontSize::Px(19.),
+            font_size: FontSize::Px(17.),
             ..default()
         },
         TextColor(Color::WHITE),
@@ -580,7 +583,12 @@ fn input(
     let mut inventory_changed = false;
     if keys.just_pressed(KeyCode::Escape) || pad_just_pressed(GamepadButton::Start) {
         if controls.inventory_open {
+            if controls.inventory.pending() {
+                game.0.message = "Stack action canceled".into();
+            }
+            controls.inventory.reset();
             controls.inventory_open = false;
+            inventory_changed = true;
         } else {
             controls.paused = !controls.paused;
         }
@@ -596,13 +604,31 @@ fn input(
         inventory_changed = true;
         sound(&mut commands, &sounds.ui);
     }
-    if controls.inventory_open && pad_just_pressed(GamepadButton::East) {
-        controls.inventory_open = false;
+    if window.focused
+        && controls.inventory_open
+        && (keys.just_pressed(KeyCode::Backspace) || pad_just_pressed(GamepadButton::East))
+    {
+        if controls.inventory.pending() {
+            controls
+                .inventory
+                .apply(InventoryAction::Cancel, &mut game.0);
+        } else {
+            controls.inventory_open = false;
+        }
+        inventory_changed = true;
     }
     if window.focused && keys.just_pressed(KeyCode::F1) {
         controls.help = !controls.help;
     }
     controls.focused = window.focused;
+    if !controls.inventory_open || !window.focused || controls.paused || controls.error.is_some() {
+        if controls.inventory.pending() {
+            game.0.message = "Stack action canceled".into();
+        }
+        controls.inventory.reset();
+    } else {
+        controls.inventory.sync(&game.0);
+    }
     let active =
         window.focused && !controls.paused && !controls.inventory_open && controls.error.is_none();
     if window.focused
@@ -887,27 +913,67 @@ fn inventory_input(
     if keys.just_pressed(KeyCode::Digit2) || pressed(GamepadButton::RightTrigger) {
         controls.recipe = 1;
     }
-    if pressed(GamepadButton::DPadLeft) {
-        controls.inventory_slot = (controls.inventory_slot + 23) % 24;
+    if keys.just_pressed(KeyCode::ArrowLeft) || pressed(GamepadButton::DPadLeft) {
+        controls
+            .inventory
+            .apply(InventoryAction::Navigate(-1), game);
     }
-    if pressed(GamepadButton::DPadRight) {
-        controls.inventory_slot = (controls.inventory_slot + 1) % 24;
+    if keys.just_pressed(KeyCode::ArrowRight) || pressed(GamepadButton::DPadRight) {
+        controls.inventory.apply(InventoryAction::Navigate(1), game);
     }
-    if pressed(GamepadButton::DPadUp) {
-        controls.inventory_slot = (controls.inventory_slot + 21) % 24;
+    if keys.just_pressed(KeyCode::ArrowUp) || pressed(GamepadButton::DPadUp) {
+        controls
+            .inventory
+            .apply(InventoryAction::Navigate(-3), game);
     }
-    if pressed(GamepadButton::DPadDown) {
-        controls.inventory_slot = (controls.inventory_slot + 3) % 24;
+    if keys.just_pressed(KeyCode::ArrowDown) || pressed(GamepadButton::DPadDown) {
+        controls.inventory.apply(InventoryAction::Navigate(3), game);
     }
-    survival_shortcuts(keys, game, controls.recipe);
+    if keys.just_pressed(KeyCode::KeyQ) || pressed(GamepadButton::LeftTrigger2) {
+        controls.inventory.apply(InventoryAction::Adjust(-1), game);
+    }
+    if keys.just_pressed(KeyCode::KeyE) || pressed(GamepadButton::RightTrigger2) {
+        controls.inventory.apply(InventoryAction::Adjust(1), game);
+    }
+    if keys.just_pressed(KeyCode::Delete) || pressed(GamepadButton::LeftThumb) {
+        controls.inventory.apply(InventoryAction::Discard, game);
+        return;
+    }
+    if keys.just_pressed(KeyCode::KeyS) || pressed(GamepadButton::RightThumb) {
+        controls.inventory.apply(InventoryAction::Split, game);
+        return;
+    }
+    if keys.just_pressed(KeyCode::Enter) || pressed(GamepadButton::North) {
+        controls.inventory.apply(InventoryAction::Activate, game);
+        return;
+    }
+    if [
+        KeyCode::KeyC,
+        KeyCode::KeyH,
+        KeyCode::KeyJ,
+        KeyCode::KeyK,
+        KeyCode::KeyU,
+    ]
+    .into_iter()
+    .any(|key| keys.just_pressed(key))
+    {
+        controls.inventory.apply(InventoryAction::Cancel, game);
+        survival_shortcuts(keys, game, controls.recipe);
+        controls.inventory.sync(game);
+        return;
+    }
     if pressed(GamepadButton::West) {
+        controls.inventory.apply(InventoryAction::Cancel, game);
         game.message = game
             .craft(Recipe::ALL[controls.recipe])
             .map(|()| "Crafted".into())
             .unwrap_or_else(|e| e);
+        controls.inventory.sync(game);
+        return;
     }
     if pressed(GamepadButton::South) {
-        if let Some(stack) = game.inventory.stacks().get(controls.inventory_slot) {
+        controls.inventory.apply(InventoryAction::Cancel, game);
+        if let Some(stack) = game.inventory.stacks().get(controls.inventory.slot) {
             let item = stack.item;
             game.message = game
                 .use_item(item)
@@ -916,6 +982,7 @@ fn inventory_input(
         } else {
             game.message = "This slot is empty".into();
         }
+        controls.inventory.sync(game);
     }
 }
 
@@ -946,7 +1013,7 @@ fn update_inventory(
                     .unwrap_or_else(|| "-".into());
                 content.push_str(&format!(
                     "{} {:02} {:<15} ",
-                    if index == controls.inventory_slot {
+                    if index == controls.inventory.slot {
                         ">"
                     } else {
                         " "
@@ -957,6 +1024,7 @@ fn update_inventory(
             }
             content.push('\n');
         }
+        content.push_str(&format!("\n{}\n", controls.inventory.status(&game.0)));
         content.push_str("\nRECIPES\n");
         for (index, recipe) in Recipe::ALL.into_iter().enumerate() {
             let cost = recipe.cost();
@@ -972,7 +1040,7 @@ fn update_inventory(
                 cost.metal
             ));
         }
-        content.push_str("\n1/2 recipe | C craft | H bandage | J food | K water\nU ammo to reserve | Tab close\nXbox: D-pad slot | LB/RB recipe | X craft | A use | B close");
+        content.push_str("\nArrow keys slot | Q/E quantity | S split | Enter move/confirm\nDelete discard (destroys items) | Backspace cancel/close | Tab close\n1/2 recipe | C craft | H bandage | J food | K water | U ammo\nXbox: D-pad slot | LT/RT quantity | RS click split | Y move/confirm\nLS click discard | B cancel/close | LB/RB recipe | X craft | A use");
         **text = content;
     }
 }
@@ -1597,10 +1665,12 @@ fn update_hud(
         .skate
         .as_ref()
         .is_some_and(|skate| skate.is_grinding());
-    let mode = if health <= 0 {
+    let mode = if health <= 0 && controls.inventory_open {
+        "DEAD | Tab / Xbox B: close inventory\nThen Enter / Xbox A to respawn".into()
+    } else if health <= 0 {
         "DEAD | Enter / Xbox A to respawn".into()
     } else if controls.inventory_open {
-        "INVENTORY | Tab / Xbox B to close".into()
+        "INVENTORY | Tab close | Xbox B cancel/close".into()
     } else if controls.paused {
         "PAUSED | Esc / Start to resume".into()
     } else if controls.building {
