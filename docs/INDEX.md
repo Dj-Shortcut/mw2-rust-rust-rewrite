@@ -8,6 +8,7 @@ The inherited run/import guides below document optional upstream modes.
 
 | file | about | when to read |
 |---|---|---|
+| [`AUTONOMY.md`](AUTONOMY.md) | standing authorization, task ownership and verification | continuing work or coordinating agents |
 | [`BUILDINGS.md`](BUILDINGS.md) | local host building, controller bindings, persistence and unfinished systems | using or changing construction |
 | [`RUST-MAPS.md`](RUST-MAPS.md) | bounded Rust.World SDK-v9 map reader; inspection limits and missing runtime installation | inspecting Rust map formats |
 | [`SKATE.md`](SKATE.md) | Skate 3 mode: what you need, where `default.xex` comes from, setup, controls, how it works, building a release | playing or changing the skate mode |

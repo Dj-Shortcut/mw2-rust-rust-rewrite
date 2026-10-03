@@ -1,6 +1,8 @@
 Workflow, artifacts and the glossary: `CONTEXT.md`. Do not touch other agents'
 `context/mrs/*` without being asked.
 
+Standing project authorization and agent coordination: [docs/AUTONOMY.md](docs/AUTONOMY.md).
+
 All player-facing game text must be English. Keep HUDs, menus, item names,
 controls, interaction feedback and displayed errors in English in every change.
 Use readable glyphs supported by the shipped UI font. This is a user requirement.
