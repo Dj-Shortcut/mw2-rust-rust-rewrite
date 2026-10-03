@@ -13,6 +13,7 @@ pub enum MarkerKind {
     Waypoint,
     Stash,
     FishTrap,
+    RainBarrel,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
