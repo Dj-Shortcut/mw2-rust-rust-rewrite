@@ -4,6 +4,7 @@ use sim::{ClientId, SimBrush, SimContentBuilder, SimWorld, Tick, TickInput};
 use std::path::Path;
 mod climate;
 mod crafting;
+mod crates;
 mod editor;
 mod gathering;
 mod inventory;
@@ -14,6 +15,7 @@ mod skate;
 mod terrain;
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
+pub use crates::{CRATE_REACH, CrateTier, LootCrate, LootCrates};
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
@@ -89,6 +91,7 @@ pub struct Session {
     clock: WorldClock,
     worn: Option<Item>,
     freezing: bool,
+    crates: LootCrates,
 }
 
 impl Session {
@@ -307,6 +310,7 @@ impl Session {
         let terrain = Terrain::new(terrain::TERRAIN_SEED);
         let editor = EditorState::default();
         let gathering = GatheringWorld::new(&terrain)?;
+        let crates = LootCrates::new(&terrain)?;
         world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
@@ -353,6 +357,7 @@ impl Session {
             clock: WorldClock::default(),
             worn: None,
             freezing: false,
+            crates,
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -373,6 +378,7 @@ impl Session {
         self.queued_damage = 0;
         self.regrow_resources();
         self.clock.advance(0.017)?;
+        self.crates.advance(0.017)?;
         let alive = after > 0;
         if alive {
             self.vitals.wound(external);
@@ -769,6 +775,34 @@ impl Session {
         self.loot.nearest(player.origin)
     }
 
+    pub fn loot_crates(&self) -> &[LootCrate] {
+        self.crates.crates()
+    }
+
+    pub fn crate_in_reach(&self) -> Option<&LootCrate> {
+        let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
+        self.crates.nearest_full(player.origin)
+    }
+
+    pub fn open_crate(&mut self) -> Result<Vec<(Item, u32)>, String> {
+        self.require_alive()?;
+        let id = self
+            .crate_in_reach()
+            .ok_or("No full crate within reach")?
+            .id();
+        let mut inventory = self.inventory.clone();
+        let mut crates = self.crates.clone();
+        let (tier, loot) = crates.open(id, &mut inventory)?;
+        self.inventory = inventory;
+        self.crates = crates;
+        let names: Vec<String> = loot
+            .iter()
+            .map(|(item, quantity)| format!("{quantity} {}", item.name()))
+            .collect();
+        self.message = format!("{}: {}", tier.name(), names.join(", "));
+        Ok(loot)
+    }
+
     pub fn pick_up_loot(&mut self) -> Result<u32, String> {
         self.require_alive()?;
         let id = self
@@ -1129,6 +1163,7 @@ impl Session {
             blueprints: self.blueprints.clone(),
             clock: self.clock,
             worn: self.worn,
+            crates: self.crates.saved(),
             gathering: self.gathering.clone(),
             player: saved,
         };
@@ -1252,6 +1287,8 @@ impl Session {
             return Err(format!("Restoring the player failed: {fault}"));
         }
         verify_restored(&world, &player)?;
+        let mut crates = self.crates.clone();
+        crates.restore(&scene.crates);
         if scene.worn.is_some_and(|item| !item.is_clothing()) {
             return Err("Only clothing can be worn".into());
         }
@@ -1290,6 +1327,7 @@ impl Session {
         self.blueprints = scene.blueprints;
         self.clock = scene.clock;
         self.worn = scene.worn;
+        self.crates = crates;
         self.freezing = false;
         Ok(())
     }
