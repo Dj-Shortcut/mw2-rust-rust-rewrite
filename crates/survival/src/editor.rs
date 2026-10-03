@@ -18,8 +18,8 @@ const PLATFORM_EDGES: [([f32; 3], [f32; 3]); 4] = [
     ([-100., -80., 70.], [-100., 80., 70.]),
     ([100., -80., 70.], [100., 80., 70.]),
 ];
-/// The longest grindable segment of any prop (the platform's long edges).
-pub(crate) const MAX_GRIND_LENGTH: f32 = 200.;
+/// The longest grindable segment of any prop: the rail's 240-unit beam.
+pub(crate) const MAX_GRIND_LENGTH: f32 = RAIL_EDGES[0].1[0] - RAIL_EDGES[0].0[0];
 /// Grindable segments per prop; saved edge indices must stay below this.
 pub(crate) const MAX_GRIND_EDGES: u8 = 4;
 
@@ -266,7 +266,7 @@ impl PlacedObject {
     /// The prop's grindable segments (a rail's centerline, funbox and
     /// platform ledges) rotated by yaw around Z and translated by the object
     /// position; empty for props without one.
-    pub fn grind_segments(&self) -> Vec<RailSegment> {
+    pub fn grind_segments(&self) -> impl Iterator<Item = RailSegment> + '_ {
         let edges: &[([f32; 3], [f32; 3])] = match self.kind {
             PropKind::Rail => &RAIL_EDGES,
             PropKind::Funbox => &FUNBOX_EDGES,
@@ -274,7 +274,7 @@ impl PlacedObject {
             PropKind::Ramp | PropKind::QuarterPipe | PropKind::Stairs => &[],
         };
         let (sin, cos) = self.yaw.to_radians().sin_cos();
-        let place = |p: [f32; 3]| {
+        let place = move |p: [f32; 3]| {
             [
                 p[0] * cos - p[1] * sin + self.position[0],
                 p[0] * sin + p[1] * cos + self.position[1],
@@ -284,13 +284,12 @@ impl PlacedObject {
         edges
             .iter()
             .zip(0..)
-            .map(|(&(start, end), edge)| RailSegment {
+            .map(move |(&(start, end), edge)| RailSegment {
                 id: self.id,
                 edge,
                 start: place(start),
                 end: place(end),
             })
-            .collect()
     }
     pub fn brushes(&self) -> Vec<SimBrush> {
         let (sin, cos) = self.yaw.to_radians().sin_cos();
