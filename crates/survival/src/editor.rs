@@ -5,15 +5,32 @@ use std::collections::BTreeMap;
 pub const MAX_PROPS: usize = 1024;
 
 /// Local grind centerline of [`PropKind::Rail`]: the top of its beam.
-const RAIL_START: [f32; 3] = [-120., 0., 50.];
-const RAIL_END: [f32; 3] = [120., 0., 50.];
-pub(crate) const RAIL_LENGTH: f32 = RAIL_END[0] - RAIL_START[0];
+const RAIL_EDGES: [([f32; 3], [f32; 3]); 1] = [([-120., 0., 50.], [120., 0., 50.])];
+/// Ledges along the long top edges of the funbox deck.
+const FUNBOX_EDGES: [([f32; 3], [f32; 3]); 2] = [
+    ([-60., -80., 70.], [60., -80., 70.]),
+    ([-60., 80., 70.], [60., 80., 70.]),
+];
+/// Ledges along all four top edges of the platform.
+const PLATFORM_EDGES: [([f32; 3], [f32; 3]); 4] = [
+    ([-100., -80., 70.], [100., -80., 70.]),
+    ([-100., 80., 70.], [100., 80., 70.]),
+    ([-100., -80., 70.], [-100., 80., 70.]),
+    ([100., -80., 70.], [100., 80., 70.]),
+];
+/// The longest grindable segment of any prop (the platform's long edges).
+pub(crate) const MAX_GRIND_LENGTH: f32 = 200.;
+/// Grindable segments per prop; saved edge indices must stay below this.
+pub(crate) const MAX_GRIND_EDGES: u8 = 4;
 
-/// The grindable centerline of one authored rail, in world space. `id` is
-/// the editor object ID, which stays stable across undo/redo and saves.
+/// One grindable centerline in world space: a rail's beam top or a ledge
+/// along a funbox or platform top edge. `id` is the editor object ID, which
+/// stays stable across undo/redo and saves, and `edge` picks the segment
+/// within that object (always 0 for a rail).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RailSegment {
     pub id: u32,
+    pub edge: u8,
     pub start: [f32; 3],
     pub end: [f32; 3],
 }
@@ -127,7 +144,7 @@ impl EditorState {
     }
     pub fn rails(&self) -> Vec<RailSegment> {
         self.objects()
-            .filter_map(PlacedObject::rail_segment)
+            .flat_map(PlacedObject::grind_segments)
             .collect()
     }
 }
@@ -246,12 +263,16 @@ impl PropKind {
 }
 
 impl PlacedObject {
-    /// The rail's centerline rotated by yaw around Z and translated by the
-    /// object position; `None` for every other prop.
-    pub fn rail_segment(&self) -> Option<RailSegment> {
-        if self.kind != PropKind::Rail {
-            return None;
-        }
+    /// The prop's grindable segments (a rail's centerline, funbox and
+    /// platform ledges) rotated by yaw around Z and translated by the object
+    /// position; empty for props without one.
+    pub fn grind_segments(&self) -> Vec<RailSegment> {
+        let edges: &[([f32; 3], [f32; 3])] = match self.kind {
+            PropKind::Rail => &RAIL_EDGES,
+            PropKind::Funbox => &FUNBOX_EDGES,
+            PropKind::Platform => &PLATFORM_EDGES,
+            PropKind::Ramp | PropKind::QuarterPipe | PropKind::Stairs => &[],
+        };
         let (sin, cos) = self.yaw.to_radians().sin_cos();
         let place = |p: [f32; 3]| {
             [
@@ -260,11 +281,16 @@ impl PlacedObject {
                 p[2] + self.position[2],
             ]
         };
-        Some(RailSegment {
-            id: self.id,
-            start: place(RAIL_START),
-            end: place(RAIL_END),
-        })
+        edges
+            .iter()
+            .zip(0..)
+            .map(|(&(start, end), edge)| RailSegment {
+                id: self.id,
+                edge,
+                start: place(start),
+                end: place(end),
+            })
+            .collect()
     }
     pub fn brushes(&self) -> Vec<SimBrush> {
         let (sin, cos) = self.yaw.to_radians().sin_cos();
