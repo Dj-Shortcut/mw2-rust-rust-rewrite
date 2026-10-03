@@ -1539,6 +1539,27 @@ impl Session {
         Ok(())
     }
 
+    pub fn cook_stew(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        self.campfire_in_reach().ok_or("No campfire within reach")?;
+        if [Item::CookedFish, Item::Food, Item::Water]
+            .iter()
+            .any(|&item| self.inventory.count(item) == 0)
+        {
+            return Err("You need cooked fish, food and water for stew".into());
+        }
+        let mut inventory = self.inventory.clone();
+        inventory.take(Item::CookedFish, 1)?;
+        inventory.take(Item::Food, 1)?;
+        inventory.take(Item::Water, 1)?;
+        inventory
+            .add(Item::FishStew, 1)
+            .map_err(|_| "Not enough inventory space for the stew")?;
+        self.inventory = inventory;
+        self.message = "Cooked fish stew".into();
+        Ok(())
+    }
+
     pub fn tea_warmth(&self) -> f32 {
         self.tea_warmth
     }
