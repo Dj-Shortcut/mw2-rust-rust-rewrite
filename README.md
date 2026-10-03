@@ -1,5 +1,7 @@
 # PC survival / FPS / Skate
 
+![Rust x MW2 x Skate 3 banner](assets/rust-mw2-skate-banner.png)
+
 We bouwen een zelfstandige **pc-survivalgame in Rust en Bevy**, met survival
 en bases geïnspireerd door Rust, gunplay en operators geïnspireerd door MW2,
 en skateboarden geïnspireerd door Skate 3. De wereld en gamecontent maken we
