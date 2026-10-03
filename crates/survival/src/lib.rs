@@ -667,25 +667,36 @@ fn verify_restored(world: &SimWorld, saved: &persistence::SavedPlayer) -> Result
     {
         return Err(failed());
     }
+    let turned = (0..2).any(|k| {
+        let d = (player.viewangles[k] - saved.view[k]).rem_euclid(360.);
+        d.min(360. - d) > 0.1
+    });
+    let drift = (0..3)
+        .map(|k| (player.origin[k] - saved.origin[k]).abs())
+        .fold(0., f32::max);
+    if turned {
+        return Err(failed());
+    }
     if saved.alive {
         let facts = world
             .weapon_combat_facts(player.weapon)
             .ok_or_else(failed)?;
         let clip = weapon_iw4::get_clip_for_hand(&player.ammoclip, facts.clip_index, 0);
         let reserve = weapon_iw4::get_ammo_not_in_clip(&player.ammo, facts.ammo_index);
-        let turned = (0..2).any(|k| {
-            let d = (player.viewangles[k] - saved.view[k]).rem_euclid(360.);
-            d.min(360. - d) > 0.1
-        });
-        let drift = (0..3)
-            .map(|k| (player.origin[k] - saved.origin[k]).abs())
-            .fold(0., f32::max);
+        // A living player has had one movement step since the restore.
+        let travel = dot(saved.velocity, saved.velocity).sqrt() * 0.017;
         if player.weapon != saved.weapon
             || clip != saved.clip
             || reserve != saved.reserve
-            || turned
-            || drift > 1. + dot(saved.velocity, saved.velocity).sqrt() * 0.017
+            || drift > 1. + travel
         {
+            return Err(failed());
+        }
+    } else {
+        let skid = (0..3)
+            .map(|k| (player.velocity[k] - saved.velocity[k]).abs())
+            .fold(0., f32::max);
+        if drift > 1. || skid > 1. {
             return Err(failed());
         }
     }
