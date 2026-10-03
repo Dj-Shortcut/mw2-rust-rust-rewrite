@@ -5,6 +5,7 @@ use std::path::Path;
 mod editor;
 mod gathering;
 mod inventory;
+mod loot;
 mod persistence;
 mod rules;
 mod skate;
@@ -12,6 +13,7 @@ mod terrain;
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use gathering::{GatheringWorld, Harvest, ResourceKind, ResourceNode};
 pub use inventory::{Inventory, Item, Recipe, Stack, Vitals};
+pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
 
@@ -71,6 +73,7 @@ pub struct Session {
     pub last_skate_event: SkateEvent,
     /// Skate score banked while not mounted; carried into the next mount.
     skate_score: u64,
+    loot: LootBags,
 }
 
 impl Session {
@@ -235,6 +238,7 @@ impl Session {
             skate_roll: 0.,
             last_skate_event: SkateEvent::None,
             skate_score: 0,
+            loot: LootBags::default(),
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -249,6 +253,7 @@ impl Session {
         authority_step(&mut self.world, self.tick, cmd)?;
         let alive = self.world.player(LOCAL).is_some_and(|p| p.health > 0);
         if !alive {
+            self.drop_loot()?;
             self.dismount();
             self.world.set_external_motion(LOCAL, false);
             self.skate_input = SkateInput::default();
@@ -388,22 +393,53 @@ impl Session {
         Ok(())
     }
 
-    /// Splits `quantity` items off the stack in `slot` into a free slot.
     pub fn split_stack(&mut self, slot: usize, quantity: u32) -> Result<(), String> {
         self.require_alive()?;
         self.inventory.split(slot, quantity)
     }
 
-    /// Merges the stack in `from` into `to`, or swaps them if the items differ.
     pub fn move_stack(&mut self, from: usize, to: usize) -> Result<(), String> {
         self.require_alive()?;
         self.inventory.move_stack(from, to)
     }
 
-    /// Destroys `quantity` items from the stack in `slot`.
     pub fn discard_stack(&mut self, slot: usize, quantity: u32) -> Result<Stack, String> {
         self.require_alive()?;
         self.inventory.discard(slot, quantity)
+    }
+
+    pub fn loot_bags(&self) -> &[LootBag] {
+        self.loot.bags()
+    }
+
+    pub fn loot_bag_in_reach(&self) -> Option<&LootBag> {
+        let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
+        self.loot.nearest(player.origin)
+    }
+
+    pub fn pick_up_loot(&mut self) -> Result<u32, String> {
+        self.require_alive()?;
+        let id = self
+            .loot_bag_in_reach()
+            .ok_or("No loot bag within reach")?
+            .id();
+        let mut inventory = self.inventory.clone();
+        let mut loot = self.loot.clone();
+        let taken = loot.take(id, &mut inventory)?;
+        self.inventory = inventory;
+        self.loot = loot;
+        self.message = format!("Picked up {taken} items");
+        Ok(taken)
+    }
+
+    fn drop_loot(&mut self) -> Result<(), String> {
+        if self.inventory.stacks().is_empty() {
+            return Ok(());
+        }
+        let origin = self.world.player(LOCAL).ok_or("Player is missing")?.origin;
+        bag_inventory(&self.world, origin, &mut self.inventory, &mut self.loot)?;
+        self.message = "You died; your items are in a bag where you fell".into();
+        Ok(())
     }
 
     fn require_alive(&self) -> Result<(), String> {
@@ -419,6 +455,8 @@ impl Session {
         if player.health > 0 {
             return Err("Player is already alive".into());
         }
+        self.drop_loot()?;
+        let player = self.world.player(LOCAL).ok_or("Player is missing")?;
         let angles = player.viewangles;
         let origin = free_spawn(&self.world)
             .ok_or("Spawn area is blocked; remove nearby structures before respawning")?;
@@ -672,6 +710,7 @@ impl Session {
             .map_err(|e| e.to_string())?,
             objects: self.editor.objects().cloned().collect(),
             inventory: self.inventory.clone(),
+            loot: self.loot.clone(),
             vitals: self.vitals,
             gathering: self.gathering.clone(),
             player: saved,
@@ -796,11 +835,17 @@ impl Session {
             return Err(format!("Restoring the player failed: {fault}"));
         }
         verify_restored(&world, &player)?;
+        let mut inventory = scene.inventory;
+        let mut loot = scene.loot;
+        if !player.alive {
+            bag_inventory(&world, player.origin, &mut inventory, &mut loot)?;
+        }
 
         self.world = world;
         self.tick = tick;
         self.editor = editor;
-        self.inventory = scene.inventory;
+        self.inventory = inventory;
+        self.loot = loot;
         self.vitals = scene.vitals;
         self.gathering = scene.gathering;
         self.skate = skate;
@@ -810,6 +855,24 @@ impl Session {
         self.last_skate_event = SkateEvent::None;
         Ok(())
     }
+}
+
+fn bag_inventory(
+    world: &SimWorld,
+    origin: [f32; 3],
+    inventory: &mut Inventory,
+    loot: &mut LootBags,
+) -> Result<(), String> {
+    let below = [origin[0], origin[1], origin[2] - 4096.];
+    let ground = world.trace_world(origin, below, [0.; 3], [0.; 3], 1);
+    let position = if ground.startsolid != 0 {
+        origin
+    } else {
+        ground.endpos
+    };
+    loot.drop_bag(position, inventory.clone())?;
+    *inventory = Inventory::default();
+    Ok(())
 }
 
 fn authority_step(world: &mut SimWorld, tick: u32, mut cmd: UserCmd) -> Result<(), String> {

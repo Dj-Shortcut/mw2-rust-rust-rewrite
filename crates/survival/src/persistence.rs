@@ -3,11 +3,12 @@
 //! Format 3 stores the scene (buildings with the canonical resource balance,
 //! editor objects, inventory, vitals, resource-node depletion) together with
 //! the local player: lifecycle, transform, velocity, view, health, weapon,
-//! clip/reserve ammunition, kills/deaths/score and the mounted skate state.
+//! clip/reserve ammunition, kills/deaths/score and the mounted skate state,
+//! plus the loot bags dead players left behind.
 //! Format 2 saves (scene only) are migrated with the explicit defaults in
 //! [`SavedPlayer::v2_default`].
 
-use crate::{GatheringWorld, Inventory, PlacedObject, SavedSkate, Vitals, WORLD_HALF};
+use crate::{GatheringWorld, Inventory, LootBags, PlacedObject, SavedSkate, Vitals, WORLD_HALF};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -34,6 +35,9 @@ pub(crate) struct SavedSession {
     pub buildings: String,
     pub objects: Vec<PlacedObject>,
     pub inventory: Inventory,
+    /// Absent in saves from before loot bags.
+    #[serde(default)]
+    pub loot: LootBags,
     pub vitals: Vitals,
     pub gathering: GatheringWorld,
     pub player: SavedPlayer,
@@ -183,6 +187,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     buildings: old.buildings,
                     objects: old.objects,
                     inventory: old.inventory,
+                    loot: LootBags::default(),
                     vitals: old.vitals,
                     gathering: old.gathering,
                     player: SavedPlayer::v2_default(),

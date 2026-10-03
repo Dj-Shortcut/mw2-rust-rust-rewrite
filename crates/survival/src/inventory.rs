@@ -142,6 +142,23 @@ impl Inventory {
         Ok(())
     }
 
+    pub fn add_up_to(&mut self, item: Item, quantity: u32) -> u32 {
+        let limit = item.stack_limit();
+        let room = self
+            .slots
+            .iter()
+            .filter(|s| s.item == item)
+            .map(|s| limit - s.quantity)
+            .sum::<u32>()
+            + (INVENTORY_SLOTS - self.slots.len()) as u32 * limit;
+        let added = quantity.min(room);
+        if added > 0 {
+            self.add(item, added)
+                .expect("added quantity fits by construction");
+        }
+        added
+    }
+
     pub fn craft(&mut self, recipe: Recipe, available: Resources) -> Result<Resources, String> {
         let cost = recipe.cost();
         if !available.covers(cost) {
@@ -189,8 +206,6 @@ impl Inventory {
         })
     }
 
-    /// Moves `quantity` items from the stack in `slot` into a new stack in
-    /// the next free slot. Both stacks stay non-empty.
     pub fn split(&mut self, slot: usize, quantity: u32) -> Result<(), String> {
         let stack = *self.slots.get(slot).ok_or("No stack in that slot")?;
         if quantity == 0 || quantity >= stack.quantity {
@@ -207,9 +222,6 @@ impl Inventory {
         Ok(())
     }
 
-    /// Moves the stack in `from` onto `to`. Stacks of the same item merge up
-    /// to the stack limit and any rest stays in `from`; different items swap
-    /// slots.
     pub fn move_stack(&mut self, from: usize, to: usize) -> Result<(), String> {
         if from == to || from >= self.slots.len() || to >= self.slots.len() {
             return Err("Move a stack onto another occupied slot".into());
@@ -233,8 +245,6 @@ impl Inventory {
         Ok(())
     }
 
-    /// Removes `quantity` items from the stack in `slot` and returns what
-    /// was removed. The items are destroyed; there are no world drops yet.
     pub fn discard(&mut self, slot: usize, quantity: u32) -> Result<Stack, String> {
         let stack = self.slots.get_mut(slot).ok_or("No stack in that slot")?;
         if quantity == 0 || quantity > stack.quantity {
