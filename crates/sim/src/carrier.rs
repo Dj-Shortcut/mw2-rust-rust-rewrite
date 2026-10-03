@@ -128,6 +128,76 @@ impl SimWorld {
         FrameWorld::new(&mut self.ecs, self.state_entity)
     }
 
+    pub fn heal_player(&mut self, id: ClientId, amount: u32) -> Result<u32, String> {
+        let mut frame = self.frame();
+        let player = frame.player_mut(id).ok_or("Player is missing")?;
+        if player.health <= 0 {
+            return Err("Player is not alive".into());
+        }
+        let healed = amount.min(player.max_health.saturating_sub(player.health).max(0) as u32);
+        if healed == 0 {
+            return Err("Health is already full".into());
+        }
+        player.health += healed as i32;
+        Ok(healed)
+    }
+
+    pub fn add_reserve_ammo(&mut self, id: ClientId, amount: u32) -> Result<(), String> {
+        let weapon = self
+            .player(id)
+            .filter(|p| p.health > 0)
+            .ok_or("Player is not alive")?
+            .weapon;
+        let mut frame = self.frame();
+        let facts = frame
+            .combat_facts_for(weapon)
+            .ok_or("Weapon has no combat data")?;
+        let current = crate::script_player::ammo_stock(&frame, id, weapon);
+        let count = current
+            .checked_add(i32::try_from(amount).map_err(|_| "Too much ammunition")?)
+            .filter(|n| *n <= facts.max_ammo)
+            .ok_or("Reserve ammunition is full")?;
+        crate::script_player::set_ammo_stock(&mut frame, id, weapon, count);
+        Ok(())
+    }
+
+    pub fn queue_environment_damage(&mut self, id: ClientId, amount: u32) -> Result<(), String> {
+        if amount == 0 || amount > 1000 {
+            return Err("Invalid environmental damage".into());
+        }
+        let player = self
+            .player(id)
+            .filter(|p| p.health > 0)
+            .ok_or("Player is not alive")?;
+        let origin = player.origin;
+        let object = self
+            .ecs
+            .resource::<crate::script::Runtime>()
+            .players
+            .get(&id.0)
+            .map(|slot| slot.object)
+            .ok_or("Player script state is missing")?;
+        use crate::script::Value;
+        self.start_gsc(
+            "maps/mp/gametypes/_callbacksetup::codecallback_playerdamage",
+            Value::Object(object),
+            vec![
+                Value::Undefined,
+                Value::Undefined,
+                Value::Int(amount as i32),
+                Value::Int(0),
+                Value::string("MOD_UNKNOWN"),
+                Value::string("none"),
+                Value::Vector(origin),
+                Value::Vector([0.; 3]),
+                Value::string("none"),
+                Value::Int(0),
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
     fn run(
         &mut self,
         tick: Tick,

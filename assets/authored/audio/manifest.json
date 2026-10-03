@@ -1,0 +1,95 @@
+{
+  "format_version": 1,
+  "generator": "scripts/generate_authored_audio.py",
+  "algorithm_version": 1,
+  "base_seed": 731031,
+  "license": "CC0-1.0",
+  "encoding": "signed 16-bit little-endian PCM WAV",
+  "external_inputs": [],
+  "sounds": [
+    {
+      "file": "carbine_shot.wav",
+      "seed": 731031,
+      "sha256": "ecec12fdf0b3c05034aad9caa4ff640c0471cba46971434a46ebf586a72e0ebe",
+      "frames": 17280,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "bits_per_sample": 16,
+      "duration_seconds": 0.36,
+      "peak_amplitude": 0.779968,
+      "rms_amplitude": 0.072328
+    },
+    {
+      "file": "reload.wav",
+      "seed": 731132,
+      "sha256": "9e44452ee74cb15ab57c610028dae41c963b44d76100a17025aab496730789ac",
+      "frames": 55200,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "bits_per_sample": 16,
+      "duration_seconds": 1.15,
+      "peak_amplitude": 0.519989,
+      "rms_amplitude": 0.026614
+    },
+    {
+      "file": "footstep.wav",
+      "seed": 731233,
+      "sha256": "a3bb849efb443b04a07097d2747d736a178f69191b6565336d26e030078be9ec",
+      "frames": 12000,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "bits_per_sample": 16,
+      "duration_seconds": 0.25,
+      "peak_amplitude": 0.319977,
+      "rms_amplitude": 0.041162
+    },
+    {
+      "file": "ollie.wav",
+      "seed": 731334,
+      "sha256": "6402289365ff31fd5e92b06e8bf13e458d319a6d0541abc7f26111efc938a237",
+      "frames": 16320,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "bits_per_sample": 16,
+      "duration_seconds": 0.34,
+      "peak_amplitude": 0.5,
+      "rms_amplitude": 0.047875
+    },
+    {
+      "file": "land.wav",
+      "seed": 731435,
+      "sha256": "517614752abd4828a639e5c400af6425dd033ea7e244923a986c1ac0557a666d",
+      "frames": 19200,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "bits_per_sample": 16,
+      "duration_seconds": 0.4,
+      "peak_amplitude": 0.549988,
+      "rms_amplitude": 0.05917
+    },
+    {
+      "file": "gather.wav",
+      "seed": 731536,
+      "sha256": "b6c72de9faa42d83cbf4b9dab6fa448c1fd98baba2859d7ea52fec8ca6343658",
+      "frames": 16320,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "bits_per_sample": 16,
+      "duration_seconds": 0.34,
+      "peak_amplitude": 0.5,
+      "rms_amplitude": 0.050806
+    },
+    {
+      "file": "ui_click.wav",
+      "seed": 731637,
+      "sha256": "13c9c514428a880bb298621162f118798a507564ed94d6b3a4f0046fc722c473",
+      "frames": 4080,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "bits_per_sample": 16,
+      "duration_seconds": 0.085,
+      "peak_amplitude": 0.220001,
+      "rms_amplitude": 0.03476
+    }
+  ]
+}

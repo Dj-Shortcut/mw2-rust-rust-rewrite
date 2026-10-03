@@ -132,7 +132,17 @@ pub enum BuildError {
 
 impl std::fmt::Display for BuildError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}")
+        f.write_str(match self {
+            Self::InvalidSocket => "Invalid building location or interaction",
+            Self::Occupied => "This building location is occupied",
+            Self::Unsupported => "Building needs ground or structural support",
+            Self::InsufficientResources => "Not enough building resources",
+            Self::NotOwner => "You do not own this building piece",
+            Self::Missing => "Building piece no longer exists",
+            Self::Limit => "Building data limit reached",
+            Self::InvalidGrade => "Choose a higher material grade",
+            Self::InvalidSave => "Invalid building save",
+        })
     }
 }
 impl std::error::Error for BuildError {}
@@ -156,6 +166,16 @@ impl BuildingWorld {
             return Err(BuildError::Limit);
         }
         self.inventories.entry(owner).or_default().add(resources);
+        Ok(())
+    }
+    pub fn consume(&mut self, owner: u32, cost: Resources) -> Result<(), BuildError> {
+        let available = self.inventory(owner);
+        if !available.covers(cost) {
+            return Err(BuildError::InsufficientResources);
+        }
+        if let Some(inventory) = self.inventories.get_mut(&owner) {
+            inventory.spend(cost);
+        }
         Ok(())
     }
     pub fn set_anchor(&mut self, anchor: [f32; 3]) -> Result<(), BuildError> {

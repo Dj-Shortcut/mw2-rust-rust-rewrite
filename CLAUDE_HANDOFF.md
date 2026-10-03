@@ -6,6 +6,10 @@ and Skate 3-inspired skating and a park editor. The user explicitly clarified
 that this is inspiration, with original assets made from scratch. They want
 the breadth of Rust's systems. This is a substantial unfinished game project.
 
+Every player-facing game string must be English and remain English: HUDs,
+menus, items, control hints, feedback and displayed errors. Follow this rule in
+the save/load task, including new validation and migration messages.
+
 Do the implementation and verification yourself. Do not ask the user to test
 incremental builds. Maintain TODO.md with honest progress. The user has
 explicitly authorized committing and pushing the current development source
@@ -30,6 +34,60 @@ transfer it separately if developer context is needed. This document has not
 been sent to Claude through an app connection.
 
 Read AGENT.md, CONTEXT.md, docs/INDEX.md and TODO.md before editing.
+
+## Codex and Claude coordination
+
+Claude's implementation task: [issue #6](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/6).
+
+Codex owns the native gameplay presentation and graphical/input/audio run
+verification in `crates/bootstrap/src/native.rs`, plus authored content and its
+generators. Claude owns complete validated local-player save/load for the existing
+authored survival loop. This is implementation work, not a starter skeleton or
+Minecraft/CI cleanup task. The task is delegated through a GitHub issue and PR;
+there is no direct connection to an external Claude session here.
+
+After Codex publishes `codex/authored-survival-loop`, fetch that branch and create
+`claude/survival-save-load` from it. Open a stacked PR with
+`codex/authored-survival-loop` as its base. After that branch lands on `main`,
+update the PR base to `main`. Do not merge either branch yourself. Keep all work
+on the Claude branch and report dependencies or ownership conflicts in the issue.
+
+Claude may add `crates/survival/src/persistence.rs`, edit save/load and restoration
+integration in `lib.rs` and the authored restore entry in `rules.rs`, and add
+validated skate-state serialization in `skate.rs` if needed. Preserve the public
+`Session::save`/`Session::load` interface used by the frontend. Do not edit native
+presentation, assets, CI or unrelated gameplay. If a simulation API change is
+needed outside these files, describe the required API in the issue for Codex.
+
+Acceptance criteria:
+
+- Round-trip local-player health, position, velocity/view, weapon, clip/reserve
+  ammunition, inventory, canonical building resources, needs, resource-node
+  depletion, buildings and editor objects together. Preserve mounted skate state
+  and score consistently, with no duplication or free resource refill.
+- Keep the authored GSC dead/alive lifecycle consistent with restored health.
+  After loading, living players can move/fire/take damage; dead players remain
+  action-gated and can use the existing respawn flow. Do not restore only the
+  visible health field while leaving the script player state stale.
+- Queue restoration script work and execute it during an authority tick when
+  `StepRequest` exists. Preserve authority preflight, scheduler ordering and
+  monotonic time; do not invoke frame-dependent natives directly from file load.
+- Bound file size, collections, numbers, IDs, ammo and resource balances. Reject
+  malformed/unsupported saves, invalid seeds and restored player/world collision
+  without changing the active session. Validate and commit a complete candidate
+  state; a failed restoration must leave the old session usable.
+- Version the new format and migrate scene-v2 saves with explicit defaults for
+  missing player fields. Keep their inventory, needs, depletion and scene data.
+  Retain atomic file replacement; report precisely which state is persisted.
+- Verify meaningful live/dead, mounted/walking and damaged/ammo-depleted
+  round-trips; invalid/oversized/colliding saves; migration; and gameplay after
+  restoration. Run the affected compiler and publish checks. Keep temporary
+  probes/evidence under ignored `context/`; permanent scenarios still require
+  owner approval under `crates/approved_tests` policy.
+
+The PR must state implemented behavior, how to run it, verification results and
+remaining limitations. A task document or issue does not mean Claude has received
+the task or started work; only a Claude response or PR establishes that.
 
 The imported engine is public upstream source, not newly authored project
 code. The Apache licence and NOTICE are retained. Separate licence scope for
@@ -63,49 +121,99 @@ blindly, upload project data or publish external contributions automatically.
   operator, carbine, skateboard and timber pieces. Generated GLB and editable
   blend files under assets/authored. Operator includes a rig and three clips.
   Props have no animations. Asset preview renders are not game screenshots.
-- `crates/survival`: authored session, weapon data, island mesh/triangle-prism
-  collision, six editor object geometries, edit history and scene save/load.
+- `crates/survival`: authored session and embedded original authority scripts,
+  weapon data, island mesh/triangle-prism collision, six editor object geometries,
+  edit history, bounded inventory, two recipes, consumables, hunger/thirst,
+  30 finite seeded resource nodes and a shared-world skate controller.
+- `Session` uses finite starting resources: wood 600, stone 100, metal 60,
+  one bandage and two food/two water items. Crafting debits the same canonical
+  building-resource balance. Full-health bandage use is rejected without loss.
+  Gathering checks reach/occlusion, commits yields transactionally and removes
+  depleted resource collision. Scene version 2 stores buildings, editor objects,
+  inventory, vitals and resource-node depletion. It is not complete player/world
+  persistence: player position, health, weapon/ammo and mounted skate state are
+  not restored by that scene format.
+- Integrated headless flow passed: 15 terrain traces, movement, firing/ammo
+  consumption and NPC kill; six editor meshes, invalid/near placement rejection,
+  collision, undo/redo, save/load/delete; canonical crafting costs, healing and
+  reserve-ammo increase; reachable tree harvesting and saved depletion; death
+  action gates, authored-script respawn and second-life damage; mounted skating,
+  push and walking handoff. The spawned NPC is a damage target, not verified AI.
+- Independent inventory/vitals/gathering/skating probes check validation,
+  deterministic finite state, capacity/atomic failures, visibility and shared
+  terrain/ramps/thin-wall collision. The skate controller supports push, steer,
+  brake, ollie, air spins/flips, scored landings and bails; grinding and manuals
+  are not implemented.
+- `scripts/generate_authored_audio.py`: seven original CC0 mono 48 kHz PCM WAV
+  cues under `assets/authored/audio`. Header/hash/amplitude checks and exact
+  byte-for-byte regeneration passed. This does not prove runtime playback or
+  final listening quality.
 - `crates/bootstrap/src/native.rs`: Bevy native frontend, first-person controls,
   authored GLB scenes, terrain and editor rendering, HUD, pause and save input.
   `cargo check -p bootstrap` passed after Bevy 0.19 API corrections.
+  Controller, ADS/recoil, inventory/crafting/gathering, skating camera/board,
+  resource rendering, respawn and sound-cue integration are now present in code.
+  The WAV dependency has been fetched and the expanded frontend compiler check
+  passed. Optimized builds passed for the initial, WAV and reflection feature
+  configurations. The first GPU run exposed scene type-registration and missing
+  tonemap-LUT errors; `reflect_auto_register` and `AcesFitted` address them in code.
+  The corrected graphical run starts and displays the terrain and authored GLBs.
+  Keyboard/mouse inventory pause, both recipes/resource costs, ammo transfer,
+  firing/NPC damage and kill, reload/ADS, skate camera/push/ollie/landed score and
+  dismount were observed on Xvfb/Mesa software Vulkan. English HUD, inventory,
+  editor messages and pause are also observed in a rebuilt executable. Editor
+  placement/undo/redo and remaining native flows are still being verified.
 - Launcher default/`game` route now calls `bootstrap::run_native()` before the
-  optional legacy game-import path. Latest launcher/mapreader compiler check passed.
+  optional legacy game-import path. The earlier launcher/mapreader compiler check passed.
 
-## Immediate blocking issue
+## Current verification priority
 
-The ignored native-world probe currently fails in Session::new with:
-`<runtime>:0:0 in step: no loaded and started GSC program`.
-The shared simulation requires an installed and started authority script.
-Implement our own meaningful session rules/bootstrap or a well-designed native
-simulation mode. Do not require original MW2 scripts or silently bypass all
-authority systems. APIs include `SimWorld::install_gsc_program`, `start_gsc`,
-`Program::load` and `SourceResolver`. Bootstrap resets script runtime, so order
-matters. Verify movement, ammo/fire, player damage and building/editor behavior
-after fixing it. The new terrain/editor probe has NOT passed yet.
+The previous GSC preflight failure is resolved. `rules.rs` installs and starts
+three embedded original script modules through the existing authority scheduler.
+Damage commits through the existing damage/death hooks. Do not reintroduce a
+requirement for original scripts or bypass preflight. Bootstrap resets the script
+runtime, so install/start must stay after bootstrap. Environmental damage is
+queued to the next authority frame; callbacks require that frame context.
 
-The initial NPC spawn overlapped interpolated terrain; the central plateau was
-expanded to address that. Probe now passes both spawn checks but fails on the
-script preflight above. No successful graphical game run has been verified.
+The integrated headless flow, full workspace check and optimized builds pass.
+The corrected GPU run passes startup and the keyboard/mouse flows listed above.
+Continue verifying editor/build/gather/respawn and audio flows. Rendering uses
+Xvfb/Mesa software Vulkan, so it is not a hardware performance check. The cloud
+has no audio device or Xbox controller; audible output and controller hardware
+remain untested. Keep those facts separate from backend evidence and release
+readiness.
 
 ## Development controls in the new frontend
 
-WASD move, mouse look, Shift sprint, Space jump, Ctrl crouch; LMB shoot,
-RMB aim, R reload; Escape pause. B enables building; 1–4 choose pieces,
-R rotates, LMB places and RMB toggles a door. E enables park editing;
-1–6 choose ramp, quarterpipe, rail, stairs, platform or funbox; Q/R rotate
-15 degrees, LMB places, RMB deletes and Ctrl-Z/Y undo/redo.
-F5 saves and F9 loads the authored scene. These bindings compile but the native
-end-to-end flow is unverified. Native controller integration remains pending.
+The following bindings are implemented in `native.rs`. Some keyboard/mouse
+flows have been observed as listed above; controller hardware is untested.
+
+| Mode | Keyboard/mouse | Xbox controller on PC |
+|---|---|---|
+| Walking/FPS | WASD, mouse look, Shift sprint, Space jump, Ctrl crouch; LMB shoot, RMB ADS, R reload, F gather | LS move, RS look, RT fire, LT ADS, A jump, LS-click sprint, B crouch, X reload, Y gather |
+| Inventory (pauses world) | Tab open; 1/2 recipe, C craft; H bandage, J food, K water, U ammunition to reserve | Dpad Down in FPS opens; Dpad slot, LB/RB recipe, X craft, A use, B close |
+| Building | B toggles and dismounts; 1–4 piece, R rotate, LMB place, RMB door | Back cycles FPS/build/editor; Dpad selection, RT place, X door |
+| Editor | E toggles on foot; 1–6 object, Q/R rotate 15°, LMB place, RMB delete, Ctrl-Z/Y undo/redo | Back cycles modes; Dpad selection, RT place, X delete |
+| Skating | V mount/dismount; W push, A/D steer, S brake, Space ollie, Q/E spin, R flip | LB/RB + Y toggle; LS push/steer, RT push, LT brake, A ollie, LB/RB spin, X flip |
+| Session | Escape pause, Enter respawn when dead, F5 save/F9 load | Start pause |
+
+The skate camera uses the authored operator and board in third person. Audio
+hooks respond to actual ammo use, reload, movement, harvest and skate events;
+audio device output remains unverified. Scene saving does not yet persist the
+complete player state.
 
 ## Remaining work
 
-TODO.md is the full roadmap. Major missing systems include actual skating,
-grinding/tricks/bails, editor ghosts and moving existing props, gathering,
-inventory/crafting, needs/food/water, animals/NPC AI, monuments, electrical and
-fluid systems, farming, vehicles, full weapons/audio/animation, authoritative
-multiplayer and complete world persistence, menus/settings/respawn and releases.
-The small development island is not a full Rust-scale world. Starting building
-resources are development grants, not a gathering implementation.
+TODO.md is the full roadmap and separates code, headless, graphical and release
+status. Missing systems include grinds/manuals/advanced skating, editor ghosts
+and moving existing props, inventory drag/drop/hotbar/containers, larger crafting
+progression, complete survival effects, animals/NPC AI, monuments, electrical
+and fluid systems, farming, vehicles, a full weapon/animation/audio catalogue,
+authoritative multiplayer, complete world persistence, menus/settings and
+releases. The small development island is not a full Rust-scale world. Existing
+finite resources, two recipes and simple needs are an initial implementation,
+not parity with Rust's systems. Respawn now works in the backend; native UI
+verification and final death/loot policy remain.
 
 No executable release exists. Do not label this finished, fully rewritten,
 Rust-equivalent or playable based on compiler checks.
@@ -118,14 +226,18 @@ RUSTUP_HOME=/workspace/toolchains/rustup,
 CARGO_TARGET_DIR=/workspace/rust-mw2-skate/target,
 PKG_CONFIG_PATH=/workspace/native/pkgconfig.
 Bevy 0.19 PBR/glTF/scene/animation dependencies have been fetched.
+The WAV decoding dependency has also been fetched.
 
-Checks: `cargo check --offline -p launcher -p rust_maps`.
-Native probe manifest:
-`context/artifacts/2026-10-02-native-world/1-TERRAIN-EDITOR-PART/probe/Cargo.toml`.
+Earlier compiler check: `cargo check --offline -p launcher -p rust_maps`.
+The expanded frontend compiler check and optimized builds passed separately;
+graphical flow verification remains open.
+Current native probe manifest:
+`context/artifacts/2026-10-02-native-world/2-AUTHORED-RUNTIME-PART/probe/Cargo.toml`.
+Integrated passing evidence:
+`context/artifacts/2026-10-02-native-world/2-AUTHORED-RUNTIME-PART/gameplay-flow-corrected.log`.
 Keep temporary probe code/evidence under ignored context; only approved named
 test scenarios belong in crates/approved_tests. Format only touched files.
 
-Graphical validation is currently unavailable: no Xvfb and no Vulkan ICD.
-A workspace-only apt download attempt could not locate those packages.
-Do not misreport this as an automatic approval rejection or ask the user to
-perform incremental tests. Arrange suitable development graphics and verify.
+The workspace-only graphics environment is under `/workspace/graphics-validation`.
+It supported the first GPU launch; verify the corrected native run before claiming
+a successful graphics result. Do not ask the user to perform incremental tests.

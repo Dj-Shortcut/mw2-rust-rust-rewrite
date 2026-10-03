@@ -27,6 +27,10 @@ of the game — none of those will be read, and the last one cannot be accepted.
 
 ## Changes
 
+All in-game text is English and must remain English. This includes the HUD,
+menus, item names, control hints, interaction messages and errors shown to a
+player. Check new and changed text in the running game, including failure paths.
+
 * **Small and self-contained** — a fix, a crash, a wrong constant, a doc
   correction: open it directly.
 * **Architectural** — a new crate, a new subsystem, a change to how data flows
