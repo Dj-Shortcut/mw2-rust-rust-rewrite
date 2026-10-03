@@ -4,8 +4,15 @@ use sim::{ClientId, SimBrush, SimContentBuilder, SimWorld, Tick, TickInput};
 use std::io::Read;
 use std::path::Path;
 mod editor;
+mod gathering;
+mod inventory;
+mod rules;
+mod skate;
 mod terrain;
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind};
+pub use gathering::{GatheringWorld, Harvest, ResourceKind, ResourceNode};
+pub use inventory::{Inventory, Item, Recipe, Vitals};
+pub use skate::{SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
 
 pub const UNITS_TO_METERS: f32 = 0.0254;
@@ -18,6 +25,13 @@ pub struct Session {
     pub message: String,
     pub terrain: Terrain,
     pub editor: EditorState,
+    pub inventory: Inventory,
+    pub gathering: GatheringWorld,
+    pub vitals: Vitals,
+    pub skate: Option<SkateState>,
+    pub skate_input: SkateInput,
+    pub skate_roll: f32,
+    pub last_skate_event: SkateEvent,
 }
 
 impl Session {
@@ -83,7 +97,7 @@ impl Session {
             return Err("Editor object overlaps a player".into());
         }
         self.world
-            .install_content(authored_content(&self.terrain, &editor));
+            .install_content(authored_content(&self.terrain, &editor, &self.gathering));
         self.editor = editor;
         Ok(())
     }
@@ -91,13 +105,15 @@ impl Session {
         let mut world = SimWorld::new();
         let terrain = Terrain::new(terrain::TERRAIN_SEED);
         let editor = EditorState::default();
-        world.install_content(authored_content(&terrain, &editor));
+        let gathering = GatheringWorld::new(&terrain)?;
+        world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
                 seed: 1,
                 ..Default::default()
             })
             .map_err(str::to_owned)?;
+        rules::install(&mut world)?;
         world.spawn_authored_player(LOCAL, [0., 0., 1.], [0.; 3], 1)?;
         world.spawn_authored_player(ClientId(1), [550., 0., 1.], [0., 180., 0.], 0)?;
         world
@@ -105,18 +121,29 @@ impl Session {
             .grant(
                 LOCAL.0,
                 Resources {
-                    wood: 10_000,
-                    stone: 5_000,
-                    metal: 2_000,
+                    wood: 600,
+                    stone: 100,
+                    metal: 60,
                 },
             )
             .map_err(|e| e.to_string())?;
+        let mut inventory = Inventory::default();
+        inventory.add(Item::Bandage, 1)?;
+        inventory.add(Item::Food, 2)?;
+        inventory.add(Item::Water, 2)?;
         let mut session = Self {
             world,
             terrain,
             editor,
             tick: 0,
             message: "Development world: authored content, survival systems in progress".into(),
+            inventory,
+            gathering,
+            vitals: Vitals::default(),
+            skate: None,
+            skate_input: SkateInput::default(),
+            skate_roll: 0.,
+            last_skate_event: SkateEvent::None,
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -126,6 +153,7 @@ impl Session {
     }
 
     pub fn advance(&mut self, mut cmd: UserCmd) -> Result<(), String> {
+        self.last_skate_event = SkateEvent::None;
         self.tick = self.tick.checked_add(1).ok_or("Session clock exhausted")?;
         cmd.server_time =
             i32::try_from(u64::from(self.tick) * 17).map_err(|_| "Session clock exhausted")?;
@@ -138,6 +166,162 @@ impl Session {
             sim::StepReason::AuthorityFrame,
         )
         .map_err(|e| e.to_string())?;
+        let alive = self.world.player(LOCAL).is_some_and(|p| p.health > 0);
+        if !alive {
+            self.skate = None;
+            self.world.set_external_motion(LOCAL, false);
+            self.skate_input = SkateInput::default();
+            return Ok(());
+        }
+        if let Some(skate) = &mut self.skate {
+            let origin = self.world.player(LOCAL).ok_or("Player is missing")?.origin;
+            let step = skate.step(&self.world, 0.017, self.skate_input, origin)?;
+            self.world.set_origin(LOCAL, step.origin);
+            self.skate_roll = step.board_roll;
+            self.last_skate_event = step.event;
+            match step.event {
+                SkateEvent::Bailed => {
+                    self.world.queue_environment_damage(LOCAL, 10)?;
+                    self.message =
+                        "Bail: land in line with the board and complete your flip".into();
+                }
+                SkateEvent::Landed { points } => {
+                    self.message = format!("Landed: +{points} skate points");
+                }
+                _ => {}
+            }
+        }
+        self.skate_input.ollie = false;
+        self.skate_input.flip = false;
+        let damage = self.vitals.advance(0.017)?;
+        if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
+            self.world.queue_environment_damage(LOCAL, damage)?;
+        }
+        Ok(())
+    }
+
+    pub fn toggle_skate(&mut self) -> Result<(), String> {
+        let player = self
+            .world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .ok_or("Player is not alive")?;
+        self.skate = if self.skate.is_some() {
+            None
+        } else {
+            Some(SkateState::new(player.viewangles[1])?)
+        };
+        self.world.set_external_motion(LOCAL, self.skate.is_some());
+        self.skate_input = SkateInput::default();
+        self.skate_roll = 0.;
+        Ok(())
+    }
+
+    pub fn craft(&mut self, recipe: Recipe) -> Result<(), String> {
+        self.require_alive()?;
+        let mut inventory = self.inventory.clone();
+        let cost = inventory.craft(recipe, self.world.buildings().inventory(LOCAL.0))?;
+        self.world
+            .buildings_mut()
+            .consume(LOCAL.0, cost)
+            .map_err(|e| e.to_string())?;
+        self.inventory = inventory;
+        Ok(())
+    }
+
+    pub fn gather_from_view(&mut self) -> Result<Harvest, String> {
+        let (start, end) = self.view_ray()?;
+        let obstacle = self.world.trace_world(start, end, [0.; 3], [0.; 3], 1);
+        if obstacle.startsolid != 0 {
+            return Err("Cannot gather through a solid object".into());
+        }
+        let mut gathering = self.gathering.clone();
+        let harvested = gathering.harvest_from_ray(start, end, obstacle.fraction)?;
+        let mut inventory = self.inventory.clone();
+        match harvested.kind {
+            ResourceKind::Berry => inventory.add(Item::Food, harvested.amount)?,
+            ResourceKind::Water => inventory.add(Item::Water, harvested.amount)?,
+            _ => {}
+        }
+        self.world
+            .buildings_mut()
+            .grant(LOCAL.0, harvested.resources())
+            .map_err(|e| e.to_string())?;
+        if harvested.remaining == 0 {
+            self.world
+                .install_content(authored_content(&self.terrain, &self.editor, &gathering));
+        }
+        self.inventory = inventory;
+        self.gathering = gathering;
+        Ok(harvested)
+    }
+
+    pub fn use_item(&mut self, item: Item) -> Result<(), String> {
+        self.require_alive()?;
+        let quantity = if item == Item::Ammo {
+            self.inventory.count(item).min(30)
+        } else {
+            1
+        };
+        let mut inventory = self.inventory.clone();
+        let effects = inventory.use_item(item, quantity)?;
+        let mut vitals = self.vitals;
+        vitals.apply(&effects)?;
+        if effects.heal > 0 {
+            self.world.heal_player(LOCAL, effects.heal)?;
+        }
+        if effects.ammo > 0 {
+            self.world.add_reserve_ammo(LOCAL, effects.ammo)?;
+        }
+        self.inventory = inventory;
+        self.vitals = vitals;
+        Ok(())
+    }
+
+    fn require_alive(&self) -> Result<(), String> {
+        if self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
+            Ok(())
+        } else {
+            Err("Player is not alive".into())
+        }
+    }
+
+    pub fn respawn(&mut self) -> Result<(), String> {
+        let player = self.world.player(LOCAL).ok_or("Player is missing")?;
+        if player.health > 0 {
+            return Err("Player is already alive".into());
+        }
+        let angles = player.viewangles;
+        let origin = [
+            [0., 0., 1.],
+            [-350., 0., 1.],
+            [0., 350., 1.],
+            [350., 350., 1.],
+            [-350., -350., 1.],
+        ]
+        .into_iter()
+        .find(|p| {
+            self.world
+                .trace_world(*p, *p, [-15., -15., 0.], [15., 15., 70.], 1)
+                .startsolid
+                == 0
+        })
+        .ok_or("Spawn area is blocked; remove nearby structures before respawning")?;
+        self.world
+            .start_gsc(
+                "survival/session::respawn",
+                sim::script::Value::level(),
+                vec![
+                    sim::script::Value::Int(LOCAL.0 as i32),
+                    sim::script::Value::Vector(origin),
+                    sim::script::Value::Vector(angles),
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        self.vitals = Vitals::default();
+        self.skate = None;
+        self.world.set_external_motion(LOCAL, false);
+        self.skate_input = SkateInput::default();
         Ok(())
     }
 
@@ -281,7 +465,7 @@ impl Session {
 
     pub fn save(&self, path: &Path) -> Result<(), String> {
         let scene = SavedScene {
-            version: 1,
+            version: 2,
             seed: self.terrain.seed,
             buildings: String::from_utf8(
                 self.world
@@ -291,6 +475,9 @@ impl Session {
             )
             .map_err(|e| e.to_string())?,
             objects: self.editor.objects().cloned().collect(),
+            inventory: self.inventory.clone(),
+            vitals: self.vitals,
+            gathering: self.gathering.clone(),
         };
         let data = serde_json::to_vec(&scene).map_err(|e| e.to_string())?;
         if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
@@ -312,7 +499,10 @@ impl Session {
             return Err("Scene save too large".into());
         }
         let scene: SavedScene = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
-        if scene.version != 1 || scene.seed != self.terrain.seed {
+        if scene.version != 2
+            || scene.seed != self.terrain.seed
+            || scene.gathering.seed() != self.terrain.seed
+        {
             return Err("Unsupported scene version or terrain seed".into());
         }
         let loaded =
@@ -324,8 +514,16 @@ impl Session {
         if props_overlap_players(&self.world, &editor) {
             return Err("Saved editor objects overlap a player".into());
         }
-        self.install_editor(editor)?;
+        if brushes_overlap_players(&self.world, &scene.gathering.brushes()) {
+            return Err("Saved resource nodes overlap a player".into());
+        }
+        self.world
+            .install_content(authored_content(&self.terrain, &editor, &scene.gathering));
+        self.editor = editor;
         *self.world.buildings_mut() = loaded;
+        self.inventory = scene.inventory;
+        self.vitals = scene.vitals;
+        self.gathering = scene.gathering;
         Ok(())
     }
 }
@@ -353,10 +551,17 @@ struct SavedScene {
     seed: u32,
     buildings: String,
     objects: Vec<PlacedObject>,
+    inventory: Inventory,
+    vitals: Vitals,
+    gathering: GatheringWorld,
 }
 
 fn props_overlap_players(world: &SimWorld, editor: &EditorState) -> bool {
     let brushes = editor.brushes();
+    brushes_overlap_players(world, &brushes)
+}
+
+fn brushes_overlap_players(world: &SimWorld, brushes: &[SimBrush]) -> bool {
     let mut overlap = false;
     world.visit_players(|_, p| {
         if p.health <= 0 {
@@ -436,10 +641,15 @@ fn triangle_prism(v: [[f32; 3]; 3], bottom: f32, flags: u32) -> SimBrush {
     }
 }
 
-fn authored_content(terrain: &Terrain, editor: &EditorState) -> std::sync::Arc<sim::SimContent> {
+fn authored_content(
+    terrain: &Terrain,
+    editor: &EditorState,
+    gathering: &GatheringWorld,
+) -> std::sync::Arc<sim::SimContent> {
     let mut content = SimContentBuilder::default();
     let mut brushes = terrain.brushes();
     brushes.extend(editor.brushes());
+    brushes.extend(gathering.brushes());
     content.set_clip_brushes(brushes);
     content.set_weapon_combat_table(vec![
         weapon_iw4::WeaponCombatFacts::none(),

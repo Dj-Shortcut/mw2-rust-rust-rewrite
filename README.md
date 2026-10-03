@@ -5,6 +5,9 @@ en bases geïnspireerd door Rust, gunplay en operators geïnspireerd door MW2,
 en skateboarden geïnspireerd door Skate 3. De wereld en gamecontent maken we
 zelf: modellen, materialen, animaties en geluiden.
 
+Alle tekst in het spel is Engels en blijft Engels: HUD, inventory, editor,
+bedieningshints en meldingen. Dit geldt ook voor nieuwe bijdragen.
+
 Het eindproduct moet zonder originele gamebestanden starten. Het gebruikt
 publieke engine-/rewritecode en eigen content. De volledige featurelijst en
 het onderscheid tussen aanwezige code, controles en speelbaarheid staan in
@@ -25,16 +28,31 @@ speelbare release leveren.
 - Lokale hostbouwbediening voor toetsenbord/muis en Xbox-controller op pc.
 - Eigen procedurele hout-, steen- en metaalmaterialen zonder texturedownloads.
 - Optionele SDK-v9-mapinspectietool; die is geen speelbare wereldimport.
+- Zelfstandige sessie met eigen ingebedde gamescripts, een klein eigen eiland,
+  first-person bewegen, schieten, schade, dood en respawn.
+- Inventory met 24 slots, eindige startvoorraad, bandage-/munitierecepten,
+  voedsel/water en honger/dorst; 30 eindige oogstbare materiaal-/voedselnodes.
+- Eigen ramps, quarterpipes, rails, trappen, platforms en funboxes, met plaatsing,
+  rotatie, verwijderen, undo/redo en gevalideerde scene-opslag.
+- Skatecontroller met pushen, sturen, remmen, ollies, spins/flips, landingspunten,
+  bails en collisie met hetzelfde terrein en geplaatste ramps.
+- Vier eigen 3D-modellen en zeven procedureel gemaakte CC0-geluiden, met
+  reproduceerbare generators onder `scripts/`.
 
-Het zelfstandige startpad, een klein eigen eilandterrein en een skateobjecteditor
-zijn aanwezig in de code. De editor bevat ramps, quarterpipes, rails, trappen,
-platforms en funboxes, met plaatsing, rotatie, verwijderen, undo/redo en opslag.
-De native frontend compileert; de eerste uitvoeringscontrole stopt omdat de
-gedeelde simulatie een geladen en gestart GSC-programma vereist. De native
-gameflow en GPU-weergave zijn nog niet geverifieerd. Gathering, crafting,
-inventory/survival, een volledige wereld, skate-integratie en multiplayerloops
-moeten nog worden afgemaakt. [TODO.md](TODO.md) houdt deze onderdelen apart van
-reeds uitgevoerde codecontroles.
+De eerdere sessiebootstrap is opgelost met onze eigen regels, zonder originele
+gamescripts. Headless controles doorlopen nu bewegen, munitieverbruik, een NPC
+uitschakelen, editorcollisie/undo/opslag, crafting, healing, harvesting,
+dood/respawn en de overgang tussen skaten en lopen. De native frontend bevat
+de bijbehorende bediening en feedback, inclusief inventory, gathering,
+skatecamera, controllerbindings en geluidscues. De uitgebreide compilercontrole
+en geoptimaliseerde executablebuild slagen. In een echt Bevy-venster op een
+virtueel Linux-scherm zijn de eigen modellen, inventory/crafting, munitieverbruik,
+schade, herladen, ADS en de skatecamera met ollie/landingspunten uitgevoerd.
+Editorplaatsing en de overige native flows worden verder gecontroleerd.
+Een volledige wereld, de overige survivalsystemen en multiplayerloops moeten
+nog worden afgemaakt.
+[TODO.md](TODO.md) scheidt implementatie, headless bewijs, grafische verificatie
+en releasegereedheid.
 
 ## Bouwen en starten
 
@@ -45,23 +63,37 @@ compilercontrole vanuit de repository:
 cargo check -p launcher -p rust_maps
 ```
 
-De launcher kiest standaard het zelfstandige native startpad; `game` kiest
-hetzelfde pad. Dit pad is nog geblokkeerd door de sessiebootstrap hierboven.
-De definitieve startinstructies volgen na uitvoeringsverificatie. Er is nog
-geen kant-en-klare executable.
+Start de ontwikkelversie vanuit de repository:
+
+```bash
+cargo run -p launcher --profile play --locked -- game
+```
+
+De launcher kiest standaard hetzelfde zelfstandige native startpad. De eigen
+content staat onder `assets/authored/` en wordt vanuit de repository gevonden.
+Dit startpad is op Linux geverifieerd; Windows/macOS-builds zijn nog niet
+geverifieerd. Er is nog geen kant-en-klare release-executable.
 De bestaande [RUN.md](docs/RUN.md) en [SKATE.md](docs/SKATE.md) beschrijven de
 upstreamgame-importmodi; hun releases en assetvereisten zijn niet de levering
 of vereisten van de zelfstandige game die we hier bouwen.
 
 ## Verificatie en herkomst
 
-Tijdelijke probes controleren bouwen, kosten/eigendom, deurcollisie,
-instorting/opslag, schade en mapvalidatie. De inspectie-CLI is uitgevoerd op
-een synthetische SDK-map. De nieuwe procedurele WGSL-shader is geparseerd en
-gevalideerd. `cargo check -p launcher -p rust_maps` is geslaagd, inclusief de
-native frontend. Dit is codebewijs; een uitvoerbare releasebuild en
-gameplay-/GPU-/multiplayerverificatie zijn nog nodig.
+Tijdelijke probes controleren bouwen, schade, mapvalidatie en de geïntegreerde
+lokale sessie. Dezelfde terreinmesh wordt voor rendering en collisie gebruikt;
+terreintraces, editorplaatsing en save/load zijn headless uitgevoerd. Inventory,
+vitals, gathering en skatebeweging hebben daarnaast afzonderlijke controles
+voor grenzen, ongeldige invoer en collisie. De eigen modellen en WAV-bestanden
+zijn op bestandsstructuur en hashes gecontroleerd; audio regenereren levert
+dezelfde bytes. De materiaalshader is met Naga gevalideerd. De eerdere
+launcher/mapreader-compilercontrole en de uitgebreide workspacecontrole slagen.
+GPU-weergave en bovenstaande keyboard/muisflows zijn op Mesa-software-rendering
+uitgevoerd. Dit is geen hardwareprestatiemeting. Niet alle native flows zijn
+geverifieerd; hoorbaar geluid, Xbox-controllerhardware en multiplayer blijven open.
 
 Upstreamdocumentatie staat in [UPSTREAM.md](docs/UPSTREAM.md); credits en
 licenties staan in [NOTICE](NOTICE) en [LICENSE](LICENSE). Oorspronkelijke
-gamecontent wordt niet meegeleverd.
+gamecontent wordt niet meegeleverd. De afzonderlijke licentiescope van de
+meegeïmporteerde SK8/MinecraftOSS-modules en herkomst van oudere numerieke data
+blijven onderdeel van de review. De geïmporteerde engine is geen bewijs van
+een volledig nieuw geschreven of onafhankelijk geverifieerde clean-room engine.
