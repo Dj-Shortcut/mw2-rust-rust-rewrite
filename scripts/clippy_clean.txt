@@ -9,6 +9,5 @@ killcam_iw4
 launcher
 math_iw4
 playerstate_iw4
-rust_maps
 trace_iw4
 updater
