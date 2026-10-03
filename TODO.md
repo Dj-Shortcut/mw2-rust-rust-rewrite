@@ -164,9 +164,10 @@ De overdracht voor Claude staat in [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
 - [ ] Editor aan/uit met E; eigen ramps, quarterpipes, rails, trappen, platforms en funboxes.
 - [ ] Objecttype kiezen, op gericht terrein plaatsen en per 15° draaien.
 - [x] Plaatsingsghost met geldige/ongeldige feedback en collisiecontrole.
-- [ ] Bestaande objecten selecteren, verplaatsen, roteren en laten snappen.
+- [ ] Bestaande objecten selecteren en laten snappen; verplaatsen en roteren vanuit het vizier aanwezig (#49, headless), native-binding open.
 - [ ] Raster-/hoogte-/hoek-snapping en kopiëren/dupliceren van objecten.
 - [x] Objecten verwijderen en wijzigingen ongedaan/opnieuw met Ctrl-Z/Ctrl-Y.
+- [x] Editor-props verplaatsen/roteren vanuit het vizier headless geverifieerd (#49): `EditorState::relocate` met validatie en undo-checkpoint; `Session::move_prop_to_view`/`rotate_prop_from_view` met bestaande vizier-lookup, terreinbestemming zonder de prop zelf, speler-overlapafwijzing en dode-speler-blokkade; mislukte acties nemen geen undo-slot; rails behouden grind-ID op het verplaatste segment; save/load behoudt poses. Alleen headless via `context/prop-relocate-probe`; selectie-UI, snapping en native-binding open.
 - [ ] Terrein/objectstaat samen opslaan/laden, met begrensde validatie en versies.
 - [ ] Ramps/quarterpipes volgen met skatefysica en grinds op geplaatste rails. [Claude-taak #16](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/16) werkt de eerste railgrinds uit.
 - [ ] Speler/objectoverlap, bullet-/vehicle-/skatecollisie en netwerkbouwrechten.

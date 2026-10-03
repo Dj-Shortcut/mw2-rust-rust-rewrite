@@ -155,6 +155,17 @@ impl Session {
     }
 
     pub fn remove_prop_from_view(&mut self) -> Result<(), String> {
+        let (id, _) = self.aimed_prop()?;
+        let mut editor = self.editor.clone();
+        editor.remove(id)?;
+        self.install_editor(editor)
+    }
+
+    /// The editor prop under the crosshair plus the terrain point the same
+    /// ray reaches without it: the move destination. Editor brushes are
+    /// part of the installed world content, so the destination is traced
+    /// against terrain, resource nodes and the other props instead.
+    fn aimed_prop(&self) -> Result<(u32, [f32; 3]), String> {
         let (start, end) = self.view_ray()?;
         let world_hit = self.world.trace_world(start, end, [0.; 3], [0.; 3], 1);
         let id = self
@@ -171,9 +182,57 @@ impl Session {
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
             .ok_or("Aim at an editor object within reach")?;
+        let mut best: f32 = 1.;
+        let mut solids = self.terrain.brushes();
+        solids.extend(self.gathering.brushes());
+        solids.extend(
+            self.editor
+                .objects()
+                .filter(|o| o.id != id)
+                .flat_map(PlacedObject::brushes),
+        );
+        for brush in &solids {
+            if let Some(t) = intersect(brush, start, end) {
+                best = best.min(t);
+            }
+        }
+        if best >= 1. {
+            return Err("Aim at a flat surface within reach".into());
+        }
+        Ok((
+            id,
+            std::array::from_fn(|k| start[k] + (end[k] - start[k]) * best),
+        ))
+    }
+
+    /// Moves the aimed prop to the terrain point under the crosshair,
+    /// keeping its yaw. Player overlap is rejected without moving.
+    pub fn move_prop_to_view(&mut self) -> Result<u32, String> {
+        let (id, position) = self.aimed_prop()?;
+        let yaw = self
+            .editor
+            .objects()
+            .find(|o| o.id == id)
+            .ok_or("Object no longer exists")?
+            .yaw;
         let mut editor = self.editor.clone();
-        editor.remove(id)?;
-        self.install_editor(editor)
+        editor.relocate(id, position, yaw)?;
+        self.install_editor(editor)?;
+        Ok(id)
+    }
+
+    /// Rotates the aimed prop in place over the given degrees.
+    pub fn rotate_prop_from_view(&mut self, step_degrees: f32) -> Result<u32, String> {
+        let (id, _) = self.aimed_prop()?;
+        let object = self
+            .editor
+            .objects()
+            .find(|o| o.id == id)
+            .ok_or("Object no longer exists")?;
+        let mut editor = self.editor.clone();
+        editor.relocate(id, object.position, object.yaw + step_degrees)?;
+        self.install_editor(editor)?;
+        Ok(id)
     }
 
     pub fn undo_props(&mut self) -> Result<(), String> {
