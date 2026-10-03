@@ -11,6 +11,7 @@ mod gathering;
 mod inventory;
 mod loot;
 mod persistence;
+mod radiation;
 mod rules;
 mod skate;
 mod terrain;
@@ -27,6 +28,7 @@ pub use inventory::{
     Stack, Vitals,
 };
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
+pub use radiation::{MAX_RADIATION, RADIATION_RADIUS, RADIATION_SICK};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
 
@@ -93,6 +95,7 @@ pub struct Session {
     clock: WorldClock,
     worn: Option<Item>,
     freezing: bool,
+    irradiated: bool,
     crates: LootCrates,
     fishing: Option<Cast>,
     casts: u32,
@@ -361,6 +364,7 @@ impl Session {
             clock: WorldClock::default(),
             worn: None,
             freezing: false,
+            irradiated: false,
             crates,
             fishing: None,
             casts: 0,
@@ -390,6 +394,7 @@ impl Session {
             self.vitals.wound(external);
         } else {
             self.freezing = false;
+            self.irradiated = false;
             self.fishing = None;
             self.refund_crafting()?;
             self.drop_loot()?;
@@ -434,7 +439,14 @@ impl Session {
             self.message = "You are freezing".into();
         }
         self.freezing = freezing;
-        let damage = self.vitals.advance(0.017, temperature)?;
+        let irradiated = self.in_radiation_zone();
+        if irradiated && !self.irradiated {
+            self.message = "You entered a radiation zone".into();
+        }
+        self.irradiated = irradiated;
+        let damage = self
+            .vitals
+            .advance_exposed(0.017, temperature, irradiated)?;
         if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             self.world.queue_environment_damage(LOCAL, damage)?;
             self.queued_damage += damage;
@@ -486,6 +498,13 @@ impl Session {
 
     pub fn felt_temperature(&self) -> f32 {
         self.clock.temperature() + self.worn.map_or(0., Item::warmth)
+    }
+
+    pub fn in_radiation_zone(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| radiation::in_zone(&self.crates, p.origin))
     }
 
     pub fn wear(&mut self, slot: usize) -> Result<(), String> {
@@ -1428,6 +1447,7 @@ impl Session {
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
+        self.irradiated = false;
         Ok(())
     }
 }
