@@ -11,6 +11,7 @@
 use crate::airdrop::SavedAirdrops;
 use crate::cooking::SavedFires;
 use crate::crates::{SavedCrates, SavedLocked};
+use crate::farming::SavedGarden;
 use crate::{
     Blueprints, Cast, CraftQueue, GatheringWorld, Inventory, Item, LootBags, PlacedObject,
     SavedSkate, Vitals, WORLD_HALF, Weather, WorldClock,
@@ -65,6 +66,8 @@ pub(crate) struct SavedSession {
     pub campfires: SavedFires,
     #[serde(default)]
     pub airdrops: SavedAirdrops,
+    #[serde(default)]
+    pub garden: SavedGarden,
     #[serde(default)]
     pub fishing: Option<Cast>,
     #[serde(default)]
@@ -235,6 +238,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     locked_crate: SavedLocked::default(),
                     campfires: SavedFires::default(),
                     airdrops: SavedAirdrops::default(),
+                    garden: SavedGarden::default(),
                     fishing: None,
                     casts: 0,
                     gathering: old.gathering,
