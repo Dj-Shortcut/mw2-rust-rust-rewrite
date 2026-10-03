@@ -639,10 +639,12 @@ impl Session {
             0.
         };
         let tea = if self.tea_warmth > 0. { TEA_WARMTH } else { 0. };
-        self.clock.temperature() - self.weather.chill()
-            + self.worn.map_or(0., Item::warmth)
-            + fire
-            + tea
+        let rain = if self.worn.is_some_and(Item::rain_proof) {
+            0.
+        } else {
+            self.weather.chill()
+        };
+        self.clock.temperature() - rain + self.worn.map_or(0., Item::warmth) + fire + tea
     }
 
     pub fn comfortable(&self) -> bool {
