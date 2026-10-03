@@ -17,6 +17,7 @@ mod loot;
 mod markers;
 mod persistence;
 mod radiation;
+mod rainbarrel;
 mod rules;
 mod skate;
 mod stash;
@@ -55,6 +56,7 @@ pub use inventory::{
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use markers::{Marker, MarkerKind, Waypoint, bearing, compass_heading};
 pub use radiation::{MAX_RADIATION, RADIATION_RADIUS, RADIATION_SICK};
+pub use rainbarrel::{BARREL_FILL_SECONDS, BARREL_REACH, BARREL_WATER, RainBarrel, SavedBarrel};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use stash::{STASH_REACH, Stash};
 pub use terrain::Terrain;
@@ -136,6 +138,7 @@ pub struct Session {
     trader: TradingPost,
     stash: Stash,
     fish_trap: FishTrap,
+    rain_barrel: RainBarrel,
     waypoint: Option<Waypoint>,
     fishing: Option<Cast>,
     casts: u32,
@@ -364,6 +367,7 @@ impl Session {
         let trader = TradingPost::new(&terrain)?;
         let stash = Stash::new(&terrain)?;
         let fish_trap = FishTrap::new(&terrain)?;
+        let rain_barrel = RainBarrel::new(&terrain)?;
         world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
@@ -422,6 +426,7 @@ impl Session {
             trader,
             stash,
             fish_trap,
+            rain_barrel,
             waypoint: None,
             fishing: None,
             casts: 0,
@@ -450,6 +455,7 @@ impl Session {
         let drops = self.airdrops.advance(0.017)?;
         // Before the weather step: a tick grows at the rain state it started with.
         let ripened = self.garden.advance(0.017, self.weather.is_raining())?;
+        self.rain_barrel.advance(0.017, self.weather.is_raining())?;
         let trapped = self.fish_trap.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
@@ -1227,6 +1233,7 @@ impl Session {
         markers.push(at(MarkerKind::TradingPost, self.trader.position()));
         markers.push(at(MarkerKind::Stash, self.stash.position()));
         markers.push(at(MarkerKind::FishTrap, self.fish_trap.position()));
+        markers.push(at(MarkerKind::RainBarrel, self.rain_barrel.position()));
         markers.extend(
             self.crates
                 .crates()
@@ -1376,6 +1383,32 @@ impl Session {
             .map_err(|_| "Not enough inventory space for the fish")?;
         self.fish_trap = trap;
         self.message = format!("Took {fish} fish from the trap");
+        Ok(())
+    }
+
+    pub fn rain_barrel(&self) -> &RainBarrel {
+        &self.rain_barrel
+    }
+
+    pub fn rain_barrel_in_reach(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| self.rain_barrel.in_reach(p.origin))
+    }
+
+    pub fn empty_rain_barrel(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if !self.rain_barrel_in_reach() {
+            return Err("No rain barrel within reach".into());
+        }
+        let mut barrel = self.rain_barrel.clone();
+        let water = barrel.take_water()?;
+        self.inventory
+            .add(Item::Water, water)
+            .map_err(|_| "Not enough inventory space for the water")?;
+        self.rain_barrel = barrel;
+        self.message = format!("Took {water} water from the rain barrel");
         Ok(())
     }
 
@@ -1893,6 +1926,7 @@ impl Session {
             waypoint: self.waypoint,
             stash: self.stash.inventory().clone(),
             fish_trap: self.fish_trap.saved(),
+            rain_barrel: self.rain_barrel.saved(),
             tea_warmth: self.tea_warmth,
             fishing: self.fishing,
             casts: self.casts,
@@ -2089,6 +2123,7 @@ impl Session {
         self.waypoint = scene.waypoint;
         self.stash.set_inventory(scene.stash);
         self.fish_trap.restore(scene.fish_trap);
+        self.rain_barrel.restore(scene.rain_barrel);
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
