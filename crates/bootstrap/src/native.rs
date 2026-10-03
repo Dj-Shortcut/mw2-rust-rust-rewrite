@@ -974,11 +974,34 @@ fn inventory_input(
     game: &mut Session,
 ) {
     let pressed = |button| pad.is_some_and(|pad| pad.just_pressed(button));
-    if keys.just_pressed(KeyCode::Digit1) || pressed(GamepadButton::LeftTrigger) {
-        controls.recipe = 0;
+    for (index, (key, _)) in [
+        KeyCode::Digit1,
+        KeyCode::Digit2,
+        KeyCode::Digit3,
+        KeyCode::Digit4,
+        KeyCode::Digit5,
+        KeyCode::Digit6,
+        KeyCode::Digit7,
+        KeyCode::Digit8,
+        KeyCode::Digit9,
+    ]
+    .into_iter()
+    .zip(Recipe::ALL)
+    .enumerate()
+    {
+        if keys.just_pressed(key) {
+            controls.recipe = index;
+        }
     }
-    if keys.just_pressed(KeyCode::Digit2) || pressed(GamepadButton::RightTrigger) {
-        controls.recipe = 1;
+    let previous = keys.just_pressed(KeyCode::PageUp) || pressed(GamepadButton::LeftTrigger);
+    let next = keys.just_pressed(KeyCode::PageDown) || pressed(GamepadButton::RightTrigger);
+    if previous != next {
+        let count = Recipe::ALL.len();
+        controls.recipe = if previous {
+            (controls.recipe + count - 1) % count
+        } else {
+            (controls.recipe + 1) % count
+        };
     }
     if keys.just_pressed(KeyCode::ArrowLeft) || pressed(GamepadButton::DPadLeft) {
         controls
@@ -1092,22 +1115,27 @@ fn update_inventory(
             content.push('\n');
         }
         content.push_str(&format!("\n{}\n", controls.inventory.status(&game.0)));
-        content.push_str("\nRECIPES\n");
+        content.push_str("\nRECIPES | blueprint status: Known / Locked\n");
         for (index, recipe) in Recipe::ALL.into_iter().enumerate() {
             let cost = recipe.cost();
             let (item, amount) = recipe.output();
             content.push_str(&format!(
-                "{} {}: {} x{} | wood {} / stone {} / metal {}\n",
+                "{} {}: {} x{} [{}] | wood {} / stone {} / metal {}\n",
                 if index == controls.recipe { ">" } else { " " },
                 index + 1,
                 item.name(),
                 amount,
+                if game.0.blueprints().knows(recipe) {
+                    "Known"
+                } else {
+                    "Locked"
+                },
                 cost.wood,
                 cost.stone,
                 cost.metal
             ));
         }
-        content.push_str("\nArrow keys slot | Q/E quantity | S split | Enter move/confirm\nDelete discard (destroys items) | Backspace cancel/close | Tab close\n1/2 recipe | C craft | H bandage | J food | K water | U ammo\nXbox: D-pad slot | LT/RT quantity | RS click split | Y move/confirm\nLS click discard | B cancel/close | LB/RB recipe | X craft | A use");
+        content.push_str(&format!("\nArrow keys slot | Q/E quantity | S split | Enter move/confirm\nDelete discard (destroys items) | Backspace cancel/close | Tab close\n1-{} / PgUp/PgDn recipe | C craft | H bandage | J food | K water | U ammo\nXbox: D-pad slot | LT/RT quantity | RS click split | Y move/confirm\nLS click discard | B cancel/close | LB/RB cycle recipes | X craft | A use", Recipe::ALL.len().min(9)));
         **text = content;
     }
 }
