@@ -13,6 +13,7 @@ mod fishing;
 mod gathering;
 mod inventory;
 mod loot;
+mod markers;
 mod persistence;
 mod radiation;
 mod rules;
@@ -48,6 +49,7 @@ pub use inventory::{
     Stack, Vitals,
 };
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
+pub use markers::{Marker, MarkerKind, Waypoint, bearing, compass_heading};
 pub use radiation::{MAX_RADIATION, RADIATION_RADIUS, RADIATION_SICK};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
@@ -125,6 +127,7 @@ pub struct Session {
     airdrops: Airdrops,
     garden: Garden,
     trader: TradingPost,
+    waypoint: Option<Waypoint>,
     fishing: Option<Cast>,
     casts: u32,
 }
@@ -404,6 +407,7 @@ impl Session {
             airdrops,
             garden,
             trader,
+            waypoint: None,
             fishing: None,
             casts: 0,
         };
@@ -1139,6 +1143,75 @@ impl Session {
         Ok(())
     }
 
+    pub fn map_markers(&self) -> Vec<Marker> {
+        let at = |kind, position| Marker { kind, position };
+        let mut markers: Vec<Marker> = self
+            .campfires
+            .all()
+            .iter()
+            .map(|f| at(MarkerKind::Campfire, f.position()))
+            .collect();
+        markers.extend(
+            self.garden
+                .plots()
+                .iter()
+                .map(|p| at(MarkerKind::GardenPlot, p.position())),
+        );
+        markers.push(at(MarkerKind::TradingPost, self.trader.position()));
+        markers.extend(
+            self.crates
+                .crates()
+                .iter()
+                .map(|c| at(MarkerKind::LootCrate, c.position())),
+        );
+        markers.push(at(MarkerKind::LockedCrate, self.crates.locked().position()));
+        markers.extend(
+            self.airdrops
+                .position()
+                .map(|p| at(MarkerKind::SupplyDrop, p)),
+        );
+        markers.extend(
+            self.loot
+                .bags()
+                .iter()
+                .map(|b| at(MarkerKind::LootBag, b.position())),
+        );
+        markers.extend(self.waypoint.map(|w| {
+            let [x, y] = w.position();
+            let z = gathering::height_at(&self.terrain, [x, y]).unwrap_or(0.);
+            at(MarkerKind::Waypoint, [x, y, z])
+        }));
+        markers
+    }
+
+    pub fn compass_heading(&self) -> Option<f32> {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .map(|p| compass_heading(p.viewangles[1]))
+    }
+
+    pub fn waypoint(&self) -> Option<Waypoint> {
+        self.waypoint
+    }
+
+    pub fn set_waypoint(&mut self, position: [f32; 2]) -> Result<(), String> {
+        self.waypoint = Some(Waypoint::new(position)?);
+        self.message = "Waypoint set".into();
+        Ok(())
+    }
+
+    pub fn clear_waypoint(&mut self) -> Result<(), String> {
+        self.waypoint.take().ok_or("No waypoint is set")?;
+        self.message = "Waypoint cleared".into();
+        Ok(())
+    }
+
+    pub fn waypoint_bearing(&self) -> Option<(f32, f32)> {
+        let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
+        self.waypoint.map(|w| bearing(player.origin, w.position()))
+    }
+
     pub fn trading_post(&self) -> &TradingPost {
         &self.trader
     }
@@ -1640,6 +1713,7 @@ impl Session {
             campfires: self.campfires.saved(),
             airdrops: self.airdrops.saved(),
             garden: self.garden.saved(),
+            waypoint: self.waypoint,
             fishing: self.fishing,
             casts: self.casts,
             gathering: self.gathering.clone(),
@@ -1826,6 +1900,7 @@ impl Session {
         self.campfires = campfires;
         self.airdrops = airdrops;
         self.garden = garden;
+        self.waypoint = scene.waypoint;
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
