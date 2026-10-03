@@ -85,6 +85,12 @@ gedragen kleding uit en T repareert het geselecteerde gereedschap. N begint
 recycling van de gekozen hoeveelheid; Enter bevestigt en Backspace annuleert. Xbox Back onderzoekt een
 blauwdruk; Xbox Y/B bevestigen/annuleren een recyclingactie. Kledingbeheer en
 reparatie/recycling starten voorlopig met het toetsenbord.
+I gebruikt het geselecteerde item in de inventory (Xbox A doet hetzelfde).
+Craft een hengel via recept 7; richt in loopmodus op bereikbaar water en druk
+L om te vissen. L haalt een actieve lijn weer binnen. Xbox D-pad Rechts gebruikt
+dezelfde visactie. Bij een kampvuur binnen bereik start G het bakken van één
+rauwe vis voor 5 hout; na 15 simulatieseconden verzamelt G de gebakken vis. Xbox D-pad Links gebruikt
+dezelfde kampvuuractie. Selecteer de gebakken vis in de inventory en gebruik I.
 Richt op bereikbaar materiaal voor de verzamelhint; F oogst. F5/F9 bewaren/laden
 de lokale sessie: scene, spelerpositie/kijkrichting, gezondheid, ammo en
 gemonteerde skatestaat. Lopen/skaten, kijkrichting en ammo na laden zijn native
@@ -108,9 +114,14 @@ voor grenzen, ongeldige invoer en collisie. De eigen modellen en WAV-bestanden
 zijn op bestandsstructuur en hashes gecontroleerd; audio regenereren levert
 dezelfde bytes. De materiaalshader is met Naga gevalideerd. De eerdere
 launcher/mapreader-compilercontrole en de uitgebreide workspacecontrole slagen.
-GPU-weergave en bovenstaande keyboard/muisflows zijn op Mesa-software-rendering
-uitgevoerd. Dit is geen hardwareprestatiemeting. Niet alle native flows zijn
-geverifieerd; hoorbaar geluid, Xbox-controllerhardware en multiplayer blijven open.
+GPU-weergave en eerder gecontroleerde keyboard/muisflows zijn op Mesa-software-rendering
+uitgevoerd. De vis-/kampvuurflow en geselecteerd gebruik via I zijn gecontroleerd met
+40 echte broncodecontroles, 2 aascompatibiliteitscontroles, 6 scene-updatecontroles
+en 113 keyboard/Mesa-controles
+(88 voor de volledige route, 25 voor foutgevallen);
+[TODO.md](TODO.md) houdt de scopes afzonderlijk bij. Dit is geen hardwareprestatiemeting.
+Niet alle native flows zijn geverifieerd; hoorbaar geluid, Xbox-controllerhardware
+en multiplayer blijven open.
 
 Upstreamdocumentatie staat in [UPSTREAM.md](docs/UPSTREAM.md); credits en
 licenties staan in [NOTICE](NOTICE) en [LICENSE](LICENSE). Oorspronkelijke
