@@ -215,7 +215,8 @@ impl ServerSim {
         mobs.set_uuid_salt(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |d| d.as_nanos() as u64),
+                .unwrap_or_default()
+                .as_nanos() as u64,
         );
         mobs.pois =
             minecraftoss_entities::poi::PoiManager::new(range.start >> 4, (range.end - 1) >> 4);
