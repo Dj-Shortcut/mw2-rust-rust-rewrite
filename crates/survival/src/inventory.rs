@@ -7,6 +7,8 @@ pub const BLEED_THRESHOLD: u32 = 15;
 pub const MAX_BLEED: f32 = 40.;
 const BLEED_PER_DAMAGE: f64 = 0.5;
 const BLEED_PER_SECOND: f64 = 1.;
+pub const MAX_REGEN: f32 = 40.;
+const REGEN_PER_SECOND: f64 = 2.;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Item {
@@ -14,10 +16,17 @@ pub enum Item {
     Ammo,
     Food,
     Water,
+    Syringe,
 }
 
 impl Item {
-    pub const ALL: [Self; 4] = [Self::Bandage, Self::Ammo, Self::Food, Self::Water];
+    pub const ALL: [Self; 5] = [
+        Self::Bandage,
+        Self::Ammo,
+        Self::Food,
+        Self::Water,
+        Self::Syringe,
+    ];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -25,6 +34,7 @@ impl Item {
             Self::Ammo => "Carbine ammunition",
             Self::Food => "Food",
             Self::Water => "Water",
+            Self::Syringe => "Medical syringe",
         }
     }
 
@@ -33,6 +43,7 @@ impl Item {
             Self::Bandage | Self::Water => 10,
             Self::Ammo => 60,
             Self::Food => 20,
+            Self::Syringe => 5,
         }
     }
 }
@@ -41,15 +52,17 @@ impl Item {
 pub enum Recipe {
     Bandage,
     Ammo,
+    Syringe,
 }
 
 impl Recipe {
-    pub const ALL: [Self; 2] = [Self::Bandage, Self::Ammo];
+    pub const ALL: [Self; 3] = [Self::Bandage, Self::Ammo, Self::Syringe];
 
     pub fn name(self) -> &'static str {
         match self {
             Self::Bandage => "Bandage",
             Self::Ammo => "30 carbine rounds",
+            Self::Syringe => "Medical syringe",
         }
     }
 
@@ -64,6 +77,11 @@ impl Recipe {
                 stone: 10,
                 ..Default::default()
             },
+            Self::Syringe => Resources {
+                wood: 15,
+                metal: 20,
+                ..Default::default()
+            },
         }
     }
 
@@ -71,6 +89,7 @@ impl Recipe {
         match self {
             Self::Bandage => (Item::Bandage, 1),
             Self::Ammo => (Item::Ammo, 30),
+            Self::Syringe => (Item::Syringe, 1),
         }
     }
 }
@@ -208,6 +227,12 @@ impl Inventory {
                 thirst: 35.,
                 ..Default::default()
             },
+            Item::Syringe => Effects {
+                heal: 15,
+                regen: 20.,
+                stop_bleeding: true,
+                ..Default::default()
+            },
         })
     }
 
@@ -282,6 +307,7 @@ pub struct Effects {
     pub hunger: f32,
     pub thirst: f32,
     pub ammo: u32,
+    pub regen: f32,
     pub stop_bleeding: bool,
 }
 
@@ -291,6 +317,7 @@ pub struct Vitals {
     thirst: f64,
     damage_fraction: f64,
     bleed: f64,
+    regen: f64,
 }
 
 impl Default for Vitals {
@@ -300,6 +327,7 @@ impl Default for Vitals {
             thirst: 100.,
             damage_fraction: 0.,
             bleed: 0.,
+            regen: 0.,
         }
     }
 }
@@ -319,6 +347,16 @@ impl Vitals {
 
     pub fn is_bleeding(&self) -> bool {
         self.bleed > 0.
+    }
+
+    pub fn regen(&self) -> f32 {
+        self.regen as f32
+    }
+
+    pub fn regenerate(&mut self, dt_seconds: f32) -> u32 {
+        let before = self.regen.ceil();
+        self.regen = (self.regen - f64::from(dt_seconds) * REGEN_PER_SECOND).max(0.);
+        (before - self.regen.ceil()) as u32
     }
 
     pub fn wound(&mut self, damage: u32) {
@@ -350,11 +388,14 @@ impl Vitals {
             || !effects.thirst.is_finite()
             || !(0. ..=100.).contains(&effects.hunger)
             || !(0. ..=100.).contains(&effects.thirst)
+            || !effects.regen.is_finite()
+            || !(0. ..=MAX_REGEN).contains(&effects.regen)
         {
             return Err("Invalid consumable vital effects".into());
         }
         self.hunger = (self.hunger + f64::from(effects.hunger)).min(100.);
         self.thirst = (self.thirst + f64::from(effects.thirst)).min(100.);
+        self.regen = (self.regen + f64::from(effects.regen)).min(f64::from(MAX_REGEN));
         if effects.stop_bleeding {
             self.bleed = 0.;
         }
@@ -372,6 +413,8 @@ impl<'de> Deserialize<'de> for Vitals {
             damage_fraction: f64,
             #[serde(default)]
             bleed: f64,
+            #[serde(default)]
+            regen: f64,
         }
         let saved = Saved::deserialize(deserializer)?;
         if !saved.hunger.is_finite()
@@ -381,6 +424,7 @@ impl<'de> Deserialize<'de> for Vitals {
             || !(0. ..=100.).contains(&saved.thirst)
             || !(0. ..1.).contains(&saved.damage_fraction)
             || !(0. ..=f64::from(MAX_BLEED)).contains(&saved.bleed)
+            || !(0. ..=f64::from(MAX_REGEN)).contains(&saved.regen)
         {
             return Err(serde::de::Error::custom("Invalid survival vitals"));
         }
@@ -389,6 +433,7 @@ impl<'de> Deserialize<'de> for Vitals {
             thirst: saved.thirst,
             damage_fraction: saved.damage_fraction,
             bleed: saved.bleed,
+            regen: saved.regen,
         })
     }
 }
