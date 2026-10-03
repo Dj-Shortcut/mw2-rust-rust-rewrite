@@ -5,12 +5,14 @@ use serde::{Deserialize, Deserializer, Serialize};
 pub const CRATE_REACH: f32 = 100.;
 pub const HACK_SECONDS: f32 = 120.;
 const LOCKED_POSITION: [f32; 2] = [1500., 1000.];
+const SUPPLY_DROP_ID: u32 = 100;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CrateTier {
     Barrel,
     Military,
     Locked,
+    SupplyDrop,
 }
 
 struct LootEntry {
@@ -113,6 +115,51 @@ const LOCKED_TABLE: [LootEntry; 5] = [
     },
 ];
 
+const SUPPLY_TABLE: [LootEntry; 7] = [
+    LootEntry {
+        item: Item::Ammo,
+        min: 30,
+        max: 60,
+        weight: 3,
+    },
+    LootEntry {
+        item: Item::Syringe,
+        min: 1,
+        max: 2,
+        weight: 2,
+    },
+    LootEntry {
+        item: Item::Bandage,
+        min: 3,
+        max: 5,
+        weight: 3,
+    },
+    LootEntry {
+        item: Item::Food,
+        min: 4,
+        max: 8,
+        weight: 2,
+    },
+    LootEntry {
+        item: Item::Water,
+        min: 3,
+        max: 6,
+        weight: 2,
+    },
+    LootEntry {
+        item: Item::AntiRadPills,
+        min: 1,
+        max: 3,
+        weight: 1,
+    },
+    LootEntry {
+        item: Item::Jacket,
+        min: 1,
+        max: 1,
+        weight: 1,
+    },
+];
+
 const LAYOUT: [(CrateTier, [f32; 2]); 6] = [
     (CrateTier::Barrel, [120., -300.]),
     (CrateTier::Barrel, [-140., 320.]),
@@ -128,6 +175,7 @@ impl CrateTier {
             Self::Barrel => "Barrel",
             Self::Military => "Military crate",
             Self::Locked => "Locked crate",
+            Self::SupplyDrop => "Supply drop",
         }
     }
 
@@ -136,6 +184,7 @@ impl CrateTier {
             Self::Barrel => 300.,
             Self::Military => 600.,
             Self::Locked => 1800.,
+            Self::SupplyDrop => crate::airdrop::DROP_INTERVAL_SECONDS,
         }
     }
 
@@ -144,6 +193,7 @@ impl CrateTier {
             Self::Barrel => 2,
             Self::Military => 3,
             Self::Locked => 4,
+            Self::SupplyDrop => 5,
         }
     }
 
@@ -152,6 +202,7 @@ impl CrateTier {
             Self::Barrel => &BARREL_TABLE,
             Self::Military => &MILITARY_TABLE,
             Self::Locked => &LOCKED_TABLE,
+            Self::SupplyDrop => &SUPPLY_TABLE,
         }
     }
 
@@ -505,6 +556,18 @@ impl LootCrates {
             lootable.opened = state.map_or(0, |s| s.opened);
         }
     }
+}
+
+/// Rolls the loot of the `drops`-th supply drop.
+pub(crate) fn roll_supply(seed: u32, drops: u32) -> Vec<(Item, u32)> {
+    LootCrate {
+        id: SUPPLY_DROP_ID,
+        tier: CrateTier::SupplyDrop,
+        position: [0.; 3],
+        respawn_in: 0.,
+        opened: drops,
+    }
+    .roll(seed)
 }
 
 pub(crate) fn splitmix(state: &mut u64) -> u64 {
