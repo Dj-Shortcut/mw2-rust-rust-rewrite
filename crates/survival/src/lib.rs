@@ -26,8 +26,8 @@ pub use airdrop::{
 };
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use cooking::{
-    CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COOK_SECONDS, COOK_WOOD, Campfire,
-    Campfires, FireState, TEA_SECONDS, TEA_WARMTH,
+    CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COMFORT_SECONDS_PER_HP, COOK_SECONDS,
+    COOK_WOOD, Campfire, Campfires, FireState, TEA_SECONDS, TEA_WARMTH,
 };
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{
@@ -123,6 +123,7 @@ pub struct Session {
     warming: bool,
     irradiated: bool,
     tea_warmth: f32,
+    comfort: f32,
     crates: LootCrates,
     campfires: Campfires,
     airdrops: Airdrops,
@@ -404,6 +405,7 @@ impl Session {
             warming: false,
             irradiated: false,
             tea_warmth: 0.,
+            comfort: 0.,
             crates,
             campfires,
             airdrops,
@@ -446,6 +448,7 @@ impl Session {
             self.warming = false;
             self.irradiated = false;
             self.tea_warmth = 0.;
+            self.comfort = 0.;
             self.fishing = None;
             self.refund_crafting()?;
             self.drop_loot()?;
@@ -510,6 +513,19 @@ impl Session {
             self.message = "You warm up by the campfire".into();
         }
         self.warming = warming;
+        let hurt = self
+            .world
+            .player(LOCAL)
+            .is_some_and(|p| p.health < p.max_health);
+        self.comfort = if hurt && self.comfortable() {
+            self.comfort + 0.017
+        } else {
+            0.
+        };
+        if self.comfort >= COMFORT_SECONDS_PER_HP {
+            self.comfort -= COMFORT_SECONDS_PER_HP;
+            let _ = self.world.heal_player(LOCAL, 1);
+        }
         if let Some(recipe) = self.crafting.advance(0.017, &mut self.inventory)? {
             self.message = format!("Crafted {}", recipe.name());
         }
@@ -605,6 +621,13 @@ impl Session {
             + self.worn.map_or(0., Item::warmth)
             + fire
             + tea
+    }
+
+    pub fn comfortable(&self) -> bool {
+        self.near_campfire()
+            && !self.vitals.is_bleeding()
+            && self.vitals.hunger() > 0.
+            && self.vitals.thirst() > 0.
     }
 
     pub fn near_campfire(&self) -> bool {
@@ -1947,6 +1970,7 @@ impl Session {
         self.warming = false;
         self.irradiated = false;
         self.tea_warmth = scene.tea_warmth;
+        self.comfort = 0.;
         Ok(())
     }
 }

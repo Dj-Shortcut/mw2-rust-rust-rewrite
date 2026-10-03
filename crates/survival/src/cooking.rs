@@ -9,6 +9,7 @@ pub const CAMPFIRE_WARMTH: f32 = 10.;
 pub const CAMPFIRE_WARMTH_RADIUS: f32 = 150.;
 pub const TEA_WARMTH: f32 = 8.;
 pub const TEA_SECONDS: f32 = 300.;
+pub const COMFORT_SECONDS_PER_HP: f32 = 5.;
 const LAYOUT: [[f32; 2]; 2] = [[-260., -140.], [820., 260.]];
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
