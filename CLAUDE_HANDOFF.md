@@ -129,10 +129,14 @@ blindly, upload project data or publish external contributions automatically.
   one bandage and two food/two water items. Crafting debits the same canonical
   building-resource balance. Full-health bandage use is rejected without loss.
   Gathering checks reach/occlusion, commits yields transactionally and removes
-  depleted resource collision. Scene version 2 stores buildings, editor objects,
-  inventory, vitals and resource-node depletion. It is not complete player/world
-  persistence: player position, health, weapon/ammo and mounted skate state are
-  not restored by that scene format.
+  depleted resource collision. Save format 3 (`crates/survival/src/persistence.rs`,
+  PR #10) stores buildings, editor objects, inventory, vitals and resource-node
+  depletion plus the local player: alive/dead, position, velocity, view, health,
+  weapon, clip/reserve ammo, kills/deaths/score and mounted skate state. Loading
+  validates the whole save, restores the player through one authority tick on a
+  copy of the world and commits only on success; format 2 saves migrate with
+  fresh-spawn player defaults. The NPC, queued script work and editor undo/redo
+  history are not saved.
 - Integrated headless flow passed: 15 terrain traces, movement, firing/ammo
   consumption and NPC kill; six editor meshes, invalid/near placement rejection,
   collision, undo/redo, save/load/delete; canonical crafting costs, healing and
@@ -199,8 +203,9 @@ flows have been observed as listed above; controller hardware is untested.
 
 The skate camera uses the authored operator and board in third person. Audio
 hooks respond to actual ammo use, reload, movement, harvest and skate events;
-audio device output remains unverified. Scene saving does not yet persist the
-complete player state.
+audio device output remains unverified. F5/F9 save and load the complete local
+session (headless verified); the frontend still has to adopt the restored view
+angles after F9, and the native flow is not yet graphically verified.
 
 ## Remaining work
 
