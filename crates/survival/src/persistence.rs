@@ -8,7 +8,9 @@
 //! Format 2 saves (scene only) are migrated with the explicit defaults in
 //! [`SavedPlayer::v2_default`].
 
-use crate::{GatheringWorld, Inventory, LootBags, PlacedObject, SavedSkate, Vitals, WORLD_HALF};
+use crate::{
+    CraftQueue, GatheringWorld, Inventory, LootBags, PlacedObject, SavedSkate, Vitals, WORLD_HALF,
+};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -41,6 +43,8 @@ pub(crate) struct SavedSession {
     pub vitals: Vitals,
     #[serde(default)]
     pub pending_damage: u32,
+    #[serde(default)]
+    pub crafting: CraftQueue,
     pub gathering: GatheringWorld,
     pub player: SavedPlayer,
 }
@@ -192,6 +196,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     loot: LootBags::default(),
                     vitals: old.vitals,
                     pending_damage: 0,
+                    crafting: CraftQueue::default(),
                     gathering: old.gathering,
                     player: SavedPlayer::v2_default(),
                 },

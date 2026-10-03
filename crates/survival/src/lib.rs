@@ -2,6 +2,7 @@ use playerstate_iw4::UserCmd;
 use rust_building::{BuildingWorld, CELL, Grade, Kind, Piece, Resources, Socket, WALL_HEIGHT};
 use sim::{ClientId, SimBrush, SimContentBuilder, SimWorld, Tick, TickInput};
 use std::path::Path;
+mod crafting;
 mod editor;
 mod gathering;
 mod inventory;
@@ -10,6 +11,7 @@ mod persistence;
 mod rules;
 mod skate;
 mod terrain;
+pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
@@ -79,6 +81,7 @@ pub struct Session {
     skate_score: u64,
     loot: LootBags,
     queued_damage: u32,
+    crafting: CraftQueue,
 }
 
 impl Session {
@@ -338,6 +341,7 @@ impl Session {
             skate_score: 0,
             loot: LootBags::default(),
             queued_damage: 0,
+            crafting: CraftQueue::default(),
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -361,6 +365,7 @@ impl Session {
         if alive {
             self.vitals.wound(external);
         } else {
+            self.refund_crafting()?;
             self.drop_loot()?;
             self.dismount();
             self.world.set_external_motion(LOCAL, false);
@@ -389,6 +394,9 @@ impl Session {
         }
         self.skate_input.ollie = false;
         self.skate_input.flip = false;
+        if let Some(recipe) = self.crafting.advance(0.017, &mut self.inventory)? {
+            self.message = format!("Crafted {}", recipe.name());
+        }
         let healed = self.vitals.regenerate(0.017)?;
         if healed > 0 {
             let _ = self.world.heal_player(LOCAL, healed);
@@ -445,6 +453,57 @@ impl Session {
             .map_err(|e| e.to_string())?;
         self.inventory = inventory;
         Ok(())
+    }
+
+    pub fn crafting_queue(&self) -> &[CraftJob] {
+        self.crafting.jobs()
+    }
+
+    /// Pays for `recipe` now; the item arrives after its craft time.
+    pub fn queue_craft(&mut self, recipe: Recipe) -> Result<(), String> {
+        self.require_alive()?;
+        let mut crafting = self.crafting.clone();
+        crafting.push(recipe)?;
+        self.world
+            .buildings_mut()
+            .consume(LOCAL.0, recipe.cost())
+            .map_err(|_| "Not enough crafting resources".to_string())?;
+        self.crafting = crafting;
+        Ok(())
+    }
+
+    pub fn cancel_craft(&mut self, index: usize) -> Result<Resources, String> {
+        self.require_alive()?;
+        let mut crafting = self.crafting.clone();
+        let refund = crafting.cancel(index)?.cost();
+        let mut balance = self.world.buildings().inventory(LOCAL.0);
+        balance.add(refund);
+        if [balance.wood, balance.stone, balance.metal]
+            .iter()
+            .any(|&n| n > persistence::MAX_RESOURCE_BALANCE)
+        {
+            return Err("Resource storage is full".into());
+        }
+        self.world
+            .buildings_mut()
+            .grant(LOCAL.0, refund)
+            .map_err(|e| e.to_string())?;
+        self.crafting = crafting;
+        Ok(refund)
+    }
+
+    /// Refunds every queued job up to the storage limit.
+    fn refund_crafting(&mut self) -> Result<(), String> {
+        let mut refund = self.crafting.clear();
+        let balance = self.world.buildings().inventory(LOCAL.0);
+        let room = |have: u32| persistence::MAX_RESOURCE_BALANCE.saturating_sub(have);
+        refund.wood = refund.wood.min(room(balance.wood));
+        refund.stone = refund.stone.min(room(balance.stone));
+        refund.metal = refund.metal.min(room(balance.metal));
+        self.world
+            .buildings_mut()
+            .grant(LOCAL.0, refund)
+            .map_err(|e| e.to_string())
     }
 
     fn gathering_ray_from_view(&self) -> Result<([f32; 3], [f32; 3], f32), String> {
@@ -936,6 +995,7 @@ impl Session {
             loot: self.loot.clone(),
             vitals: self.vitals,
             pending_damage: self.queued_damage,
+            crafting: self.crafting.clone(),
             gathering: self.gathering.clone(),
             player: saved,
         };
@@ -1059,6 +1119,9 @@ impl Session {
             return Err(format!("Restoring the player failed: {fault}"));
         }
         verify_restored(&world, &player)?;
+        if !player.alive && !scene.crafting.jobs().is_empty() {
+            return Err("A dead player cannot have queued crafting".into());
+        }
         let mut inventory = scene.inventory;
         let mut loot = scene.loot;
         if !player.alive {
@@ -1084,6 +1147,7 @@ impl Session {
         self.skate_roll = 0.;
         self.last_skate_event = SkateEvent::None;
         self.queued_damage = queued_damage;
+        self.crafting = scene.crafting;
         Ok(())
     }
 }
