@@ -8,7 +8,7 @@
 //! Format 2 saves (scene only) are migrated with the explicit defaults in
 //! [`SavedPlayer::v2_default`].
 
-use crate::crates::SavedCrates;
+use crate::crates::{SavedCrates, SavedLocked};
 use crate::{
     Blueprints, Cast, CraftQueue, GatheringWorld, Inventory, Item, LootBags, PlacedObject,
     SavedSkate, Vitals, WORLD_HALF, Weather, WorldClock,
@@ -57,6 +57,8 @@ pub(crate) struct SavedSession {
     pub worn: Option<Item>,
     #[serde(default, deserialize_with = "present_crates")]
     pub crates: Option<SavedCrates>,
+    #[serde(default)]
+    pub locked_crate: SavedLocked,
     #[serde(default)]
     pub fishing: Option<Cast>,
     #[serde(default)]
@@ -224,6 +226,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     weather: Weather::default(),
                     worn: None,
                     crates: None,
+                    locked_crate: SavedLocked::default(),
                     fishing: None,
                     casts: 0,
                     gathering: old.gathering,

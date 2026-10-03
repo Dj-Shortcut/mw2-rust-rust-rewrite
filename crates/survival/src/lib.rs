@@ -18,7 +18,9 @@ mod terrain;
 mod weather;
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
-pub use crates::{CRATE_REACH, CrateTier, LootCrate, LootCrates};
+pub use crates::{
+    CRATE_REACH, CrateTier, HACK_SECONDS, LockState, LockedCrate, LootCrate, LootCrates,
+};
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use fishing::{CAST_SECONDS, Cast, FISHING_REACH};
 pub use gathering::{
@@ -392,7 +394,7 @@ impl Session {
         self.queued_damage = 0;
         self.regrow_resources();
         self.clock.advance(0.017)?;
-        self.crates.advance(0.017)?;
+        let unlocked = self.crates.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         if alive {
@@ -407,6 +409,9 @@ impl Session {
             self.world.set_external_motion(LOCAL, false);
             self.skate_input = SkateInput::default();
             return Ok(());
+        }
+        if unlocked {
+            self.message = "The locked crate is unlocked".into();
         }
         if weather_changed {
             self.message = if self.weather.is_raining() {
@@ -936,6 +941,43 @@ impl Session {
         Ok(loot)
     }
 
+    pub fn locked_crate(&self) -> &LockedCrate {
+        self.crates.locked()
+    }
+
+    pub fn locked_crate_in_reach(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| self.crates.locked().in_reach(p.origin))
+    }
+
+    pub fn hack_crate(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if !self.locked_crate_in_reach() {
+            return Err("No locked crate within reach".into());
+        }
+        self.crates.start_hack()?;
+        self.message = format!("Hacking the locked crate: {HACK_SECONDS:.0} s");
+        Ok(())
+    }
+
+    pub fn open_locked_crate(&mut self) -> Result<Vec<(Item, u32)>, String> {
+        self.require_alive()?;
+        if !self.locked_crate_in_reach() {
+            return Err("No locked crate within reach".into());
+        }
+        let mut inventory = self.inventory.clone();
+        let loot = self.crates.open_locked(&mut inventory)?;
+        self.inventory = inventory;
+        let names: Vec<String> = loot
+            .iter()
+            .map(|(item, quantity)| format!("{quantity} {}", item.name()))
+            .collect();
+        self.message = format!("{}: {}", CrateTier::Locked.name(), names.join(", "));
+        Ok(loot)
+    }
+
     pub fn pick_up_loot(&mut self) -> Result<u32, String> {
         self.require_alive()?;
         let id = self
@@ -1298,6 +1340,7 @@ impl Session {
             weather: self.weather,
             worn: self.worn,
             crates: Some(self.crates.saved()),
+            locked_crate: self.crates.saved_locked(),
             fishing: self.fishing,
             casts: self.casts,
             gathering: self.gathering.clone(),
@@ -1425,6 +1468,7 @@ impl Session {
         verify_restored(&world, &player)?;
         let mut crates = self.crates.clone();
         crates.restore(scene.crates.as_ref());
+        crates.restore_locked(&scene.locked_crate);
         if scene.worn.is_some_and(|item| !item.is_clothing()) {
             return Err("Only clothing can be worn".into());
         }
