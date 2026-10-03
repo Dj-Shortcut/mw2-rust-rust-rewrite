@@ -53,6 +53,8 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Alle in-game teksten naar Engels omzetten; Engels als vaste bijdragersregel vastleggen.
 - [x] Volledige sessie headless opslaan en laden: positie, snelheid, kijkrichting, health, levend/dood (GSC-lifecycle), wapen, clip/reserve, kills/deaths/score, gemounte skatestaat en -score, plus inventory, bouwresources, needs, depletion, gebouwen en editorobjecten.
 - [x] Dode spelers laden met opgeslagen positie, kijkrichting en snelheid (dood→dood en levend→dood), gecontroleerd vóór commit; probe met twee doden op verschillende plekken, herhaald laden en respawn.
+- [x] Rail grinds headless via `Session::advance`: vangen na een echte ollie (yaw 0/90/37, beide richtingen), afglijden, loslaten aan het eind, ollie-uit en remmen; grindpunten pas bij een veilige landing; bails, near misses, muur en verwijderen/undo vangen niets of vervallen; mid-grind save/load en oude saves gecontroleerd.
+- [ ] Rail grind in het native venster uitvoeren en een grind-HUD tonen (`is_grinding`/`pending_points`; frontend #15).
 - [ ] Volledige native editor-/bouw-/gather-/respawnflow en Engelse meldingen verifiëren.
 - [ ] F5/F9 in het native venster uitvoeren; na laden de camerasturing van de frontend gelijkzetten met de herstelde kijkrichting (nu overschrijft de volgende frontendinvoer die).
 

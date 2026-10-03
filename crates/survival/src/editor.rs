@@ -4,6 +4,20 @@ use std::collections::BTreeMap;
 
 pub const MAX_PROPS: usize = 1024;
 
+/// Local grind centerline of [`PropKind::Rail`]: the top of its beam.
+const RAIL_START: [f32; 3] = [-120., 0., 50.];
+const RAIL_END: [f32; 3] = [120., 0., 50.];
+pub(crate) const RAIL_LENGTH: f32 = RAIL_END[0] - RAIL_START[0];
+
+/// The grindable centerline of one authored rail, in world space. `id` is
+/// the editor object ID, which stays stable across undo/redo and saves.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RailSegment {
+    pub id: u32,
+    pub start: [f32; 3],
+    pub end: [f32; 3],
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PropKind {
     Ramp,
@@ -100,6 +114,11 @@ impl EditorState {
     }
     pub fn brushes(&self) -> Vec<SimBrush> {
         self.objects().flat_map(PlacedObject::brushes).collect()
+    }
+    pub fn rails(&self) -> Vec<RailSegment> {
+        self.objects()
+            .filter_map(PlacedObject::rail_segment)
+            .collect()
     }
 }
 
@@ -217,6 +236,26 @@ impl PropKind {
 }
 
 impl PlacedObject {
+    /// The rail's centerline rotated by yaw around Z and translated by the
+    /// object position; `None` for every other prop.
+    pub fn rail_segment(&self) -> Option<RailSegment> {
+        if self.kind != PropKind::Rail {
+            return None;
+        }
+        let (sin, cos) = self.yaw.to_radians().sin_cos();
+        let place = |p: [f32; 3]| {
+            [
+                p[0] * cos - p[1] * sin + self.position[0],
+                p[0] * sin + p[1] * cos + self.position[1],
+                p[2] + self.position[2],
+            ]
+        };
+        Some(RailSegment {
+            id: self.id,
+            start: place(RAIL_START),
+            end: place(RAIL_END),
+        })
+    }
     pub fn brushes(&self) -> Vec<SimBrush> {
         let (sin, cos) = self.yaw.to_radians().sin_cos();
         self.kind

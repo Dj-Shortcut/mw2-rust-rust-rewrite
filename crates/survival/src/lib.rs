@@ -9,10 +9,10 @@ mod persistence;
 mod rules;
 mod skate;
 mod terrain;
-pub use editor::{EditorState, Geometry, PlacedObject, PropKind};
+pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use gathering::{GatheringWorld, Harvest, ResourceKind, ResourceNode};
 pub use inventory::{Inventory, Item, Recipe, Vitals};
-pub use skate::{SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
+pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
 
 pub const UNITS_TO_METERS: f32 = 0.0254;
@@ -174,7 +174,8 @@ impl Session {
         }
         if let Some(skate) = &mut self.skate {
             let origin = self.world.player(LOCAL).ok_or("Player is missing")?.origin;
-            let step = skate.step(&self.world, 0.017, self.skate_input, origin)?;
+            let rails = self.editor.rails();
+            let step = skate.step(&self.world, &rails, 0.017, self.skate_input, origin)?;
             self.world.set_origin(LOCAL, step.origin);
             self.skate_roll = step.board_roll;
             self.last_skate_event = step.event;
@@ -545,6 +546,9 @@ impl Session {
         player.validate(max_health, facts.clip_size, facts.max_ammo)?;
         if player.alive && player_blocked(&world, player.origin) {
             return Err("Saved player position is blocked".into());
+        }
+        if let Some(skate) = &skate {
+            skate.check_rails(&editor.rails(), player.origin)?;
         }
         let mut others_blocked = false;
         world.visit_players(|id, p| {
