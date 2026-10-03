@@ -8,6 +8,7 @@ mod cooking;
 mod crafting;
 mod crates;
 mod editor;
+mod farming;
 mod fishing;
 mod gathering;
 mod inventory;
@@ -28,6 +29,7 @@ pub use crates::{
     CRATE_REACH, CrateTier, HACK_SECONDS, LockState, LockedCrate, LootCrate, LootCrates,
 };
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
+pub use farming::{GROW_SECONDS, Garden, HARVEST_FOOD, HARVEST_SEEDS, PLOT_REACH, Plot, PlotState};
 pub use fishing::{CAST_SECONDS, Cast, FISHING_REACH};
 pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
@@ -110,6 +112,7 @@ pub struct Session {
     crates: LootCrates,
     campfires: Campfires,
     airdrops: Airdrops,
+    garden: Garden,
     fishing: Option<Cast>,
     casts: u32,
 }
@@ -333,6 +336,7 @@ impl Session {
         let crates = LootCrates::new(&terrain)?;
         let campfires = Campfires::new(&terrain)?;
         let airdrops = Airdrops::new(&terrain)?;
+        let garden = Garden::new(&terrain)?;
         world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
@@ -384,6 +388,7 @@ impl Session {
             crates,
             campfires,
             airdrops,
+            garden,
             fishing: None,
             casts: 0,
         };
@@ -409,6 +414,7 @@ impl Session {
         let unlocked = self.crates.advance(0.017)?;
         let cooked = self.campfires.advance(0.017)?;
         let drops = self.airdrops.advance(0.017)?;
+        let ripened = self.garden.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         if alive {
@@ -429,6 +435,9 @@ impl Session {
         }
         if cooked {
             self.message = "Your fish is cooked".into();
+        }
+        if ripened {
+            self.message = "Your berries are ripe".into();
         }
         if drops.lost {
             self.message = "The supply drop was lost".into();
@@ -714,7 +723,10 @@ impl Session {
             }
         }
         match harvested.kind {
-            ResourceKind::Berry => inventory.add(Item::Food, harvested.amount)?,
+            ResourceKind::Berry => {
+                inventory.add(Item::Food, harvested.amount)?;
+                inventory.add_up_to(Item::BerrySeeds, 1);
+            }
             ResourceKind::Water => inventory.add(Item::Water, harvested.amount)?,
             _ => {}
         }
@@ -1030,6 +1042,56 @@ impl Session {
             .collect();
         self.message = format!("{}: {}", CrateTier::SupplyDrop.name(), names.join(", "));
         Ok(loot)
+    }
+
+    pub fn garden(&self) -> &[Plot] {
+        self.garden.plots()
+    }
+
+    /// The nearest garden plot within reach of the living player.
+    pub fn plot_in_reach(&self) -> Option<&Plot> {
+        let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
+        self.garden.in_reach(player.origin)
+    }
+
+    pub fn plant_seeds(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        let id = self
+            .plot_in_reach()
+            .ok_or("No garden plot within reach")?
+            .id();
+        let mut garden = self.garden.clone();
+        garden.plant(id)?;
+        let mut inventory = self.inventory.clone();
+        inventory
+            .take(Item::BerrySeeds, 1)
+            .map_err(|_| "You need berry seeds to plant".to_string())?;
+        inventory
+            .take(Item::Water, 1)
+            .map_err(|_| "You need water to plant".to_string())?;
+        self.garden = garden;
+        self.inventory = inventory;
+        self.message = format!("Planted berry seeds: ripe in {GROW_SECONDS:.0} s");
+        Ok(())
+    }
+
+    pub fn harvest_plot(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        let id = self
+            .plot_in_reach()
+            .ok_or("No garden plot within reach")?
+            .id();
+        let mut garden = self.garden.clone();
+        garden.harvest(id)?;
+        let mut inventory = self.inventory.clone();
+        inventory
+            .add(Item::Food, HARVEST_FOOD)
+            .and_then(|()| inventory.add(Item::BerrySeeds, HARVEST_SEEDS))
+            .map_err(|_| "Not enough inventory space for the harvest".to_string())?;
+        self.garden = garden;
+        self.inventory = inventory;
+        self.message = format!("Harvested {HARVEST_FOOD} food and {HARVEST_SEEDS} berry seeds");
+        Ok(())
     }
 
     pub fn campfires(&self) -> &[Campfire] {
@@ -1451,6 +1513,7 @@ impl Session {
             locked_crate: self.crates.saved_locked(),
             campfires: self.campfires.saved(),
             airdrops: self.airdrops.saved(),
+            garden: self.garden.saved(),
             fishing: self.fishing,
             casts: self.casts,
             gathering: self.gathering.clone(),
@@ -1583,6 +1646,8 @@ impl Session {
         campfires.restore(&scene.campfires);
         let mut airdrops = self.airdrops.clone();
         airdrops.restore(&scene.airdrops);
+        let mut garden = self.garden.clone();
+        garden.restore(&scene.garden);
         if scene.worn.is_some_and(|item| !item.is_clothing()) {
             return Err("Only clothing can be worn".into());
         }
@@ -1634,6 +1699,7 @@ impl Session {
         self.crates = crates;
         self.campfires = campfires;
         self.airdrops = airdrops;
+        self.garden = garden;
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
