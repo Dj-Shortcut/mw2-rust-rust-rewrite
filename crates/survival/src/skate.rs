@@ -10,9 +10,10 @@ const GROUND_NORMAL: f32 = 0.45;
 const MAX_SAVED_SCORE: u64 = 1_000_000_000;
 const MAX_SAVED_BAILS: u32 = 1_000_000;
 
-// Rail grinds. A descending rider whose sweep lands on a rail top catches it
-// when the rider's origin lies between the endpoints within
-// `GRIND_CAPTURE_LATERAL` of the centerline and the board heading and
+// Rail and ledge grinds (rails, funbox and platform top edges; see
+// `PlacedObject::grind_segments`). A descending rider whose sweep lands on a
+// rail top catches it when the rider's origin lies between the endpoints
+// within `GRIND_CAPTURE_LATERAL` of the centerline and the board heading and
 // horizontal velocity are both within 25 degrees of the rail (either way).
 const GRIND_ALIGN_COS: f32 = 0.906_307_8; // cos(25 degrees)
 const GRIND_CAPTURE_LATERAL: f32 = 12.;
@@ -93,11 +94,13 @@ pub struct SkateState {
     release_cooldown: f32,
 }
 
-/// An active grind: the rail's editor ID, the rider's signed distance from
-/// the rail start along its centerline, and signed along-rail speed.
+/// An active grind: the rail's editor ID and segment, the rider's signed
+/// distance from the segment start along its centerline, and signed
+/// along-rail speed.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Grind {
     rail: u32,
+    edge: u8,
     progress: f32,
     speed: f32,
 }
@@ -164,6 +167,10 @@ pub struct SavedSkate {
 #[serde(deny_unknown_fields)]
 pub struct SavedGrind {
     pub rail: u32,
+    /// Segment within the object; defaults to 0, a rail's only segment, so
+    /// saves from before funbox and platform ledges load unchanged.
+    #[serde(default)]
+    pub edge: u8,
     pub progress: f32,
     pub speed: f32,
 }
@@ -194,6 +201,7 @@ impl SkateState {
             flight: self.flight,
             grind: self.grind.map(|g| SavedGrind {
                 rail: g.rail,
+                edge: g.edge,
                 progress: g.progress,
                 speed: g.speed,
             }),
@@ -240,8 +248,9 @@ impl SkateState {
             && saved.release_rail.is_some() == (saved.release_cooldown > 0.);
         let grind = saved.grind.is_none_or(|g| {
             g.rail != 0
+                && g.edge < crate::editor::MAX_GRIND_EDGES
                 && g.progress.is_finite()
-                && (-MAX_GRIND_OVERHANG..=crate::editor::RAIL_LENGTH + MAX_GRIND_OVERHANG)
+                && (-MAX_GRIND_OVERHANG..=crate::editor::MAX_GRIND_LENGTH + MAX_GRIND_OVERHANG)
                     .contains(&g.progress)
                 && g.speed.is_finite()
                 && (GRIND_STOP_SPEED..=MAX_SPEED).contains(&g.speed.abs())
@@ -276,6 +285,7 @@ impl SkateState {
             flight: saved.flight,
             grind: saved.grind.map(|g| Grind {
                 rail: g.rail,
+                edge: g.edge,
                 progress: g.progress,
                 speed: g.speed,
             }),
@@ -293,9 +303,8 @@ impl SkateState {
         let Some(grind) = self.grind else {
             return Ok(());
         };
-        let rail = rails
-            .iter()
-            .find(|r| r.id == grind.rail)
+        let rail = grind
+            .segment(rails)
             .ok_or("Saved grind references a missing rail")?;
         let (dir, len) = rail_frame(rail).ok_or("Saved grind rail is degenerate")?;
         let reach = overhang(dir);
@@ -368,10 +377,7 @@ impl SkateState {
     ) -> Result<SkateStep, String> {
         origin = clear_origin(world, origin)?;
         let mut event = SkateEvent::None;
-        if self
-            .grind
-            .is_some_and(|g| !rails.iter().any(|r| r.id == g.rail))
-        {
+        if self.grind.is_some_and(|g| g.segment(rails).is_none()) {
             self.cancel_grind();
         }
         self.find_ground(world, rails, &mut origin, &mut event);
@@ -505,9 +511,8 @@ impl SkateState {
         let Some(grind) = self.grind else {
             return Ok(dt);
         };
-        let Some((rail, dir, len)) = rails
-            .iter()
-            .find(|r| r.id == grind.rail)
+        let Some((rail, dir, len)) = grind
+            .segment(rails)
             .and_then(|r| rail_frame(r).map(|(dir, len)| (r, dir, len)))
         else {
             self.cancel_grind();
@@ -624,6 +629,7 @@ impl SkateState {
         self.grounded = false;
         self.grind = Some(Grind {
             rail: rail.id,
+            edge: rail.edge,
             progress: along,
             speed,
         });
@@ -632,8 +638,9 @@ impl SkateState {
         true
     }
 
-    /// Leaves the rail with momentum kept; the same rail cannot be caught
-    /// again until the cooldown runs out.
+    /// Leaves the rail with momentum kept; no segment of the same object
+    /// (rail, funbox or platform) can be caught again until the cooldown
+    /// runs out.
     fn release(&mut self, rail: u32) {
         self.grind = None;
         self.grounded = false;
@@ -876,6 +883,15 @@ fn cross_curb(world: &SimWorld, origin: [f32; 3], end: [f32; 3]) -> Option<([f32
     }
     let normal = normalize(down.normal);
     Some((add(down.endpos, scale(normal, 0.04)), normal))
+}
+
+impl Grind {
+    /// The segment this grind runs on, if its object still has it.
+    fn segment(self, rails: &[RailSegment]) -> Option<&RailSegment> {
+        rails
+            .iter()
+            .find(|r| r.id == self.rail && r.edge == self.edge)
+    }
 }
 
 /// Horizontal unit direction and length of a rail; `None` if degenerate.
