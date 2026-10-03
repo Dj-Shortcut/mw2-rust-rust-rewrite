@@ -7,18 +7,21 @@ differ.
 Each .glb in <committed-dir> gets one Markdown table row:
 
   identical   the files are byte for byte the same
-  equivalent  same glTF structure, same integer data (indices, joints), and
+  equivalent  same glTF structure, same integer data (joints; triangle index
+              lists may list the same triangles in another order), and
               every float, in the JSON or in a float accessor, within
               TOLERANCE (scaled by magnitude above 1) of the committed one
   differs     anything else, with where it differs
 
 manifest.json is compared the same way, ignoring its per-file sha256 and
 byte counts, which change whenever a GLB is equivalent but not identical.
-Exit status is 0 if every file is identical or equivalent.
+A .glb that was regenerated but is not committed also counts as a
+difference. Exit status is 0 if every file is identical or equivalent.
 
 Blender's float math is not bit-stable across CPUs, so a model regenerated on
-another machine can land one float32 step away from the committed one; that
-is what "equivalent" allows for, and nothing larger.
+another machine can land one float32 step away from the committed one and
+emit its triangles in another order; that is what "equivalent" allows for,
+and nothing larger.
 """
 
 import json
@@ -96,9 +99,11 @@ def accessor_values(gltf, binary, accessor):
 
 
 def binary_diff(gltf, a, b):
-    """Accessors whose data differ beyond TOLERANCE, and the largest float
-    difference seen. The JSON must already match structurally."""
-    bad, worst = [], 0.0
+    """Accessors whose data differ beyond TOLERANCE, the largest float
+    difference seen, and index accessors that hold the same triangles in a
+    different order. The JSON must already match structurally."""
+    bad, worst, reordered = [], 0.0, []
+    triangle_lists = triangle_index_accessors(gltf)
     for index, accessor in enumerate(gltf["accessors"]):
         if "bufferView" not in accessor or "sparse" in accessor:
             if "sparse" in accessor:
@@ -112,8 +117,34 @@ def binary_diff(gltf, a, b):
             if not all(close(p, q) for p, q in zip(x, y)):
                 bad.append(f"accessor {index}")
         elif x != y:
-            bad.append(f"accessor {index} (integer data)")
-    return bad, worst
+            if index in triangle_lists and same_triangles(x, y):
+                reordered.append(index)
+            else:
+                bad.append(f"accessor {index} (integer data)")
+    return bad, worst, reordered
+
+
+def triangle_index_accessors(gltf):
+    """Accessors used only as index lists of triangle primitives."""
+    found = set()
+    for mesh in gltf.get("meshes", []):
+        for primitive in mesh["primitives"]:
+            if "indices" in primitive and primitive.get("mode", 4) == 4:
+                found.add(primitive["indices"])
+    return found
+
+
+def same_triangles(x, y):
+    """Whether two index lists hold the same triangles, with the same
+    winding, in any order."""
+    def canonical(values):
+        triangles = []
+        for i in range(0, len(values), 3):
+            t = values[i:i + 3]
+            k = t.index(min(t))
+            triangles.append(tuple(t[k:] + t[:k]))
+        return sorted(triangles)
+    return len(x) == len(y) and len(x) % 3 == 0 and canonical(x) == canonical(y)
 
 
 def listed(paths):
@@ -134,10 +165,11 @@ def compare_glb(committed, regenerated):
         return False, f"differs: JSON at {listed(paths)}"
     if len(ba) != len(bb):
         return False, f"differs: binary chunk {len(ba)} vs {len(bb)} bytes"
-    bad, bin_worst = binary_diff(ja, ba, bb)
+    bad, bin_worst, reordered = binary_diff(ja, ba, bb)
     if bad:
         return False, f"differs: {listed(bad)}"
-    return True, f"equivalent (max float delta {max(worst, bin_worst):.3g})"
+    order = f", triangle order differs in {len(reordered)} index lists" if reordered else ""
+    return True, f"equivalent (max float delta {max(worst, bin_worst):.3g}{order})"
 
 
 def compare_manifest(committed, regenerated):
@@ -164,6 +196,10 @@ def main():
         same, note = compare_glb(path, regenerated / path.name)
         ok &= same
         print(f"| {path.name} | {note} |")
+    for path in sorted(regenerated.glob("*.glb")):
+        if not (committed / path.name).is_file():
+            ok = False
+            print(f"| {path.name} | differs: generated but not committed |")
     if (committed / "manifest.json").is_file():
         same, note = compare_manifest(committed / "manifest.json", regenerated / "manifest.json")
         ok &= same

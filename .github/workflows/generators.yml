@@ -32,9 +32,10 @@ jobs:
           diff -r --exclude=README.md assets/authored/audio "$RUNNER_TEMP/audio"
           echo "WAV pack and manifest match a fresh run of scripts/generate_authored_audio.py" >> "$GITHUB_STEP_SUMMARY"
 
-  # Blender's float math is not bit-stable across CPUs: the first CI run
-  # regenerated three of four models byte for byte and masked_operator within
-  # one float32 step. scripts/compare_glb.py accepts that and nothing larger.
+  # Blender's output is not bit-stable across machines: CI regenerates three
+  # of four models byte for byte, but masked_operator comes out with floats
+  # one float32 step off and some triangles in another order.
+  # scripts/compare_glb.py accepts exactly that and nothing larger.
   # Report-only because it depends on download.blender.org. The .blend files
   # embed save metadata and are not compared.
   models:
@@ -45,7 +46,9 @@ jobs:
       BLENDER: blender-4.3.2-linux-x64
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      # Restore and save separately so the download is cached even when the
+      # comparison below fails.
+      - uses: actions/cache/restore@v4
         id: blender
         with:
           path: ${{ runner.temp }}/${{ env.BLENDER }}
@@ -54,6 +57,11 @@ jobs:
         if: steps.blender.outputs.cache-hit != 'true'
         run: |
           curl -fsSL "https://download.blender.org/release/Blender4.3/$BLENDER.tar.xz" | tar -xJ -C "$RUNNER_TEMP"
+      - uses: actions/cache/save@v4
+        if: steps.blender.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/${{ env.BLENDER }}
+          key: ${{ env.BLENDER }}
       - name: Install Blender runtime libraries
         run: |
           sudo apt-get update
