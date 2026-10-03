@@ -11,6 +11,7 @@ pub enum MarkerKind {
     SupplyDrop,
     LootBag,
     Waypoint,
+    Stash,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
