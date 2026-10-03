@@ -223,19 +223,21 @@ impl InventoryUi {
             Some(Pending::Move { source }) => {
                 let target = self.slot;
                 let count = session.inventory.stacks().len();
-                let same_item = session
+                let merges = session
                     .inventory
                     .stacks()
                     .get(source)
                     .zip(session.inventory.stacks().get(target))
-                    .is_some_and(|(source, target)| source.item == target.item);
+                    .is_some_and(|(source, target)| {
+                        source.item == target.item && !source.item.is_tool()
+                    });
                 match session.move_stack(source, target) {
                     Ok(()) => {
                         if session.inventory.stacks().len() < count && source < target {
                             self.slot = target - 1;
                         }
                         self.after_mutation(session);
-                        session.message = if same_item {
+                        session.message = if merges {
                             "Stacks merged"
                         } else {
                             "Stacks swapped"
