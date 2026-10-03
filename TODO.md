@@ -5,40 +5,64 @@ door Rust, FPS-gunplay en operators geïnspireerd door MW2, en skateboarden
 geïnspireerd door Skate 3. Werelden, modellen, materialen, animaties en geluiden
 maken we zelf. Originele gamebestanden zijn geen vereiste voor het eindproduct.
 
-**Status op 2 oktober 2026: onafgewerkte ontwikkelbroncode. Geen afgewerkt
+**Status op 3 oktober 2026: onafgewerkte ontwikkelbroncode. Geen afgewerkt
 speelbaar product en geen releasebinary.** De repository bevat de implementatie
 en dient als broncodeoverdracht, met onderstaande verificatiegrenzen.
 
-`[x]` betekent uitsluitend dat de genoemde codecontrole is geslaagd. Het betekent
-geen speelbare feature. Een feature is pas klaar voor de speler na integratie,
-een uitvoerbare build en verificatie van de volledige gebruikersflow.
+We houden vier stadia apart: **code aanwezig**, **headless geverifieerd**,
+**grafisch geverifieerd** en **releasegereed**. Headless controles voeren de
+echte backend zonder venster uit. Ze bewijzen geen camerabeeld, bediening of
+geluid. `[x]` hieronder geldt uitsluitend voor de expliciet genoemde controle;
+de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd.
 
 ## Wat aantoonbaar aanwezig is
 
-| Onderdeel | Code | Controle | Speelbaar geverifieerd |
-|---|---|---|---|
-| Bouwstukken, kosten, eigendom, upgrades, instorting en opslag | Aanwezig | 8 tijdelijke scenario's geslaagd | Nee |
-| Kogel-/mêleeschade aan bouwstukken, voorspelling zonder schade | Aanwezig | 5 simulatieprobes geslaagd | Nee |
-| Mapreader SDK-v9 en begrensde parser | Aanwezig | 8 map/corevalidatieprobes en inspectie-CLI geslaagd | Nee, inspectietool |
-| Bouwstukken in wereldsnapshots en loopcollisie | Geïntegreerd | Compilercontrole geslaagd | Geen netwerksessie getest |
-| Lokale hostbouwbediening en Xbox-controllerbindings | Aanwezig | Compilercontrole geslaagd | Geen controllerflow getest |
-| Eigen procedurele hout-/steen-/metaalmaterialen | Aanwezig | WGSL/Naga-validatie geslaagd | Geen GPU-weergave getest |
-| MW2/Skate-enginebasis uit publieke rewritecode | Aanwezig | Eerdere launchercontrole geslaagd | Geen complete gameflow getest |
-| Zelfstandig starten zonder originele gamebestanden | Startpad aanwezig | Compilercontrole geslaagd; sessiebootstrap geblokkeerd | Nee |
-| Eigen terreinmesh en skateobjecteditor | Backend en frontend aanwezig | Bootstrap-compilercontrole geslaagd; uitvoering nog geblokkeerd | Nee |
+| Onderdeel | Code aanwezig | Headless/codebewijs | Grafisch geverifieerd | Releasegereed |
+|---|---|---|---|---|
+| Bouwkern: kosten, eigendom, upgrades, deuren, instorting, opslag | Ja | 8 bouwscenario's geslaagd | Nee | Nee |
+| Kogel-/mêleeschade aan bouwstukken, voorspelling zonder schade | Ja | 5 simulatieprobes geslaagd | Nee | Nee |
+| SDK-v9-mapreader | Ja, optionele inspectietool | 8 validatieprobes en synthetische inspectie geslaagd | Niet van toepassing | Geen gamewereldimport |
+| Bouwstukken in snapshots en loopcollisie | Ja | Compilercontrole en lokale collisionprobes | Nee; netwerkflow open | Nee |
+| Procedurele bouwmaterialen | Ja | WGSL/Naga-validatie geslaagd | Nee | Nee |
+| Zelfstandige sessie met eigen gamescripts | Ja | Start, bewegen, schieten, NPC-kill, dood en respawn geslaagd | FPS, ammo, NPC-schade/kill, herladen en ADS uitgevoerd; dood/respawn open | Nee |
+| Klein eigen eiland en zes skateobjecttypen | Ja | 15 terreintraces, plaatsing/rejectie, undo/redo en save/load geslaagd | Terrein zichtbaar; editorflow in uitvoering | Nee |
+| Inventory, twee recepten, consumables, honger/dorst | Ja | Grenzen/persistentie plus geïntegreerde resourcekosten, healing en ammo geslaagd | Inventorypauze, beide craftkosten en ammo-transfer uitgevoerd | Nee |
+| 30 eindige oogstnodes | Ja | Generatie, reach/occlusie, depletion en geïntegreerde tree-harvest/opslag geslaagd | Nodes zichtbaar; interactie open | Nee |
+| Skatecontroller en loop/skate-overgang | Ja | Push/steer/ollie/tricks/bail/collisie en gemonteerde push/handoff geslaagd | Camera/mount, push, ollie/landingsscore en afstappen uitgevoerd | Nee |
+| Eigen operator, carbine, board en timber-model | Ja | GLB-structuur, scene-aantallen en hashes gecontroleerd | Operator/carbine/board zichtbaar; volledige riganimatie open | Nee |
+| Zeven eigen korte CC0-WAV-cues | Ja | PCM/manifestcontrole en identieke regeneratie geslaagd | Playback nog open | Nee |
+| Native controller, ADS/recoil, inventory-/gather-/skatefeedback en audiohooks | Ja | Workspacecontrole en geoptimaliseerde build slagen | Deel van keyboard/muisflows uitgevoerd; audio/hardware open | Nee |
+| Engelse in-game tekst | Ja, vaste projectregel | HUD, inventory, controls, feedback en backenderrors nagekeken | HUD/inventory/editor/pauze in Engelse build uitgevoerd | Nee |
 
 - [x] Bestaande bouwscenario's, schadeprobes en mapvalidatie uitgevoerd.
 - [x] Procedurele materiaalshader geparseerd en gevalideerd.
 - [x] Gedownloade bouwtextures en downloadscript uit productpad gehaald.
-- [x] Actuele launcher, native frontend en mapreader compileren succesvol.
-- [ ] Native executable bouwen en grafische/bedieningsflow zelf verifiëren.
+- [x] Eerste native frontend, launcher en mapreader compileren succesvol.
+- [x] Uitgebreide native frontend met controller/UI/audio en scene-reflectie compileren.
+- [x] Eigen regels laden/starten zonder originele gamescripts; authority blijft actief.
+- [x] Lokale sessie doorloopt bewegen, schieten en een NPC uitschakelen.
+- [x] Eigen terrein en editorplaatsing/collisie/undo/redo/save/load headless uitgevoerd.
+- [x] Craftkosten, bandagegebruik/healing, ammo-refill en finite harvesting geïntegreerd gecontroleerd.
+- [x] Dode spelers kunnen niet craften/healen/gatheren; respawn en schade na respawn gecontroleerd.
+- [x] Gemount skaten, pushen en terug naar lopen geïntegreerd gecontroleerd.
+- [x] Eigen WAV-pack gecontroleerd en byte voor byte geregenereerd.
+- [x] Geoptimaliseerde native executable bouwen en eigen modellen/terrein in het venster controleren.
+- [x] Inventorypauze, crafting/resourcekosten/ammo, schieten/schade/herladen/ADS grafisch uitvoeren.
+- [x] Skatecamera, pushen, ollie en landing met score via keyboard uitvoeren.
+- [x] Alle in-game teksten naar Engels omzetten; Engels als vaste bijdragersregel vastleggen.
+- [ ] Volledige native editor-/bouw-/gather-/respawnflow en Engelse meldingen verifiëren.
 
-## Actuele blokkade
+## Actuele verificatiefase
 
-Het native startpad compileert, maar de eerste uitvoeringsprobe stopt omdat de
-gedeelde simulatie een gestart authority-gamescript vereist. Dat moet met onze
-eigen sessieregels opgelost worden voordat we bewegen, schieten en de editor als
-werkend mogen afvinken. Er is nog geen grafische gameflow geverifieerd.
+De sessiebootstrap werkt nu met eigen ingebedde authority-gamescripts. De
+geïntegreerde backendprobes, uitgebreide workspacecontrole en geoptimaliseerde
+executablebuild slagen. Het eigen terrein en de modellen verschijnen in een echt
+Bevy-venster via Mesa-software-rendering. Inventory/crafting, schieten/schade,
+herladen/ADS en skatecamera/push/ollie/landingspunten zijn via keyboard/muis uitgevoerd.
+De editor en overige flows worden verder gecontroleerd. Alle spelteksten zijn
+Engels; nieuwe bijdragen moeten die taal behouden.
+Xbox-controllerbindings betekenen nog geen hardwareverificatie. Native audio
+playback is nog niet bewezen. Geen van deze stappen is een releaseverklaring.
 
 De overdracht voor Claude staat in [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
 
@@ -164,6 +188,7 @@ De overdracht voor Claude staat in [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
 - [ ] Performance, streaming, geheugen, graphicskwaliteit en toegankelijkheid.
 - [ ] Heldere in-game hints, foutmeldingen, controllerprompts en settingsopslag.
 - [ ] Licenties/herkomst van gebruikte code en eigen content controleren.
+- [ ] Afzonderlijke SK8/MinecraftOSS-licentiescope en herkomst van oudere numerieke data afhandelen.
 - [ ] Afgewerkt product reviewbaar maken en een geverifieerde speelbare release leveren.
 
 Deze lijst beschrijft de ambitie en ontbrekende integratie. Ze beweert geen
