@@ -32,8 +32,11 @@ jobs:
           diff -r --exclude=README.md assets/authored/audio "$RUNNER_TEMP/audio"
           echo "WAV pack and manifest match a fresh run of scripts/generate_authored_audio.py" >> "$GITHUB_STEP_SUMMARY"
 
-  # Report-only until a run shows Blender's glTF export is byte-stable. The
-  # .blend files embed save metadata and are not compared.
+  # Blender's float math is not bit-stable across CPUs: the first CI run
+  # regenerated three of four models byte for byte and masked_operator within
+  # one float32 step. scripts/compare_glb.py accepts that and nothing larger.
+  # Report-only because it depends on download.blender.org. The .blend files
+  # embed save metadata and are not compared.
   models:
     name: Regenerate the models (report only)
     runs-on: ubuntu-latest
