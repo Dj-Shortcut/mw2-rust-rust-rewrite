@@ -82,8 +82,9 @@ F1 toont de bediening; Tab opent inventory, B bouwen, E de objecteditor en V ska
 Richt op bereikbaar materiaal voor de verzamelhint; F oogst. F5/F9 bewaren/laden
 de lokale sessie: scene, spelerpositie/kijkrichting, gezondheid, ammo en
 gemonteerde skatestaat. Lopen/skaten, kijkrichting en ammo na laden zijn native
-gecontroleerd. Herstel van een dode save naar een andere dode speler bevat nog
-een [bekende posefout](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/14).
+gecontroleerd. Dode saves herstellen ook positie, kijkrichting en snelheid;
+de correctie uit [PR #13](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/13)
+is onafhankelijk gecontroleerd voor dood→dood en levend→dood.
 NPC's, wachtende scriptacties en editor-undo/redo worden niet opgeslagen.
 Dit startpad is op Linux geverifieerd; Windows/macOS-builds zijn nog niet
 geverifieerd. Er is nog geen kant-en-klare release-executable.

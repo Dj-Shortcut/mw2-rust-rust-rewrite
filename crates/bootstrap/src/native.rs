@@ -1205,12 +1205,23 @@ fn advance(
                 .map(|()| "Session saved".into()),
             WorldAction::Load => game.0.load(Path::new(SAVE_PATH)).map(|()| {
                 if let Some(player) = game.0.world.player(LOCAL) {
-                    let raw: [f32; 3] =
-                        std::array::from_fn(|k| player.viewangles[k] - player.delta_angles[k]);
-                    controls.pitch = raw[0];
-                    controls.yaw = raw[1].rem_euclid(360.);
+                    // Dead movement retains its last accepted command. Keep that
+                    // history so the next scripted spawn rebases the view correctly.
+                    let angles = if player.health <= 0 {
+                        game.0
+                            .world
+                            .old_cmd_angles(LOCAL)
+                            .unwrap_or(controls.command.angles)
+                    } else {
+                        std::array::from_fn(|k| {
+                            ((player.viewangles[k] - player.delta_angles[k]) * 65536. / 360.)
+                                .round() as i32
+                        })
+                    };
+                    controls.pitch = angles[0] as f32 * (360. / 65536.);
+                    controls.yaw = (angles[1] as f32 * (360. / 65536.)).rem_euclid(360.);
                     controls.command = UserCmd {
-                        angles: raw.map(|a| (a * 65536. / 360.).round() as i32),
+                        angles,
                         weapon: player.weapon as u16,
                         ..default()
                     };

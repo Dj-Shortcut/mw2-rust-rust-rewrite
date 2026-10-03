@@ -33,7 +33,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 | Eigen operator, carbine, board en timber-model | Ja | GLB-structuur, scene-aantallen en hashes gecontroleerd | Operator/carbine/board zichtbaar; volledige riganimatie open | Nee |
 | Zeven eigen korte CC0-WAV-cues | Ja | PCM/manifestcontrole en identieke regeneratie geslaagd | Playback nog open | Nee |
 | Native controller, ADS/recoil, inventory-/gather-/skatefeedback en audiohooks | Ja | Workspacecontrole en geoptimaliseerde build slagen | Deel van keyboard/muisflows uitgevoerd; audio/hardware open | Nee |
-| Lokale sessie-save/load (formaat 3, migratie van formaat 2) | Ja | Backendprobes en cameradelta-controle uitgevoerd; dead→dead-posefout open in #14 | F5/F9: lopen/gemount, positie/kijkrichting/ammo, ongeldige load en verder spelen gecontroleerd | Nee |
+| Lokale sessie-save/load (formaat 3, migratie van formaat 2) | Ja | Backendprobes, cameradelta en dode transforms na PR #13 onafhankelijk gecontroleerd | F5/F9: lopen/gemount, positie/kijkrichting/ammo, ongeldige load en verder spelen gecontroleerd | Nee |
 | Engelse in-game tekst | Ja, vaste projectregel | HUD, inventory, controls, feedback en backenderrors nagekeken | HUD/inventory/editor/pauze in Engelse build uitgevoerd | Nee |
 
 - [x] Bestaande bouwscenario's, schadeprobes en mapvalidatie uitgevoerd.
@@ -55,7 +55,8 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] F5/F9 native uitvoeren: positie/kijkrichting/ammo herstellen, lopen/gemount herstellen en ongeldige load weigeren zonder speelstaatverlies.
 - [x] Native invoer synchroniseren met geladen kijkrichting en cameradelta; effectieve pitch begrenzen zodat volgende invoer de herstelde hoek behoudt.
 - [x] F5 bij dood, F9 dood→levend/levend→dood, 75° kijkhoek na respawn, action gate en verder spelen via tijdelijke native fixture uitvoeren.
-- [ ] Dode save naar een andere dode speler correct herstellen en verifiëren: positie, kijkrichting en snelheid. [Claude-taak #14](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/14).
+- [x] Dead-posecorrectie uit [PR #13](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/13) onafhankelijk controleren: positie, kijkrichting en snelheid bij dood→dood en levend→dood; ongeldige load blijft atomair. #14 is opgelost.
+- [x] Native herhaald F9 met dode saves, Enter-respawn zonder yaw-sprong en daarna lopen/skaten/schieten controleren; geaccepteerde commandhoek behouden bij dode loads.
 - [x] Pure previews verifiëren: alle zes objecttypen, geldige/ongeldige bouwkosten en geen wijzigingen vóór plaatsing.
 - [x] Ramp plaatsen/verwijderen, undo/redo, scene save/load en foundationkosten via native bediening uitvoeren.
 - [x] Gerichte verzamelhint, finite tree-harvest/depletion en herstel van voorraad/depletion grafisch uitvoeren.
@@ -77,8 +78,9 @@ schadefixture controleert native dood/respawn en opnieuw bewegen/schieten; die f
 zit niet in de productcode. Alle spelteksten blijven Engels; F1 toont de bediening.
 Claude's formaat-3 opslag is geïntegreerd met de native invoer. F5/F9 herstelt de
 lopende/gemonteerde speler en behoudt positie, kijkrichting en ammo; een ongeldige
-load laat de sessie bruikbaar. De afzonderlijk gereproduceerde dead→dead-posefout
-blijft open in #14. Volledige persistente wereldstaat en multiplayer blijven open.
+load laat de sessie bruikbaar. De dead-posecorrectie uit PR #13 is geïntegreerd
+en onafhankelijk gecontroleerd; #14 is opgelost. Volledige persistente wereldstaat
+en multiplayer blijven open.
 De native schadefixture controleert ook opslag tijdens dood, laden tussen levend
 en dood en een geladen kijkhoek van 75° na respawn. Geen fixturecode wordt geleverd.
 Xbox-controllerbindings betekenen nog geen hardwareverificatie. Native audio
@@ -152,7 +154,7 @@ De overdracht voor Claude staat in [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
 - [ ] Raster-/hoogte-/hoek-snapping en kopiëren/dupliceren van objecten.
 - [x] Objecten verwijderen en wijzigingen ongedaan/opnieuw met Ctrl-Z/Ctrl-Y.
 - [ ] Terrein/objectstaat samen opslaan/laden, met begrensde validatie en versies.
-- [ ] Ramps/quarterpipes volgen met skatefysica en grinds op geplaatste rails.
+- [ ] Ramps/quarterpipes volgen met skatefysica en grinds op geplaatste rails. [Claude-taak #16](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/16) werkt de eerste railgrinds uit.
 - [ ] Speler/objectoverlap, bullet-/vehicle-/skatecollisie en netwerkbouwrechten.
 - [x] Native ramp-editorflow en scene save-load/undo-redo zelf grafisch verifiëren.
 
