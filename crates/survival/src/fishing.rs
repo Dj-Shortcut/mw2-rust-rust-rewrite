@@ -1,0 +1,38 @@
+use crate::crates::splitmix;
+use serde::{Deserialize, Deserializer, Serialize};
+
+pub const CAST_SECONDS: f32 = 6.;
+pub const FISHING_REACH: f32 = 300.;
+const CATCH_PERCENT: u64 = 60;
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub struct Cast {
+    pub node: u32,
+    pub remaining: f32,
+}
+
+impl<'de> Deserialize<'de> for Cast {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Saved {
+            node: u32,
+            remaining: f32,
+        }
+        let saved = Saved::deserialize(deserializer)?;
+        if !saved.remaining.is_finite() || !(0. ..=CAST_SECONDS).contains(&saved.remaining) {
+            return Err(serde::de::Error::custom(
+                "Fishing cast time is out of range",
+            ));
+        }
+        Ok(Self {
+            node: saved.node,
+            remaining: saved.remaining,
+        })
+    }
+}
+
+pub(crate) fn bites(seed: u32, node: u32, casts: u32) -> bool {
+    let mut state = (u64::from(seed) << 32) ^ (u64::from(node) << 20) ^ u64::from(casts) ^ 0xF15F;
+    splitmix(&mut state) % 100 < CATCH_PERCENT
+}

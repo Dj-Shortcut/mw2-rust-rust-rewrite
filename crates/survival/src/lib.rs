@@ -6,6 +6,7 @@ mod climate;
 mod crafting;
 mod crates;
 mod editor;
+mod fishing;
 mod gathering;
 mod inventory;
 mod loot;
@@ -17,6 +18,7 @@ pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{CRATE_REACH, CrateTier, LootCrate, LootCrates};
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
+pub use fishing::{CAST_SECONDS, Cast, FISHING_REACH};
 pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
 };
@@ -92,6 +94,8 @@ pub struct Session {
     worn: Option<Item>,
     freezing: bool,
     crates: LootCrates,
+    fishing: Option<Cast>,
+    casts: u32,
 }
 
 impl Session {
@@ -358,6 +362,8 @@ impl Session {
             worn: None,
             freezing: false,
             crates,
+            fishing: None,
+            casts: 0,
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -384,6 +390,7 @@ impl Session {
             self.vitals.wound(external);
         } else {
             self.freezing = false;
+            self.fishing = None;
             self.refund_crafting()?;
             self.drop_loot()?;
             self.dismount();
@@ -416,6 +423,7 @@ impl Session {
         if let Some(recipe) = self.crafting.advance(0.017, &mut self.inventory)? {
             self.message = format!("Crafted {}", recipe.name());
         }
+        self.advance_fishing()?;
         let healed = self.vitals.regenerate(0.017)?;
         if healed > 0 {
             let _ = self.world.heal_player(LOCAL, healed);
@@ -773,6 +781,80 @@ impl Session {
     pub fn loot_bag_in_reach(&self) -> Option<&LootBag> {
         let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
         self.loot.nearest(player.origin)
+    }
+
+    pub fn fishing(&self) -> Option<Cast> {
+        self.fishing
+    }
+
+    pub fn cast_line(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if self.fishing.is_some() {
+            return Err("Your line is already in the water".into());
+        }
+        if self.inventory.count(Item::FishingRod) == 0 {
+            return Err("You need a fishing rod".into());
+        }
+        let node = self
+            .gather_target_from_view()?
+            .filter(|n| n.kind == ResourceKind::Water)
+            .ok_or("Aim at water within reach")?
+            .id;
+        self.fishing = Some(Cast {
+            node,
+            remaining: CAST_SECONDS,
+        });
+        self.message = "Line cast".into();
+        Ok(())
+    }
+
+    pub fn reel_in(&mut self) -> Result<(), String> {
+        self.fishing.take().ok_or("Your line is not in the water")?;
+        self.message = "Line reeled in".into();
+        Ok(())
+    }
+
+    fn advance_fishing(&mut self) -> Result<(), String> {
+        let Some(mut cast) = self.fishing else {
+            return Ok(());
+        };
+        let origin = self.world.player(LOCAL).ok_or("Player is missing")?.origin;
+        let water = self
+            .gathering
+            .node(cast.node)
+            .ok_or("Fishing spot is missing")?
+            .position;
+        if (water[0] - origin[0]).hypot(water[1] - origin[1]) > FISHING_REACH {
+            self.fishing = None;
+            self.message = "Line reeled in: too far from the water".into();
+            return Ok(());
+        }
+        if self.inventory.count(Item::FishingRod) == 0 {
+            self.fishing = None;
+            self.message = "Line reeled in: no fishing rod".into();
+            return Ok(());
+        }
+        cast.remaining = (cast.remaining - 0.017).max(0.);
+        if cast.remaining > 0. {
+            self.fishing = Some(cast);
+            return Ok(());
+        }
+        self.fishing = None;
+        let caught = fishing::bites(self.terrain.seed, cast.node, self.casts);
+        self.casts = self.casts.wrapping_add(1);
+        let broke = self.inventory.wear_tool(Item::FishingRod) == Some(true);
+        let mut message = if !caught {
+            "Nothing bit".to_string()
+        } else if self.inventory.add(Item::Fish, 1).is_ok() {
+            "Caught a raw fish".to_string()
+        } else {
+            "A fish bit, but your inventory is full".to_string()
+        };
+        if broke {
+            message.push_str("; your fishing rod broke");
+        }
+        self.message = message;
+        Ok(())
     }
 
     pub fn loot_crates(&self) -> &[LootCrate] {
@@ -1164,6 +1246,8 @@ impl Session {
             clock: self.clock,
             worn: self.worn,
             crates: Some(self.crates.saved()),
+            fishing: self.fishing,
+            casts: self.casts,
             gathering: self.gathering.clone(),
             player: saved,
         };
@@ -1295,6 +1379,15 @@ impl Session {
         if !player.alive && scene.worn.is_some() {
             return Err("A dead player cannot wear clothing".into());
         }
+        if let Some(cast) = scene.fishing {
+            let water = scene
+                .gathering
+                .node(cast.node)
+                .is_some_and(|n| n.kind == ResourceKind::Water);
+            if !player.alive || !water || scene.inventory.count(Item::FishingRod) == 0 {
+                return Err("Invalid fishing cast".into());
+            }
+        }
         if !player.alive && !scene.crafting.jobs().is_empty() {
             return Err("A dead player cannot have queued crafting".into());
         }
@@ -1328,6 +1421,8 @@ impl Session {
         self.clock = scene.clock;
         self.worn = scene.worn;
         self.crates = crates;
+        self.fishing = scene.fishing;
+        self.casts = scene.casts;
         self.freezing = false;
         Ok(())
     }
