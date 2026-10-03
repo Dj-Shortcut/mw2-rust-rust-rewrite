@@ -33,7 +33,9 @@ pub use crates::{
 };
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use farming::{GROW_SECONDS, Garden, HARVEST_FOOD, HARVEST_SEEDS, PLOT_REACH, Plot, PlotState};
-pub use fishing::{CAST_SECONDS, Cast, FISHING_REACH};
+pub use fishing::{
+    BAIT_PER_FOOD, BAITED_CATCH_PERCENT, CAST_SECONDS, CATCH_PERCENT, Cast, FISHING_REACH,
+};
 pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
 };
@@ -924,11 +926,33 @@ impl Session {
             .filter(|n| n.kind == ResourceKind::Water)
             .ok_or("Aim at water within reach")?
             .id;
+        let baited = self.inventory.take(Item::Bait, 1).is_ok();
         self.fishing = Some(Cast {
             node,
             remaining: CAST_SECONDS,
+            baited,
         });
-        self.message = "Line cast".into();
+        self.message = if baited {
+            "Line cast with bait"
+        } else {
+            "Line cast"
+        }
+        .into();
+        Ok(())
+    }
+
+    pub fn make_bait(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if self.inventory.count(Item::Food) == 0 {
+            return Err("You need food to make bait".into());
+        }
+        let mut inventory = self.inventory.clone();
+        inventory.take(Item::Food, 1)?;
+        inventory
+            .add(Item::Bait, BAIT_PER_FOOD)
+            .map_err(|_| "Not enough inventory space for the bait")?;
+        self.inventory = inventory;
+        self.message = format!("Made {BAIT_PER_FOOD} fishing bait");
         Ok(())
     }
 
@@ -968,7 +992,7 @@ impl Session {
             return Ok(());
         }
         self.fishing = None;
-        let caught = fishing::bites(self.terrain.seed, cast.node, self.casts);
+        let caught = fishing::bites(self.terrain.seed, cast.node, self.casts, cast.baited);
         self.casts = self.casts.wrapping_add(1);
         let broke = self.inventory.wear_tool(Item::FishingRod) == Some(true);
         let mut message = if !caught {
