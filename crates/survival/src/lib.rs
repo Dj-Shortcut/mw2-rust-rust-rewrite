@@ -1,23 +1,32 @@
 use playerstate_iw4::UserCmd;
 use rust_building::{BuildingWorld, CELL, Kind, Resources, Socket, WALL_HEIGHT};
 use sim::{ClientId, SimBrush, SimContentBuilder, SimWorld, Tick, TickInput};
-use std::io::Read;
 use std::path::Path;
 mod editor;
 mod gathering;
 mod inventory;
+mod persistence;
 mod rules;
 mod skate;
 mod terrain;
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind};
 pub use gathering::{GatheringWorld, Harvest, ResourceKind, ResourceNode};
 pub use inventory::{Inventory, Item, Recipe, Vitals};
-pub use skate::{SkateEvent, SkateInput, SkateState, SkateStep};
+pub use skate::{SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
 
 pub const UNITS_TO_METERS: f32 = 0.0254;
 pub const WORLD_HALF: f32 = 4000.;
 pub const LOCAL: ClientId = ClientId(0);
+const SPAWN_POINTS: [[f32; 3]; 5] = [
+    [0., 0., 1.],
+    [-350., 0., 1.],
+    [0., 350., 1.],
+    [350., 350., 1.],
+    [-350., -350., 1.],
+];
+const PLAYER_MINS: [f32; 3] = [-15., -15., 0.];
+const PLAYER_MAXS: [f32; 3] = [15., 15., 70.];
 
 pub struct Session {
     pub world: SimWorld,
@@ -152,20 +161,10 @@ impl Session {
         Ok(session)
     }
 
-    pub fn advance(&mut self, mut cmd: UserCmd) -> Result<(), String> {
+    pub fn advance(&mut self, cmd: UserCmd) -> Result<(), String> {
         self.last_skate_event = SkateEvent::None;
         self.tick = self.tick.checked_add(1).ok_or("Session clock exhausted")?;
-        cmd.server_time =
-            i32::try_from(u64::from(self.tick) * 17).map_err(|_| "Session clock exhausted")?;
-        cmd.weapon = 1;
-        sim::try_step(
-            &mut self.world,
-            Tick(self.tick),
-            &TickInput::from_cmds(vec![(LOCAL, cmd)]),
-            17,
-            sim::StepReason::AuthorityFrame,
-        )
-        .map_err(|e| e.to_string())?;
+        authority_step(&mut self.world, self.tick, cmd)?;
         let alive = self.world.player(LOCAL).is_some_and(|p| p.health > 0);
         if !alive {
             self.skate = None;
@@ -292,21 +291,8 @@ impl Session {
             return Err("Player is already alive".into());
         }
         let angles = player.viewangles;
-        let origin = [
-            [0., 0., 1.],
-            [-350., 0., 1.],
-            [0., 350., 1.],
-            [350., 350., 1.],
-            [-350., -350., 1.],
-        ]
-        .into_iter()
-        .find(|p| {
-            self.world
-                .trace_world(*p, *p, [-15., -15., 0.], [15., 15., 70.], 1)
-                .startsolid
-                == 0
-        })
-        .ok_or("Spawn area is blocked; remove nearby structures before respawning")?;
+        let origin = free_spawn(&self.world)
+            .ok_or("Spawn area is blocked; remove nearby structures before respawning")?;
         self.world
             .start_gsc(
                 "survival/session::respawn",
@@ -463,9 +449,34 @@ impl Session {
         Ok(())
     }
 
+    /// Writes the complete session (scene and local player) atomically.
+    /// See `persistence` for the exact list of persisted state.
     pub fn save(&self, path: &Path) -> Result<(), String> {
-        let scene = SavedScene {
-            version: 2,
+        let player = self.world.player(LOCAL).ok_or("Player is missing")?;
+        let meta = self.world.client_meta(LOCAL).ok_or("Player is missing")?;
+        let facts = self
+            .world
+            .weapon_combat_facts(persistence::AUTHORED_WEAPON)
+            .ok_or("Weapon has no combat data")?;
+        let alive = player.health > 0;
+        let (clip, reserve) = if alive { self.ammo() } else { (0, 0) };
+        let saved = persistence::SavedPlayer {
+            alive,
+            origin: player.origin,
+            velocity: player.velocity,
+            view: normalize_view(player.viewangles),
+            health: player.health.max(0),
+            weapon: persistence::AUTHORED_WEAPON,
+            clip,
+            reserve,
+            kills: meta.kills,
+            deaths: meta.deaths,
+            score: meta.score,
+            skate: self.skate.as_ref().map(SkateState::saved),
+        };
+        saved.validate(player.max_health, facts.clip_size, facts.max_ammo)?;
+        let scene = persistence::SavedSession {
+            version: persistence::SAVE_VERSION,
             seed: self.terrain.seed,
             buildings: String::from_utf8(
                 self.world
@@ -478,54 +489,218 @@ impl Session {
             inventory: self.inventory.clone(),
             vitals: self.vitals,
             gathering: self.gathering.clone(),
+            player: saved,
         };
-        let data = serde_json::to_vec(&scene).map_err(|e| e.to_string())?;
-        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-        let pending = path.with_extension("pending");
-        std::fs::write(&pending, data).map_err(|e| e.to_string())?;
-        std::fs::rename(pending, path).map_err(|e| e.to_string())
+        persistence::write_atomic(path, &scene)
     }
 
+    /// Loads a format-3 save, or migrates a format-2 scene save. The whole
+    /// candidate is validated and restored on a copy of the world through
+    /// one authority tick; the session changes only if that succeeds.
     pub fn load(&mut self, path: &Path) -> Result<(), String> {
-        let mut bytes = Vec::new();
-        std::fs::File::open(path)
-            .map_err(|e| e.to_string())?
-            .take((MAX_SCENE_BYTES + 1) as u64)
-            .read_to_end(&mut bytes)
-            .map_err(|e| e.to_string())?;
-        if bytes.len() > MAX_SCENE_BYTES {
-            return Err("Scene save too large".into());
+        let loaded = persistence::read(path)?;
+        self.restore(loaded)
+    }
+
+    fn restore(&mut self, loaded: persistence::Loaded) -> Result<(), String> {
+        let persistence::Loaded {
+            session: scene,
+            migrated,
+        } = loaded;
+        if scene.seed != self.terrain.seed || scene.gathering.seed() != self.terrain.seed {
+            return Err("Save belongs to a different terrain seed".into());
         }
-        let scene: SavedScene = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
-        if scene.version != 2
-            || scene.seed != self.terrain.seed
-            || scene.gathering.seed() != self.terrain.seed
+        let buildings = BuildingWorld::from_json(scene.buildings.as_bytes())
+            .map_err(|e| format!("Saved buildings are invalid: {e}"))?;
+        if buildings.anchor != self.world.buildings().anchor {
+            return Err("Saved buildings use a different anchor".into());
+        }
+        let balance = buildings.inventory(LOCAL.0);
+        if [balance.wood, balance.stone, balance.metal]
+            .iter()
+            .any(|&n| n > persistence::MAX_RESOURCE_BALANCE)
         {
-            return Err("Unsupported scene version or terrain seed".into());
+            return Err("Saved resource balance is out of range".into());
         }
-        let loaded =
-            BuildingWorld::from_json(scene.buildings.as_bytes()).map_err(|e| e.to_string())?;
         let editor = EditorState::from_objects(scene.objects)?;
-        if overlaps_players(&self.world, &loaded) {
-            return Err("Saved buildings overlap a player".into());
+        let facts = self
+            .world
+            .weapon_combat_facts(persistence::AUTHORED_WEAPON)
+            .ok_or("Weapon has no combat data")?;
+        let max_health = self
+            .world
+            .player(LOCAL)
+            .ok_or("Player is missing")?
+            .max_health;
+        let mut player = scene.player;
+        let skate = player.skate.map(SkateState::from_saved).transpose()?;
+
+        let mut world = self.world.clone();
+        world.install_content(authored_content(&self.terrain, &editor, &scene.gathering));
+        *world.buildings_mut() = buildings;
+        if migrated {
+            player.origin = free_spawn(&world)
+                .ok_or("Spawn area is blocked; the version 2 save cannot place the player")?;
         }
-        if props_overlap_players(&self.world, &editor) {
-            return Err("Saved editor objects overlap a player".into());
+        player.validate(max_health, facts.clip_size, facts.max_ammo)?;
+        if player.alive && player_blocked(&world, player.origin) {
+            return Err("Saved player position is blocked".into());
         }
-        if brushes_overlap_players(&self.world, &scene.gathering.brushes()) {
-            return Err("Saved resource nodes overlap a player".into());
+        let mut others_blocked = false;
+        world.visit_players(|id, p| {
+            others_blocked |= id != LOCAL
+                && p.health > 0
+                && (player_blocked(&world, p.origin)
+                    || player.alive && hulls_overlap(p.origin, player.origin));
+        });
+        if others_blocked {
+            return Err("Saved scene overlaps another player".into());
         }
-        self.world
-            .install_content(authored_content(&self.terrain, &editor, &scene.gathering));
+
+        use sim::script::Value;
+        world
+            .start_gsc(
+                "survival/session::restore",
+                Value::level(),
+                vec![
+                    Value::Int(LOCAL.0 as i32),
+                    Value::Int(player.alive.into()),
+                    Value::Vector(player.origin),
+                    Value::Vector(player.view),
+                    Value::Vector(player.velocity),
+                    Value::Int(player.health),
+                    Value::Int(player.clip),
+                    Value::Int(player.reserve),
+                    Value::Int(player.kills),
+                    Value::Int(player.deaths),
+                    Value::Int(player.score),
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        world.set_external_motion(LOCAL, skate.is_some());
+        let tick = self.tick.checked_add(1).ok_or("Session clock exhausted")?;
+        // The view is the command angles plus the player's delta angles, so
+        // the restoring command carries the saved view rather than zero. A
+        // scripted spawn rebases the delta on the previous command instead.
+        let current = world.player(LOCAL).ok_or("Player is missing")?;
+        let angles = if player.alive && current.health <= 0 {
+            world
+                .old_cmd_angles(LOCAL)
+                .ok_or("Player command history is missing")?
+        } else {
+            let delta = current.delta_angles;
+            std::array::from_fn(|k| ((player.view[k] - delta[k]) * 65536. / 360.).round() as i32)
+        };
+        let restore_cmd = UserCmd {
+            angles,
+            ..Default::default()
+        };
+        authority_step(&mut world, tick, restore_cmd)?;
+        if let Some(fault) = world.take_script_fault() {
+            return Err(format!("Restoring the player failed: {fault}"));
+        }
+        verify_restored(&world, &player)?;
+
+        self.world = world;
+        self.tick = tick;
         self.editor = editor;
-        *self.world.buildings_mut() = loaded;
         self.inventory = scene.inventory;
         self.vitals = scene.vitals;
         self.gathering = scene.gathering;
+        self.skate = skate;
+        self.skate_input = SkateInput::default();
+        self.skate_roll = 0.;
+        self.last_skate_event = SkateEvent::None;
         Ok(())
     }
+}
+
+fn authority_step(world: &mut SimWorld, tick: u32, mut cmd: UserCmd) -> Result<(), String> {
+    cmd.server_time = i32::try_from(u64::from(tick) * 17).map_err(|_| "Session clock exhausted")?;
+    cmd.weapon = 1;
+    sim::try_step(
+        world,
+        Tick(tick),
+        &TickInput::from_cmds(vec![(LOCAL, cmd)]),
+        17,
+        sim::StepReason::AuthorityFrame,
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn free_spawn(world: &SimWorld) -> Option<[f32; 3]> {
+    SPAWN_POINTS
+        .into_iter()
+        .find(|p| !player_blocked(world, *p))
+}
+
+fn player_blocked(world: &SimWorld, origin: [f32; 3]) -> bool {
+    world
+        .trace_world(origin, origin, PLAYER_MINS, PLAYER_MAXS, 1)
+        .startsolid
+        != 0
+}
+
+fn hulls_overlap(a: [f32; 3], b: [f32; 3]) -> bool {
+    (0..3).all(|k| (a[k] - b[k]).abs() < PLAYER_MAXS[k] - PLAYER_MINS[k])
+}
+
+/// Pitch is stored in [-90, 90] and yaw/roll in (-180, 180].
+fn normalize_view(view: [f32; 3]) -> [f32; 3] {
+    view.map(|a| {
+        let a = a.rem_euclid(360.);
+        if a > 180. { a - 360. } else { a }
+    })
+}
+
+/// Confirms the authority tick produced the saved player state.
+fn verify_restored(world: &SimWorld, saved: &persistence::SavedPlayer) -> Result<(), String> {
+    let failed = || "Saved player state could not be restored".to_string();
+    let player = world.player(LOCAL).ok_or_else(failed)?;
+    let meta = world.client_meta(LOCAL).ok_or_else(failed)?;
+    if (player.health > 0) != saved.alive
+        || player.health.max(0) != saved.health
+        || meta.kills != saved.kills
+        || meta.deaths != saved.deaths
+        || meta.score != saved.score
+    {
+        return Err(failed());
+    }
+    let turned = (0..2).any(|k| {
+        let d = (player.viewangles[k] - saved.view[k]).rem_euclid(360.);
+        d.min(360. - d) > 0.1
+    });
+    let drift = (0..3)
+        .map(|k| (player.origin[k] - saved.origin[k]).abs())
+        .fold(0., f32::max);
+    if turned {
+        return Err(failed());
+    }
+    if saved.alive {
+        let facts = world
+            .weapon_combat_facts(player.weapon)
+            .ok_or_else(failed)?;
+        let clip = weapon_iw4::get_clip_for_hand(&player.ammoclip, facts.clip_index, 0);
+        let reserve = weapon_iw4::get_ammo_not_in_clip(&player.ammo, facts.ammo_index);
+        // A living player has had one movement step since the restore.
+        let travel = dot(saved.velocity, saved.velocity).sqrt() * 0.017;
+        if player.weapon != saved.weapon
+            || clip != saved.clip
+            || reserve != saved.reserve
+            || drift > 1. + travel
+        {
+            return Err(failed());
+        }
+    } else {
+        let skid = (0..3)
+            .map(|k| (player.velocity[k] - saved.velocity[k]).abs())
+            .fold(0., f32::max);
+        if drift > 1. || skid > 1. {
+            return Err(failed());
+        }
+    }
+    Ok(())
 }
 
 fn overlaps_players(world: &SimWorld, buildings: &BuildingWorld) -> bool {
@@ -541,19 +716,6 @@ fn overlaps_players(world: &SimWorld, buildings: &BuildingWorld) -> bool {
         }
     });
     overlaps
-}
-
-const MAX_SCENE_BYTES: usize = 4 * 1024 * 1024;
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct SavedScene {
-    version: u32,
-    seed: u32,
-    buildings: String,
-    objects: Vec<PlacedObject>,
-    inventory: Inventory,
-    vitals: Vitals,
-    gathering: GatheringWorld,
 }
 
 fn props_overlap_players(world: &SimWorld, editor: &EditorState) -> bool {

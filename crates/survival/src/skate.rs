@@ -7,6 +7,8 @@ const GRAVITY: f32 = 600.;
 const MAX_SPEED: f32 = 650.;
 const OLLIE_SPEED: f32 = 300.;
 const GROUND_NORMAL: f32 = 0.45;
+const MAX_SAVED_SCORE: u64 = 1_000_000_000;
+const MAX_SAVED_BAILS: u32 = 1_000_000;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SkateInput {
@@ -72,6 +74,24 @@ impl Default for SkateState {
     }
 }
 
+/// Persisted mounted-skate state. Every field is checked by
+/// [`SkateState::from_saved`] before it reaches the controller.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SavedSkate {
+    pub velocity: [f32; 3],
+    pub yaw: f32,
+    pub grounded: bool,
+    pub total_score: u64,
+    pub bails: u32,
+    pub ground_normal: [f32; 3],
+    pub air_time: f32,
+    pub air_spin: f32,
+    pub flip_angle: f32,
+    pub flip_remaining: f32,
+    pub flight: bool,
+}
+
 impl SkateState {
     pub fn new(yaw_degrees: f32) -> Result<Self, String> {
         if !yaw_degrees.is_finite() {
@@ -80,6 +100,62 @@ impl SkateState {
         Ok(Self {
             yaw: yaw_degrees.rem_euclid(360.),
             ..Default::default()
+        })
+    }
+
+    pub fn saved(&self) -> SavedSkate {
+        SavedSkate {
+            velocity: self.velocity,
+            yaw: self.yaw,
+            grounded: self.grounded,
+            total_score: self.total_score,
+            bails: self.bails,
+            ground_normal: self.ground_normal,
+            air_time: self.air_time,
+            air_spin: self.air_spin,
+            flip_angle: self.flip_angle,
+            flip_remaining: self.flip_remaining,
+            flight: self.flight,
+        }
+    }
+
+    pub fn from_saved(saved: SavedSkate) -> Result<Self, String> {
+        let normal_length = length(saved.ground_normal);
+        let valid = saved
+            .velocity
+            .iter()
+            .all(|v| v.is_finite() && v.abs() <= MAX_SPEED + 1.)
+            && length(saved.velocity) <= MAX_SPEED + 1.
+            && saved.yaw.is_finite()
+            && (0. ..360.).contains(&saved.yaw)
+            && saved.total_score <= MAX_SAVED_SCORE
+            && saved.bails <= MAX_SAVED_BAILS
+            && saved.ground_normal.iter().all(|v| v.is_finite())
+            && (normal_length - 1.).abs() <= 0.01
+            && saved.ground_normal[2] >= GROUND_NORMAL
+            && saved.air_time.is_finite()
+            && (0. ..=30.).contains(&saved.air_time)
+            && saved.air_spin.is_finite()
+            && saved.air_spin.abs() <= 30. * 540.
+            && saved.flip_remaining.is_finite()
+            && (0. ..=360.).contains(&saved.flip_remaining)
+            && saved.flip_angle.is_finite()
+            && (0. ..=30. * 900.).contains(&saved.flip_angle);
+        if !valid {
+            return Err("Invalid saved skateboard state".into());
+        }
+        Ok(Self {
+            velocity: saved.velocity,
+            yaw: saved.yaw,
+            grounded: saved.grounded,
+            total_score: saved.total_score,
+            bails: saved.bails,
+            ground_normal: normalize(saved.ground_normal),
+            air_time: saved.air_time,
+            air_spin: saved.air_spin,
+            flip_angle: saved.flip_angle,
+            flip_remaining: saved.flip_remaining,
+            flight: saved.flight,
         })
     }
 
