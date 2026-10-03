@@ -335,7 +335,7 @@ impl Inventory {
             return Err("Move a stack onto another occupied slot".into());
         }
         let (source, target) = (self.slots[from], self.slots[to]);
-        if source.item != target.item {
+        if source.item != target.item || source.item.is_tool() {
             self.slots.swap(from, to);
             return Ok(());
         }
