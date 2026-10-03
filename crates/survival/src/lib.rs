@@ -32,7 +32,10 @@ pub use crates::{
     CRATE_REACH, CrateTier, HACK_SECONDS, LockState, LockedCrate, LootCrate, LootCrates,
 };
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
-pub use farming::{GROW_SECONDS, Garden, HARVEST_FOOD, HARVEST_SEEDS, PLOT_REACH, Plot, PlotState};
+pub use farming::{
+    FERTILIZER_PER_FISH, FERTILIZER_SECONDS, GROW_SECONDS, Garden, HARVEST_FOOD, HARVEST_SEEDS,
+    PLOT_REACH, Plot, PlotState,
+};
 pub use fishing::{
     BAIT_PER_FOOD, BAITED_CATCH_PERCENT, CAST_SECONDS, CATCH_PERCENT, Cast, FISHING_REACH,
 };
@@ -1128,6 +1131,39 @@ impl Session {
         self.garden = garden;
         self.inventory = inventory;
         self.message = format!("Planted berry seeds: ripe in {GROW_SECONDS:.0} s");
+        Ok(())
+    }
+
+    pub fn make_fertilizer(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if self.inventory.count(Item::Fish) == 0 {
+            return Err("You need a raw fish to make fertilizer".into());
+        }
+        let mut inventory = self.inventory.clone();
+        inventory.take(Item::Fish, 1)?;
+        inventory
+            .add(Item::Fertilizer, FERTILIZER_PER_FISH)
+            .map_err(|_| "Not enough inventory space for the fertilizer")?;
+        self.inventory = inventory;
+        self.message = format!("Made {FERTILIZER_PER_FISH} fertilizer");
+        Ok(())
+    }
+
+    pub fn fertilize_plot(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        let id = self
+            .plot_in_reach()
+            .ok_or("No garden plot within reach")?
+            .id();
+        let mut garden = self.garden.clone();
+        let left = garden.fertilize(id)?;
+        let mut inventory = self.inventory.clone();
+        inventory
+            .take(Item::Fertilizer, 1)
+            .map_err(|_| "You need fertilizer".to_string())?;
+        self.garden = garden;
+        self.inventory = inventory;
+        self.message = format!("Fertilized the plot: ripe in {left:.0} s");
         Ok(())
     }
 

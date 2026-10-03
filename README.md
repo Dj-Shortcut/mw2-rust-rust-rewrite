@@ -117,8 +117,8 @@ launcher/mapreader-compilercontrole en de uitgebreide workspacecontrole slagen.
 GPU-weergave en eerder gecontroleerde keyboard/muisflows zijn op Mesa-software-rendering
 uitgevoerd. De vis-/kampvuurflow en geselecteerd gebruik via I zijn gecontroleerd met
 40 echte broncodecontroles, 2 aascompatibiliteitscontroles, 6 scene-updatecontroles
-en 113 keyboard/Mesa-controles
-(88 voor de volledige route, 25 voor foutgevallen);
+en 114 keyboard/Mesa-controles
+(89 voor de volledige route, 25 voor foutgevallen);
 [TODO.md](TODO.md) houdt de scopes afzonderlijk bij. Dit is geen hardwareprestatiemeting.
 Niet alle native flows zijn geverifieerd; hoorbaar geluid, Xbox-controllerhardware
 en multiplayer blijven open.
