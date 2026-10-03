@@ -2,6 +2,7 @@ use playerstate_iw4::UserCmd;
 use rust_building::{BuildingWorld, CELL, Grade, Kind, Piece, Resources, Socket, WALL_HEIGHT};
 use sim::{ClientId, SimBrush, SimContentBuilder, SimWorld, Tick, TickInput};
 use std::path::Path;
+mod airdrop;
 mod climate;
 mod cooking;
 mod crafting;
@@ -17,6 +18,9 @@ mod rules;
 mod skate;
 mod terrain;
 mod weather;
+pub use airdrop::{
+    Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, FIRST_DROP_SECONDS, SupplyDrop,
+};
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use cooking::{CAMPFIRE_REACH, COOK_SECONDS, COOK_WOOD, Campfire, Campfires, FireState};
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
@@ -105,6 +109,7 @@ pub struct Session {
     irradiated: bool,
     crates: LootCrates,
     campfires: Campfires,
+    airdrops: Airdrops,
     fishing: Option<Cast>,
     casts: u32,
 }
@@ -327,6 +332,7 @@ impl Session {
         let gathering = GatheringWorld::new(&terrain)?;
         let crates = LootCrates::new(&terrain)?;
         let campfires = Campfires::new(&terrain)?;
+        let airdrops = Airdrops::new(&terrain)?;
         world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
@@ -377,6 +383,7 @@ impl Session {
             irradiated: false,
             crates,
             campfires,
+            airdrops,
             fishing: None,
             casts: 0,
         };
@@ -401,6 +408,7 @@ impl Session {
         self.clock.advance(0.017)?;
         let unlocked = self.crates.advance(0.017)?;
         let cooked = self.campfires.advance(0.017)?;
+        let drops = self.airdrops.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         if alive {
@@ -421,6 +429,12 @@ impl Session {
         }
         if cooked {
             self.message = "Your fish is cooked".into();
+        }
+        if drops.lost {
+            self.message = "The supply drop was lost".into();
+        }
+        if let Some(p) = self.airdrops.position().filter(|_| drops.landed) {
+            self.message = format!("A supply drop landed near ({:.0}, {:.0})", p[0], p[1]);
         }
         if weather_changed {
             self.message = if self.weather.is_raining() {
@@ -990,6 +1004,33 @@ impl Session {
         Ok(loot)
     }
 
+    pub fn airdrops(&self) -> &Airdrops {
+        &self.airdrops
+    }
+
+    pub fn supply_drop_in_reach(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| self.airdrops.in_reach(p.origin))
+    }
+
+    pub fn open_supply_drop(&mut self) -> Result<Vec<(Item, u32)>, String> {
+        self.require_alive()?;
+        if !self.supply_drop_in_reach() {
+            return Err("No supply drop within reach".into());
+        }
+        let mut inventory = self.inventory.clone();
+        let loot = self.airdrops.open(&mut inventory)?;
+        self.inventory = inventory;
+        let names: Vec<String> = loot
+            .iter()
+            .map(|(item, quantity)| format!("{quantity} {}", item.name()))
+            .collect();
+        self.message = format!("{}: {}", CrateTier::SupplyDrop.name(), names.join(", "));
+        Ok(loot)
+    }
+
     pub fn campfires(&self) -> &[Campfire] {
         self.campfires.all()
     }
@@ -1408,6 +1449,7 @@ impl Session {
             crates: Some(self.crates.saved()),
             locked_crate: self.crates.saved_locked(),
             campfires: self.campfires.saved(),
+            airdrops: self.airdrops.saved(),
             fishing: self.fishing,
             casts: self.casts,
             gathering: self.gathering.clone(),
@@ -1538,6 +1580,8 @@ impl Session {
         crates.restore_locked(&scene.locked_crate);
         let mut campfires = self.campfires.clone();
         campfires.restore(&scene.campfires);
+        let mut airdrops = self.airdrops.clone();
+        airdrops.restore(&scene.airdrops);
         if scene.worn.is_some_and(|item| !item.is_clothing()) {
             return Err("Only clothing can be worn".into());
         }
@@ -1588,6 +1632,7 @@ impl Session {
         self.worn = scene.worn;
         self.crates = crates;
         self.campfires = campfires;
+        self.airdrops = airdrops;
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
