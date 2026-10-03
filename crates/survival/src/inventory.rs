@@ -103,6 +103,14 @@ impl Recipe {
         })
     }
 
+    pub fn craft_seconds(self) -> f32 {
+        match self {
+            Self::Bandage => 3.,
+            Self::Ammo => 5.,
+            Self::Syringe => 10.,
+        }
+    }
+
     pub fn output(self) -> (Item, u32) {
         match self {
             Self::Bandage => (Item::Bandage, 1),
