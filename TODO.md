@@ -38,6 +38,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 | Engelse in-game tekst | Ja, vaste projectregel | HUD, inventory, controls, feedback en backenderrors nagekeken | HUD/inventory/editor/pauze in Engelse build uitgevoerd | Nee |
 
 - [x] Bestaande bouwscenario's, schadeprobes en mapvalidatie uitgevoerd.
+- [x] Bouwreparatie headless geverifieerd (#39): `BuildingWorld::repair` herstelt tot het grademaximum tegen een proportioneel, naar boven afgerond aandeel van de gradekosten; vol/missend/vreemd/arm-afwijzing is atomair; save round-trip behoudt gerepareerde health; demolish/instorting blijven werken. Alleen `rust_building`-backend via `context/repair-probe`; Session-/native-bediening, upkeep/decay en grafische verificatie open.
 - [x] Procedurele materiaalshader geparseerd en gevalideerd.
 - [x] Gedownloade bouwtextures en downloadscript uit productpad gehaald.
 - [x] Eerste native frontend, launcher en mapreader compileren succesvol.
@@ -126,7 +127,7 @@ De overdracht voor Claude staat in [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
 - [ ] Bouwpreview, snapping, rotatie, meerdere vormvarianten en terreinplaatsing.
 - [ ] Volledige ondersteuning/stabiliteit met zichtbare feedback.
 - [ ] Bouwkasten/tool cupboards, autorisatie, bouwrechten en bouwblokkering.
-- [ ] Hout/steen/metaal/hoogwaardig metaal, upgrades, reparatie en upkeep/decay.
+- [ ] Hout/steen/metaal/hoogwaardig metaal, upgrades en upkeep/decay; reparatie-backend aanwezig (#39, headless), Session-/native-bediening open.
 - [ ] Deuren, luiken, ramen, poorten, trappen, sloten, sleutels en codes.
 - [ ] Opslagkisten, ovens, werkbanken, deployables en interieur.
 - [ ] Raidregels, explosieven, projectielschade, zwakke zijden en puin.
