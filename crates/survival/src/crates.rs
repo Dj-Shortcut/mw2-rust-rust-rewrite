@@ -182,24 +182,22 @@ pub struct SavedCrate {
     pub opened: u32,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(transparent)]
 pub struct SavedCrates(Vec<SavedCrate>);
 
 impl<'de> Deserialize<'de> for SavedCrates {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let crates = Vec::<SavedCrate>::deserialize(deserializer)?;
-        if !crates.is_empty() {
-            let valid = crates.len() == LAYOUT.len()
-                && crates.iter().enumerate().all(|(index, saved)| {
-                    let tier = LAYOUT[index].0;
-                    saved.id == index as u32 + 1
-                        && saved.respawn_in.is_finite()
-                        && (0. ..=tier.respawn_seconds()).contains(&saved.respawn_in)
-                });
-            if !valid {
-                return Err(serde::de::Error::custom("Invalid loot crates"));
-            }
+        let valid = crates.len() == LAYOUT.len()
+            && crates.iter().enumerate().all(|(index, saved)| {
+                let tier = LAYOUT[index].0;
+                saved.id == index as u32 + 1
+                    && saved.respawn_in.is_finite()
+                    && (0. ..=tier.respawn_seconds()).contains(&saved.respawn_in)
+            });
+        if !valid {
+            return Err(serde::de::Error::custom("Invalid loot crates"));
         }
         Ok(Self(crates))
     }
@@ -295,16 +293,11 @@ impl LootCrates {
         )
     }
 
-    pub(crate) fn restore(&mut self, saved: &SavedCrates) {
-        for (lootable, state) in self.crates.iter_mut().zip(&saved.0) {
-            lootable.respawn_in = state.respawn_in;
-            lootable.opened = state.opened;
-        }
-        if saved.0.is_empty() {
-            for lootable in &mut self.crates {
-                lootable.respawn_in = 0.;
-                lootable.opened = 0;
-            }
+    pub(crate) fn restore(&mut self, saved: Option<&SavedCrates>) {
+        for (index, lootable) in self.crates.iter_mut().enumerate() {
+            let state = saved.and_then(|s| s.0.get(index));
+            lootable.respawn_in = state.map_or(0., |s| s.respawn_in);
+            lootable.opened = state.map_or(0, |s| s.opened);
         }
     }
 }
