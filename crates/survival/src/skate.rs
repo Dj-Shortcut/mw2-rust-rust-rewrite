@@ -399,9 +399,11 @@ impl SkateState {
         }
         // Safe landings bank their points once, independent of the event
         // that presents the step (a later bail in the same step still shows).
+        // The total stops at the save bound so a capped session stays savable.
         self.total_score = self
             .total_score
-            .saturating_add(u64::from(std::mem::take(&mut self.step_points)));
+            .saturating_add(u64::from(std::mem::take(&mut self.step_points)))
+            .min(MAX_SAVED_SCORE);
         Ok(SkateStep {
             origin,
             velocity: self.velocity,
