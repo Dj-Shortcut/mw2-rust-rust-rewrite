@@ -1,5 +1,6 @@
 use rust_building::Resources;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::BTreeSet;
 
 pub const INVENTORY_SLOTS: usize = 24;
 pub const MAX_VITAL_SECONDS: f32 = 3600.;
@@ -60,7 +61,7 @@ impl Item {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Recipe {
     Bandage,
     Ammo,
@@ -139,6 +140,19 @@ impl Recipe {
         }
     }
 
+    pub fn needs_blueprint(self) -> bool {
+        matches!(self, Self::Syringe | Self::Pickaxe)
+    }
+
+    pub fn research_cost(self) -> Resources {
+        let cost = self.cost();
+        Resources {
+            wood: cost.wood * 2,
+            stone: cost.stone * 2,
+            metal: cost.metal * 2,
+        }
+    }
+
     pub fn repair_cost(item: Item, wear: u32) -> Result<Resources, String> {
         let recipe = Self::ALL
             .into_iter()
@@ -164,6 +178,37 @@ impl Recipe {
             Self::Hatchet => (Item::Hatchet, 1),
             Self::Pickaxe => (Item::Pickaxe, 1),
         }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
+pub struct Blueprints {
+    learned: BTreeSet<Recipe>,
+}
+
+impl Blueprints {
+    pub fn knows(&self, recipe: Recipe) -> bool {
+        !recipe.needs_blueprint() || self.learned.contains(&recipe)
+    }
+
+    pub(crate) fn learn(&mut self, recipe: Recipe) -> Result<(), String> {
+        if self.knows(recipe) {
+            return Err(format!("{} is already known", recipe.name()));
+        }
+        self.learned.insert(recipe);
+        Ok(())
+    }
+}
+
+impl<'de> Deserialize<'de> for Blueprints {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let list = Vec::<Recipe>::deserialize(deserializer)?;
+        let mut blueprints = Self::default();
+        for recipe in list {
+            blueprints.learn(recipe).map_err(serde::de::Error::custom)?;
+        }
+        Ok(blueprints)
     }
 }
 

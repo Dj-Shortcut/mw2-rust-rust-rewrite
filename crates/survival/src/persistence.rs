@@ -9,7 +9,8 @@
 //! [`SavedPlayer::v2_default`].
 
 use crate::{
-    CraftQueue, GatheringWorld, Inventory, LootBags, PlacedObject, SavedSkate, Vitals, WORLD_HALF,
+    Blueprints, CraftQueue, GatheringWorld, Inventory, LootBags, PlacedObject, SavedSkate, Vitals,
+    WORLD_HALF,
 };
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
@@ -45,6 +46,8 @@ pub(crate) struct SavedSession {
     pub pending_damage: u32,
     #[serde(default)]
     pub crafting: CraftQueue,
+    #[serde(default)]
+    pub blueprints: Blueprints,
     pub gathering: GatheringWorld,
     pub player: SavedPlayer,
 }
@@ -197,6 +200,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     vitals: old.vitals,
                     pending_damage: 0,
                     crafting: CraftQueue::default(),
+                    blueprints: Blueprints::default(),
                     gathering: old.gathering,
                     player: SavedPlayer::v2_default(),
                 },

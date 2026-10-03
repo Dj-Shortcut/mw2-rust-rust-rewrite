@@ -17,7 +17,8 @@ pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
 };
 pub use inventory::{
-    BLEED_THRESHOLD, Inventory, Item, MAX_BLEED, MAX_REGEN, MAX_TOOL_WEAR, Recipe, Stack, Vitals,
+    BLEED_THRESHOLD, Blueprints, Inventory, Item, MAX_BLEED, MAX_REGEN, MAX_TOOL_WEAR, Recipe,
+    Stack, Vitals,
 };
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
@@ -82,6 +83,7 @@ pub struct Session {
     loot: LootBags,
     queued_damage: u32,
     crafting: CraftQueue,
+    blueprints: Blueprints,
 }
 
 impl Session {
@@ -342,6 +344,7 @@ impl Session {
             loot: LootBags::default(),
             queued_damage: 0,
             crafting: CraftQueue::default(),
+            blueprints: Blueprints::default(),
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -443,8 +446,37 @@ impl Session {
         }
     }
 
+    pub fn blueprints(&self) -> &Blueprints {
+        &self.blueprints
+    }
+
+    fn require_blueprint(&self, recipe: Recipe) -> Result<(), String> {
+        if self.blueprints.knows(recipe) {
+            Ok(())
+        } else {
+            Err(format!("Research the {} first", recipe.name()))
+        }
+    }
+
+    pub fn research(&mut self, recipe: Recipe) -> Result<Resources, String> {
+        self.require_alive()?;
+        if !recipe.needs_blueprint() {
+            return Err(format!("{} needs no research", recipe.name()));
+        }
+        let mut blueprints = self.blueprints.clone();
+        blueprints.learn(recipe)?;
+        let cost = recipe.research_cost();
+        self.world
+            .buildings_mut()
+            .consume(LOCAL.0, cost)
+            .map_err(|_| "Not enough resources to research".to_string())?;
+        self.blueprints = blueprints;
+        Ok(cost)
+    }
+
     pub fn craft(&mut self, recipe: Recipe) -> Result<(), String> {
         self.require_alive()?;
+        self.require_blueprint(recipe)?;
         let mut inventory = self.inventory.clone();
         let cost = inventory.craft(recipe, self.world.buildings().inventory(LOCAL.0))?;
         self.world
@@ -461,6 +493,7 @@ impl Session {
 
     pub fn queue_craft(&mut self, recipe: Recipe) -> Result<(), String> {
         self.require_alive()?;
+        self.require_blueprint(recipe)?;
         let mut crafting = self.crafting.clone();
         crafting.push(recipe)?;
         self.world
@@ -1028,6 +1061,7 @@ impl Session {
             vitals: self.vitals,
             pending_damage: self.queued_damage,
             crafting: self.crafting.clone(),
+            blueprints: self.blueprints.clone(),
             gathering: self.gathering.clone(),
             player: saved,
         };
@@ -1180,6 +1214,7 @@ impl Session {
         self.last_skate_event = SkateEvent::None;
         self.queued_damage = queued_damage;
         self.crafting = scene.crafting;
+        self.blueprints = scene.blueprints;
         Ok(())
     }
 }
