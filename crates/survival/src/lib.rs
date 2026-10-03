@@ -1106,11 +1106,61 @@ fn brushes_overlap_players(world: &SimWorld, brushes: &[SimBrush]) -> bool {
 }
 
 fn box_overlaps_brush(lo: [f32; 3], hi: [f32; 3], brush: &SimBrush) -> bool {
+    let normals: Vec<[f32; 3]> = brush.planes.iter().map(|p| [p[0], p[1], p[2]]).collect();
+    let mut vertices = Vec::new();
+    for (i, a) in brush.planes.iter().enumerate() {
+        for (j, b) in brush.planes.iter().enumerate().skip(i + 1) {
+            for c in brush.planes.iter().skip(j + 1) {
+                let (na, nb, nc) = ([a[0], a[1], a[2]], [b[0], b[1], b[2]], [c[0], c[1], c[2]]);
+                let det = dot(na, cross(nb, nc));
+                if det.abs() < 1e-6 {
+                    continue;
+                }
+                let terms = [
+                    cross(nb, nc).map(|v| v * a[3]),
+                    cross(nc, na).map(|v| v * b[3]),
+                    cross(na, nb).map(|v| v * c[3]),
+                ];
+                let point: [f32; 3] =
+                    std::array::from_fn(|k| (terms[0][k] + terms[1][k] + terms[2][k]) / det);
+                if brush
+                    .planes
+                    .iter()
+                    .all(|p| dot([p[0], p[1], p[2]], point) <= p[3] + 0.01)
+                {
+                    vertices.push(point);
+                }
+            }
+        }
+    }
+    if vertices.is_empty() {
+        return false;
+    }
+    let mut axes = normals.clone();
+    for k in 0..3 {
+        let mut box_axis = [0.; 3];
+        box_axis[k] = 1.;
+        axes.push(box_axis);
+        for (i, a) in normals.iter().enumerate() {
+            for b in normals.iter().skip(i + 1) {
+                let axis = cross(box_axis, cross(*a, *b));
+                if dot(axis, axis) > 1e-6 {
+                    axes.push(axis);
+                }
+            }
+        }
+    }
     let center: [f32; 3] = std::array::from_fn(|k| (lo[k] + hi[k]) / 2.);
     let half: [f32; 3] = std::array::from_fn(|k| (hi[k] - lo[k]) / 2.);
-    brush.planes.iter().all(|plane| {
-        let extent = plane[0].abs() * half[0] + plane[1].abs() * half[1] + plane[2].abs() * half[2];
-        dot([plane[0], plane[1], plane[2]], center) - extent < plane[3] - 0.1
+    axes.iter().all(|axis| {
+        let length = dot(*axis, *axis).sqrt();
+        let middle = dot(*axis, center);
+        let extent = axis[0].abs() * half[0] + axis[1].abs() * half[1] + axis[2].abs() * half[2];
+        let (low, high) = vertices.iter().fold((f32::MAX, f32::MIN), |(l, h), v| {
+            let d = dot(*axis, *v);
+            (l.min(d), h.max(d))
+        });
+        middle - extent < high - 0.1 * length && low + 0.1 * length < middle + extent
     })
 }
 
