@@ -931,6 +931,21 @@ fn loot_hint(session: &Session) -> Option<String> {
     ))
 }
 
+fn gather_feedback(harvest: survival::Harvest) -> String {
+    let mut message = format!(
+        "{} +{} | {} remaining",
+        harvest.kind.name(),
+        harvest.amount,
+        harvest.remaining
+    );
+    if harvest.tool_broke
+        && let Some(tool) = harvest.kind.tool()
+    {
+        message.push_str(&format!(" | {} broke", tool.name()));
+    }
+    message
+}
+
 fn recover_loot(session: &mut Session) -> Result<String, String> {
     let id = session
         .loot_bag_in_reach()
@@ -1299,12 +1314,7 @@ fn advance(
         let result = match action {
             WorldAction::Gather => game.0.gather_from_view().map(|harvest| {
                 sound(&mut commands, &sounds.gather);
-                format!(
-                    "{} +{} | {} remaining",
-                    harvest.kind.name(),
-                    harvest.amount,
-                    harvest.remaining
-                )
+                gather_feedback(harvest)
             }),
             WorldAction::PickUpLoot => recover_loot(&mut game.0).inspect(|_| {
                 sound(&mut commands, &sounds.ui);
