@@ -599,7 +599,11 @@ impl Vitals {
         }
     }
 
-    pub fn advance(
+    pub fn advance(&mut self, dt_seconds: f32, temperature: f32) -> Result<u32, String> {
+        self.advance_exposed(dt_seconds, temperature, false)
+    }
+
+    pub fn advance_exposed(
         &mut self,
         dt_seconds: f32,
         temperature: f32,
@@ -622,15 +626,17 @@ impl Vitals {
         } else {
             0.
         };
+        let sick = f64::from(RADIATION_SICK);
+        let sick_time = if irradiated {
+            (dt - ((sick - self.radiation) / RADIATION_PER_SECOND).max(0.)).max(0.)
+        } else {
+            ((self.radiation - sick) / RADIATION_DECAY_PER_SECOND).clamp(0., dt)
+        };
+        let sickness = sick_time * RADIATION_DAMAGE_PER_SECOND;
         self.radiation = if irradiated {
             (self.radiation + dt * RADIATION_PER_SECOND).min(f64::from(MAX_RADIATION))
         } else {
             (self.radiation - dt * RADIATION_DECAY_PER_SECOND).max(0.)
-        };
-        let sickness = if self.radiation > f64::from(RADIATION_SICK) {
-            dt * RADIATION_DAMAGE_PER_SECOND
-        } else {
-            0.
         };
         let hungry_time = (dt - self.hunger / hunger_rate).max(0.);
         let thirsty_time = (dt - self.thirst / 0.04).max(0.);

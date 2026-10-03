@@ -444,7 +444,9 @@ impl Session {
             self.message = "You entered a radiation zone".into();
         }
         self.irradiated = irradiated;
-        let damage = self.vitals.advance(0.017, temperature, irradiated)?;
+        let damage = self
+            .vitals
+            .advance_exposed(0.017, temperature, irradiated)?;
         if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             self.world.queue_environment_damage(LOCAL, damage)?;
             self.queued_damage += damage;
