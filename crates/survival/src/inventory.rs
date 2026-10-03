@@ -31,10 +31,11 @@ pub enum Item {
     Fish,
     AntiRadPills,
     HazmatSuit,
+    CookedFish,
 }
 
 impl Item {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
@@ -47,6 +48,7 @@ impl Item {
         Self::Fish,
         Self::AntiRadPills,
         Self::HazmatSuit,
+        Self::CookedFish,
     ];
 
     pub fn name(self) -> &'static str {
@@ -63,6 +65,7 @@ impl Item {
             Self::Fish => "Raw fish",
             Self::AntiRadPills => "Anti-radiation pills",
             Self::HazmatSuit => "Hazmat suit",
+            Self::CookedFish => "Cooked fish",
         }
     }
 
@@ -88,7 +91,7 @@ impl Item {
 
     pub fn stack_limit(self) -> u32 {
         match self {
-            Self::Bandage | Self::Water | Self::Fish | Self::AntiRadPills => 10,
+            Self::Bandage | Self::Water | Self::Fish | Self::CookedFish | Self::AntiRadPills => 10,
             Self::Ammo => 60,
             Self::Food => 20,
             Self::Syringe => 5,
@@ -452,6 +455,11 @@ impl Inventory {
                 hunger: 20.,
                 ..Default::default()
             },
+            Item::CookedFish => Effects {
+                heal: 5,
+                hunger: 45.,
+                ..Default::default()
+            },
             Item::AntiRadPills => Effects {
                 radiation: 50.,
                 ..Default::default()
@@ -463,6 +471,11 @@ impl Inventory {
         if quantity == 0 || item != Item::Ammo && quantity != 1 {
             return Err("Use one consumable or a positive number of rounds".into());
         }
+        self.take(item, quantity)?;
+        Ok(effects)
+    }
+
+    pub(crate) fn take(&mut self, item: Item, quantity: u32) -> Result<(), String> {
         if self.count(item) < quantity {
             return Err("Item is not available".into());
         }
@@ -476,7 +489,7 @@ impl Inventory {
             }
         }
         self.slots.retain(|s| s.quantity > 0);
-        Ok(effects)
+        Ok(())
     }
 
     pub fn split(&mut self, slot: usize, quantity: u32) -> Result<(), String> {

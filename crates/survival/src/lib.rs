@@ -3,6 +3,7 @@ use rust_building::{BuildingWorld, CELL, Grade, Kind, Piece, Resources, Socket, 
 use sim::{ClientId, SimBrush, SimContentBuilder, SimWorld, Tick, TickInput};
 use std::path::Path;
 mod climate;
+mod cooking;
 mod crafting;
 mod crates;
 mod editor;
@@ -17,6 +18,7 @@ mod skate;
 mod terrain;
 mod weather;
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
+pub use cooking::{CAMPFIRE_REACH, COOK_SECONDS, COOK_WOOD, Campfire, Campfires, FireState};
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{
     CRATE_REACH, CrateTier, HACK_SECONDS, LockState, LockedCrate, LootCrate, LootCrates,
@@ -102,6 +104,7 @@ pub struct Session {
     freezing: bool,
     irradiated: bool,
     crates: LootCrates,
+    campfires: Campfires,
     fishing: Option<Cast>,
     casts: u32,
 }
@@ -323,6 +326,7 @@ impl Session {
         let editor = EditorState::default();
         let gathering = GatheringWorld::new(&terrain)?;
         let crates = LootCrates::new(&terrain)?;
+        let campfires = Campfires::new(&terrain)?;
         world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
@@ -372,6 +376,7 @@ impl Session {
             freezing: false,
             irradiated: false,
             crates,
+            campfires,
             fishing: None,
             casts: 0,
         };
@@ -395,6 +400,7 @@ impl Session {
         self.regrow_resources();
         self.clock.advance(0.017)?;
         let unlocked = self.crates.advance(0.017)?;
+        let cooked = self.campfires.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         if alive {
@@ -412,6 +418,9 @@ impl Session {
         }
         if unlocked {
             self.message = "The locked crate is unlocked".into();
+        }
+        if cooked {
+            self.message = "Your fish is cooked".into();
         }
         if weather_changed {
             self.message = if self.weather.is_raining() {
@@ -978,6 +987,60 @@ impl Session {
         Ok(loot)
     }
 
+    pub fn campfires(&self) -> &[Campfire] {
+        self.campfires.all()
+    }
+
+    /// The nearest campfire within reach of the living player.
+    pub fn campfire_in_reach(&self) -> Option<&Campfire> {
+        let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
+        self.campfires.in_reach(player.origin)
+    }
+
+    pub fn cook_fish(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        let id = self
+            .campfire_in_reach()
+            .ok_or("No campfire within reach")?
+            .id();
+        let mut campfires = self.campfires.clone();
+        campfires.start(id)?;
+        let mut inventory = self.inventory.clone();
+        inventory
+            .take(Item::Fish, 1)
+            .map_err(|_| "You need a raw fish to cook".to_string())?;
+        self.world
+            .buildings_mut()
+            .consume(
+                LOCAL.0,
+                Resources {
+                    wood: COOK_WOOD,
+                    ..Default::default()
+                },
+            )
+            .map_err(|_| format!("You need {COOK_WOOD} wood to cook"))?;
+        self.campfires = campfires;
+        self.inventory = inventory;
+        self.message = format!("Cooking raw fish: {COOK_SECONDS:.0} s");
+        Ok(())
+    }
+
+    pub fn take_cooked_fish(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        let id = self
+            .campfire_in_reach()
+            .ok_or("No campfire within reach")?
+            .id();
+        let mut campfires = self.campfires.clone();
+        campfires.take(id)?;
+        let mut inventory = self.inventory.clone();
+        inventory.add(Item::CookedFish, 1)?;
+        self.campfires = campfires;
+        self.inventory = inventory;
+        self.message = "Took the cooked fish".into();
+        Ok(())
+    }
+
     pub fn pick_up_loot(&mut self) -> Result<u32, String> {
         self.require_alive()?;
         let id = self
@@ -1341,6 +1404,7 @@ impl Session {
             worn: self.worn,
             crates: Some(self.crates.saved()),
             locked_crate: self.crates.saved_locked(),
+            campfires: self.campfires.saved(),
             fishing: self.fishing,
             casts: self.casts,
             gathering: self.gathering.clone(),
@@ -1469,6 +1533,8 @@ impl Session {
         let mut crates = self.crates.clone();
         crates.restore(scene.crates.as_ref());
         crates.restore_locked(&scene.locked_crate);
+        let mut campfires = self.campfires.clone();
+        campfires.restore(&scene.campfires);
         if scene.worn.is_some_and(|item| !item.is_clothing()) {
             return Err("Only clothing can be worn".into());
         }
@@ -1518,6 +1584,7 @@ impl Session {
         self.weather = scene.weather;
         self.worn = scene.worn;
         self.crates = crates;
+        self.campfires = campfires;
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
