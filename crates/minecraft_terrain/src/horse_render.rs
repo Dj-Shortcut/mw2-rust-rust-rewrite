@@ -465,11 +465,19 @@ fn model(kind: HorseKind, baby: bool, chest: bool, anim: &Anim) -> Vec<(Part, Cu
                 ],
                 [p.head_x, p.head_y, 0.0],
             );
+            #[expect(
+                clippy::approx_constant,
+                reason = "0.3927 is the model's own rounded angle, not FRAC_PI_8"
+            )]
             out.push((
                 head_parts.child([0.0; 3], [0.3927, 0.0, 0.0]),
                 cube([-3.0, -6.0, -3.0], [4.0, 8.0, 4.0], [30.0, 9.0]),
             ));
             let head = head_parts.child([0.0, -5.0, -3.0], [0.0; 3]);
+            #[expect(
+                clippy::approx_constant,
+                reason = "0.3927 is the model's own rounded angle, not FRAC_PI_8"
+            )]
             out.push((
                 head.child([0.0, -1.0, 1.0], [0.3927, 0.0, 0.0]),
                 cube([-4.0, -3.6, -8.4], [6.0, 4.0, 9.0], [0.0, 0.0]),
