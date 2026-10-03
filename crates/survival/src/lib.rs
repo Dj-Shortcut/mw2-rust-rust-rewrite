@@ -677,17 +677,24 @@ fn verify_restored(world: &SimWorld, saved: &persistence::SavedPlayer) -> Result
             let d = (player.viewangles[k] - saved.view[k]).rem_euclid(360.);
             d.min(360. - d) > 0.1
         });
-        let drift = (0..3)
-            .map(|k| (player.origin[k] - saved.origin[k]).abs())
-            .fold(0., f32::max);
         if player.weapon != saved.weapon
             || clip != saved.clip
             || reserve != saved.reserve
             || turned
-            || drift > 1. + dot(saved.velocity, saved.velocity).sqrt() * 0.017
         {
             return Err(failed());
         }
+    }
+    let drift = (0..3)
+        .map(|k| (player.origin[k] - saved.origin[k]).abs())
+        .fold(0., f32::max);
+    let travel = if saved.alive {
+        dot(saved.velocity, saved.velocity).sqrt() * 0.017
+    } else {
+        0.
+    };
+    if drift > 1. + travel {
+        return Err(failed());
     }
     Ok(())
 }

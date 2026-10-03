@@ -104,6 +104,8 @@ restore(client, alive, origin, angles, velocity, health, clip, stock, kills, dea
         }
         else
         {
+            player setorigin(origin);
+            player setplayerangles(angles);
             player.deaths = deaths;
         }
     }
