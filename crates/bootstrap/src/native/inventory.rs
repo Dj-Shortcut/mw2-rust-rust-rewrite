@@ -1,4 +1,4 @@
-use survival::{Inventory, LOCAL, Session};
+use survival::{Inventory, LOCAL, Recipe, Session};
 
 const SLOT_CAPACITY: usize = 24;
 
@@ -9,12 +9,14 @@ pub(super) enum Action {
     Activate,
     Split,
     Discard,
+    Recycle,
     Cancel,
 }
 
 enum Pending {
     Move { source: usize },
     Discard { source: usize, quantity: u32 },
+    Recycle { source: usize, quantity: u32 },
 }
 
 pub(super) struct InventoryUi {
@@ -87,8 +89,10 @@ impl InventoryUi {
                 .into();
             return;
         }
-        if matches!(action, Action::Activate | Action::Split | Action::Discard)
-            && !Self::alive(session)
+        if matches!(
+            action,
+            Action::Activate | Action::Split | Action::Discard | Action::Recycle
+        ) && !Self::alive(session)
         {
             self.pending = None;
             session.message = "Player is not alive".into();
@@ -104,6 +108,8 @@ impl InventoryUi {
                     self.select_quantity(session);
                     if self.cancel_discard() {
                         session.message = "Discard cancelled".into();
+                    } else if self.cancel_recycle() {
+                        session.message = "Recycling cancelled".into();
                     }
                     self.notice = None;
                 }
@@ -120,6 +126,8 @@ impl InventoryUi {
                     self.quantity = quantity;
                     if self.cancel_discard() {
                         session.message = "Discard cancelled".into();
+                    } else if self.cancel_recycle() {
+                        session.message = "Recycling cancelled".into();
                     }
                     self.notice = None;
                 }
@@ -158,6 +166,29 @@ impl InventoryUi {
                     self.quantity
                 );
             }
+            Action::Recycle => {
+                self.pending = None;
+                self.notice = None;
+                let Some(stack) = session.inventory.stacks().get(self.slot) else {
+                    session.message = "This slot is empty".into();
+                    self.notice = Some(session.message.clone());
+                    return;
+                };
+                if let Err(error) = Recipe::recycle_yield(stack.item, self.quantity) {
+                    session.message = error.clone();
+                    self.notice = Some(error);
+                    return;
+                }
+                self.pending = Some(Pending::Recycle {
+                    source: self.slot,
+                    quantity: self.quantity,
+                });
+                session.message = format!(
+                    "Recycle {} x{} into resources? Enter / Xbox Y confirms; Backspace / Xbox B cancels.",
+                    stack.item.name(),
+                    self.quantity
+                );
+            }
             Action::Cancel => {
                 self.pending = None;
                 self.notice = None;
@@ -170,7 +201,7 @@ impl InventoryUi {
         let selected = session.inventory.stacks().get(self.slot);
         let mut status = match selected {
             Some(stack) => format!(
-                "Slot {:02}: {} x{} | Split/discard quantity {}",
+                "Slot {:02}: {} x{} | Split/discard/recycle quantity {}",
                 self.slot + 1,
                 stack.item.name(),
                 stack.quantity,
@@ -203,6 +234,14 @@ impl InventoryUi {
                     status.push_str(&format!(
                         "\nDESTROY {} x{} from slot {:02}. Items are destroyed.\nEnter / Xbox Y confirms; Backspace / Xbox B cancels.",
                         stack.item.name(), quantity, source + 1
+                    ));
+                }
+            }
+            Some(Pending::Recycle { source, quantity }) => {
+                if let Some(stack) = session.inventory.stacks().get(source) {
+                    status.push_str(&format!(
+                        "\nRECYCLE {} x{}: destroyed for resources.\nEnter / Xbox Y confirms; Backspace / Xbox B cancels.",
+                        stack.item.name(), quantity
                     ));
                 }
             }
@@ -265,6 +304,19 @@ impl InventoryUi {
                     }
                 }
             }
+            Some(Pending::Recycle { source, quantity }) => {
+                match super::tool_actions::recycle(session, source, quantity) {
+                    Ok(message) => {
+                        self.after_mutation(session);
+                        session.message = message;
+                    }
+                    Err(error) => {
+                        self.pending = None;
+                        self.notice = Some(error.clone());
+                        session.message = error;
+                    }
+                }
+            }
             None => {
                 if session.inventory.stacks().get(self.slot).is_none() {
                     session.message = "Choose an occupied stack to move".into();
@@ -295,6 +347,15 @@ impl InventoryUi {
 
     fn cancel_discard(&mut self) -> bool {
         if matches!(self.pending, Some(Pending::Discard { .. })) {
+            self.pending = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn cancel_recycle(&mut self) -> bool {
+        if matches!(self.pending, Some(Pending::Recycle { .. })) {
             self.pending = None;
             true
         } else {

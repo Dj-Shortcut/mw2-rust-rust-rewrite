@@ -79,6 +79,12 @@ cargo run -p launcher --profile play --locked -- game
 De launcher kiest standaard hetzelfde zelfstandige native startpad. De eigen
 content staat onder `assets/authored/` en wordt vanuit de repository gevonden.
 F1 toont de bediening; Tab opent inventory, B bouwen, E de objecteditor en V skaten.
+In de inventory kiezen 1–9 of PgUp/PgDn een recept; C craft en R onderzoekt de
+geselecteerde blauwdruk. O trekt de geselecteerde kleding aan, P trekt de
+gedragen kleding uit en T repareert het geselecteerde gereedschap. N begint
+recycling van de gekozen hoeveelheid; Enter bevestigt en Backspace annuleert. Xbox Back onderzoekt een
+blauwdruk; Xbox Y/B bevestigen/annuleren een recyclingactie. Kledingbeheer en
+reparatie/recycling starten voorlopig met het toetsenbord.
 Richt op bereikbaar materiaal voor de verzamelhint; F oogst. F5/F9 bewaren/laden
 de lokale sessie: scene, spelerpositie/kijkrichting, gezondheid, ammo en
 gemonteerde skatestaat. Lopen/skaten, kijkrichting en ammo na laden zijn native

@@ -12,8 +12,11 @@ use survival::{
     Item, LOCAL, PlacedObject, PropKind, Recipe, ResourceNode, Session, UNITS_TO_METERS,
 };
 
+mod clothing;
 mod inventory;
 mod loot;
+mod research;
+mod tool_actions;
 use inventory::{Action as InventoryAction, InventoryUi};
 
 #[derive(Resource)]
@@ -522,7 +525,7 @@ fn setup(
         InventoryText,
         Text::new(""),
         TextFont {
-            font_size: FontSize::Px(17.),
+            font_size: FontSize::Px(16.),
             ..default()
         },
         TextColor(Color::WHITE),
@@ -1050,6 +1053,29 @@ fn inventory_input(
         controls.inventory.apply(InventoryAction::Split, game);
         return;
     }
+    if keys.just_pressed(KeyCode::KeyN) {
+        controls.inventory.apply(InventoryAction::Recycle, game);
+        return;
+    }
+    let research = keys.just_pressed(KeyCode::KeyR) || pressed(GamepadButton::Select);
+    let wear = keys.just_pressed(KeyCode::KeyO);
+    let take_off = keys.just_pressed(KeyCode::KeyP);
+    let repair = keys.just_pressed(KeyCode::KeyT);
+    if research || wear || take_off || repair {
+        controls.inventory.apply(InventoryAction::Cancel, game);
+        let result = if research {
+            research::apply(game, Recipe::ALL[controls.recipe])
+        } else if wear {
+            clothing::wear(game, controls.inventory.slot)
+        } else if take_off {
+            clothing::take_off(game)
+        } else {
+            tool_actions::repair(game, controls.inventory.slot)
+        };
+        game.message = result.unwrap_or_else(|error| error);
+        controls.inventory.sync(game);
+        return;
+    }
     if keys.just_pressed(KeyCode::Enter) || pressed(GamepadButton::North) {
         controls.inventory.apply(InventoryAction::Activate, game);
         return;
@@ -1107,7 +1133,10 @@ fn update_inventory(
         if !controls.inventory_open {
             continue;
         }
-        let mut content = String::from("INVENTORY | world paused\n\n");
+        let mut content = String::from("INVENTORY | world paused\n");
+        if !controls.inventory.pending() {
+            content.push_str(&format!("{}\n", game.0.message));
+        }
         for row in 0..8 {
             for column in 0..3 {
                 let index = row * 3 + column;
@@ -1131,8 +1160,13 @@ fn update_inventory(
             }
             content.push('\n');
         }
-        content.push_str(&format!("\n{}\n", controls.inventory.status(&game.0)));
-        content.push_str("\nRECIPES | blueprint status: Known / Locked\n");
+        content.push_str(&format!(
+            "{}\n{}\n{}\n",
+            controls.inventory.status(&game.0),
+            tool_actions::status(&game.0, controls.inventory.slot),
+            clothing::status(&game.0),
+        ));
+        content.push_str("RECIPES | blueprint status: Known / Locked\n");
         for (index, recipe) in Recipe::ALL.into_iter().enumerate() {
             let cost = recipe.cost();
             let (item, amount) = recipe.output();
@@ -1152,7 +1186,11 @@ fn update_inventory(
                 cost.metal
             ));
         }
-        content.push_str(&format!("\nArrow keys slot | Q/E quantity | S split | Enter move/confirm\nDelete discard (destroys items) | Backspace cancel/close | Tab close\n1-{} / PgUp/PgDn recipe | C craft | H bandage | J food | K water | U ammo\nXbox: D-pad slot | LT/RT quantity | RS click split | Y move/confirm\nLS click discard | B cancel/close | LB/RB cycle recipes | X craft | A use", Recipe::ALL.len().min(9)));
+        content.push_str(&format!(
+            "{}\nArrow keys slot | Q/E quantity | S split | Enter move/confirm\nT repair | N recycle (confirm) | Delete discard (destroys items)\nBackspace cancel/close | Tab close | H bandage | J food | K water | U ammo\n1-{} / PgUp/PgDn recipe | C craft | R research\nXbox: D-pad slot | LT/RT quantity | RS split | Y move/confirm\nLS discard | B cancel/close | LB/RB recipe | X craft | A use | Back research",
+            research::status(&game.0, Recipe::ALL[controls.recipe]),
+            Recipe::ALL.len().min(9)
+        ));
         **text = content;
     }
 }

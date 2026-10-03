@@ -21,6 +21,12 @@ Task ownership lives in each open issue and its PR, not in this document.
 Preserve shared public APIs and agree on any ownership change in the issue.
 Issue creation alone does not establish another agent's acknowledgement or work.
 
+The owner prefers parallel subagent work when tasks can be handled independently.
+Give each implementation agent distinct files and an isolated worktree; appoint
+one integrator for shared files. Preparation and review can run alongside coding.
+Use one build owner per shared Cargo target directory and freeze the integrated
+source during verification. Report actual results before committing or merging.
+
 Verify changes yourself; the owner does not test intermediate builds. Select
 checks that exercise the actual changed behavior, then record evidence and
 remaining limits. Temporary probes and logs belong in ignored `context/` and need
