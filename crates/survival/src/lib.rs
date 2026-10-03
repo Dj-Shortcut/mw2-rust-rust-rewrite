@@ -11,7 +11,9 @@ mod rules;
 mod skate;
 mod terrain;
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
-pub use gathering::{GatheringWorld, Harvest, ResourceKind, ResourceNode};
+pub use gathering::{
+    GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
+};
 pub use inventory::{BLEED_THRESHOLD, Inventory, Item, MAX_BLEED, Recipe, Stack, Vitals};
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
@@ -259,6 +261,7 @@ impl Session {
             .unwrap_or(0)
             .saturating_sub(self.queued_damage);
         self.queued_damage = 0;
+        self.regrow_resources();
         let alive = after > 0;
         if alive {
             self.vitals.wound(external);
@@ -381,6 +384,33 @@ impl Session {
         self.inventory = inventory;
         self.gathering = gathering;
         Ok(harvested)
+    }
+
+    fn regrow_resources(&mut self) {
+        let (world, editor) = (&self.world, &self.editor);
+        let regrown = self.gathering.advance(0.017, |node| {
+            let (lo, hi) = node.bounds();
+            node.brush()
+                .is_some_and(|b| brushes_overlap_players(world, &[b]))
+                || editor
+                    .brushes()
+                    .iter()
+                    .any(|b| box_overlaps_brush(lo, hi, b))
+                || world.buildings().pieces().any(|p| {
+                    world
+                        .buildings()
+                        .bounds(p)
+                        .iter()
+                        .any(|(a, b)| (0..3).all(|k| a[k] <= hi[k] + 1. && lo[k] - 1. <= b[k]))
+                })
+        });
+        if !regrown.is_empty() {
+            self.world.install_content(authored_content(
+                &self.terrain,
+                &self.editor,
+                &self.gathering,
+            ));
+        }
     }
 
     pub fn use_item(&mut self, item: Item) -> Result<(), String> {
@@ -1073,6 +1103,65 @@ fn brushes_overlap_players(world: &SimWorld, brushes: &[SimBrush]) -> bool {
         });
     });
     overlap
+}
+
+fn box_overlaps_brush(lo: [f32; 3], hi: [f32; 3], brush: &SimBrush) -> bool {
+    let normals: Vec<[f32; 3]> = brush.planes.iter().map(|p| [p[0], p[1], p[2]]).collect();
+    let mut vertices = Vec::new();
+    for (i, a) in brush.planes.iter().enumerate() {
+        for (j, b) in brush.planes.iter().enumerate().skip(i + 1) {
+            for c in brush.planes.iter().skip(j + 1) {
+                let (na, nb, nc) = ([a[0], a[1], a[2]], [b[0], b[1], b[2]], [c[0], c[1], c[2]]);
+                let det = dot(na, cross(nb, nc));
+                if det.abs() < 1e-6 {
+                    continue;
+                }
+                let terms = [
+                    cross(nb, nc).map(|v| v * a[3]),
+                    cross(nc, na).map(|v| v * b[3]),
+                    cross(na, nb).map(|v| v * c[3]),
+                ];
+                let point: [f32; 3] =
+                    std::array::from_fn(|k| (terms[0][k] + terms[1][k] + terms[2][k]) / det);
+                if brush
+                    .planes
+                    .iter()
+                    .all(|p| dot([p[0], p[1], p[2]], point) <= p[3] + 0.01)
+                {
+                    vertices.push(point);
+                }
+            }
+        }
+    }
+    if vertices.is_empty() {
+        return false;
+    }
+    let mut axes = normals.clone();
+    for k in 0..3 {
+        let mut box_axis = [0.; 3];
+        box_axis[k] = 1.;
+        axes.push(box_axis);
+        for (i, a) in normals.iter().enumerate() {
+            for b in normals.iter().skip(i + 1) {
+                let axis = cross(box_axis, cross(*a, *b));
+                if dot(axis, axis) > 1e-6 {
+                    axes.push(axis);
+                }
+            }
+        }
+    }
+    let center: [f32; 3] = std::array::from_fn(|k| (lo[k] + hi[k]) / 2.);
+    let half: [f32; 3] = std::array::from_fn(|k| (hi[k] - lo[k]) / 2.);
+    axes.iter().all(|axis| {
+        let length = dot(*axis, *axis).sqrt();
+        let middle = dot(*axis, center);
+        let extent = axis[0].abs() * half[0] + axis[1].abs() * half[1] + axis[2].abs() * half[2];
+        let (low, high) = vertices.iter().fold((f32::MAX, f32::MIN), |(l, h), v| {
+            let d = dot(*axis, *v);
+            (l.min(d), h.max(d))
+        });
+        middle - extent < high - 0.1 * length && low + 0.1 * length < middle + extent
+    })
 }
 
 fn intersect(brush: &SimBrush, start: [f32; 3], end: [f32; 3]) -> Option<f32> {

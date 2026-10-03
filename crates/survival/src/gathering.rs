@@ -6,6 +6,8 @@ use std::collections::BTreeMap;
 
 pub const HARVEST_REACH: f32 = 120.;
 pub const MAX_RESOURCE_NODES: usize = 64;
+pub const REGROW_SECONDS: f32 = 300.;
+pub const REGROW_RETRY_SECONDS: f32 = 5.;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ResourceKind {
@@ -38,6 +40,8 @@ pub struct ResourceNode {
     pub kind: ResourceKind,
     pub position: [f32; 3],
     pub remaining: u32,
+    #[serde(default)]
+    pub regrow_in: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -234,7 +238,7 @@ impl GatheringWorld {
             return Err("Resource node layout is incomplete".into());
         }
         let mut loaded = BTreeMap::new();
-        for node in nodes {
+        for mut node in nodes {
             let expected = world
                 .nodes
                 .get(&node.id)
@@ -246,8 +250,13 @@ impl GatheringWorld {
                     .iter()
                     .zip(expected.position)
                     .any(|(a, b)| !a.is_finite() || a.abs() > WORLD_HALF || (*a - b).abs() > 0.01)
+                || !(0. ..=REGROW_SECONDS).contains(&node.regrow_in)
+                || node.remaining > 0 && node.regrow_in != 0.
             {
                 return Err("Invalid resource node state".into());
+            }
+            if node.remaining == 0 && node.regrow_in == 0. {
+                node.regrow_in = REGROW_SECONDS;
             }
             let id = node.id;
             if loaded.insert(id, node).is_some() {
@@ -313,12 +322,41 @@ impl GatheringWorld {
         let node = self.nodes.get_mut(&id).ok_or("Resource no longer exists")?;
         let amount = node.remaining.min(node.kind.harvest_amount());
         node.remaining -= amount;
+        if node.remaining == 0 {
+            node.regrow_in = REGROW_SECONDS;
+        }
         Ok(Harvest {
             node_id: node.id,
             kind: node.kind,
             amount,
             remaining: node.remaining,
         })
+    }
+}
+
+impl GatheringWorld {
+    pub(crate) fn advance(
+        &mut self,
+        dt_seconds: f32,
+        mut blocked: impl FnMut(&ResourceNode) -> bool,
+    ) -> Vec<u32> {
+        let mut regrown = Vec::new();
+        for node in self.nodes.values_mut().filter(|n| n.remaining == 0) {
+            node.regrow_in = (node.regrow_in - dt_seconds).max(0.);
+            if node.regrow_in > 0. {
+                continue;
+            }
+            let mut full = node.clone();
+            full.remaining = full.kind.capacity();
+            if full.kind.is_solid() && blocked(&full) {
+                node.regrow_in = REGROW_RETRY_SECONDS;
+            } else {
+                full.regrow_in = 0.;
+                *node = full;
+                regrown.push(node.id);
+            }
+        }
+        regrown
     }
 }
 
@@ -379,6 +417,7 @@ fn initial_nodes(terrain: &Terrain) -> Result<BTreeMap<u32, ResourceNode>, Strin
             kind,
             position: [xy[0], xy[1], z],
             remaining: kind.capacity(),
+            regrow_in: 0.,
         };
         let (lo, hi) = node.bounds();
         if lo
