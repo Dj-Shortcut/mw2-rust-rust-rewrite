@@ -23,7 +23,10 @@ pub use airdrop::{
     Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, FIRST_DROP_SECONDS, SupplyDrop,
 };
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
-pub use cooking::{CAMPFIRE_REACH, COOK_SECONDS, COOK_WOOD, Campfire, Campfires, FireState};
+pub use cooking::{
+    CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COOK_SECONDS, COOK_WOOD, Campfire,
+    Campfires, FireState,
+};
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{
     CRATE_REACH, CrateTier, HACK_SECONDS, LockState, LockedCrate, LootCrate, LootCrates,
@@ -108,6 +111,7 @@ pub struct Session {
     weather: Weather,
     worn: Option<Item>,
     freezing: bool,
+    warming: bool,
     irradiated: bool,
     crates: LootCrates,
     campfires: Campfires,
@@ -384,6 +388,7 @@ impl Session {
             weather: Weather::default(),
             worn: None,
             freezing: false,
+            warming: false,
             irradiated: false,
             crates,
             campfires,
@@ -421,6 +426,7 @@ impl Session {
             self.vitals.wound(external);
         } else {
             self.freezing = false;
+            self.warming = false;
             self.irradiated = false;
             self.fishing = None;
             self.refund_crafting()?;
@@ -430,6 +436,12 @@ impl Session {
             self.skate_input = SkateInput::default();
             return Ok(());
         }
+        // Lowest priority: any other event this tick replaces it.
+        let warming = self.near_campfire();
+        if warming && !self.warming {
+            self.message = "You warm up by the campfire".into();
+        }
+        self.warming = warming;
         if unlocked {
             self.message = "The locked crate is unlocked".into();
         }
@@ -555,7 +567,20 @@ impl Session {
     }
 
     pub fn felt_temperature(&self) -> f32 {
-        self.clock.temperature() - self.weather.chill() + self.worn.map_or(0., Item::warmth)
+        let fire = if self.near_campfire() {
+            CAMPFIRE_WARMTH
+        } else {
+            0.
+        };
+        self.clock.temperature() - self.weather.chill() + self.worn.map_or(0., Item::warmth) + fire
+    }
+
+    /// Whether the living player is close enough to a campfire to feel its warmth.
+    pub fn near_campfire(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| self.campfires.warms(p.origin))
     }
 
     pub fn radiation_exposure(&self) -> f32 {
@@ -1703,6 +1728,7 @@ impl Session {
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
+        self.warming = false;
         self.irradiated = false;
         Ok(())
     }

@@ -5,6 +5,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 pub const COOK_SECONDS: f32 = 15.;
 pub const COOK_WOOD: u32 = 5;
 pub const CAMPFIRE_REACH: f32 = 100.;
+pub const CAMPFIRE_WARMTH: f32 = 10.;
+pub const CAMPFIRE_WARMTH_RADIUS: f32 = 150.;
 const LAYOUT: [[f32; 2]; 2] = [[-260., -140.], [820., 260.]];
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -115,6 +117,13 @@ impl Campfires {
             .iter()
             .filter(|f| f.distance(origin) <= CAMPFIRE_REACH)
             .min_by(|a, b| a.distance(origin).total_cmp(&b.distance(origin)))
+    }
+
+    /// Whether any campfire is close enough to warm `origin`.
+    pub fn warms(&self, origin: [f32; 3]) -> bool {
+        self.fires
+            .iter()
+            .any(|f| f.distance(origin) <= CAMPFIRE_WARMTH_RADIUS)
     }
 
     fn fire_mut(&mut self, id: u32) -> Result<&mut Campfire, String> {
