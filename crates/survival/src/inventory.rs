@@ -621,10 +621,20 @@ impl Vitals {
     }
 
     pub fn advance(&mut self, dt_seconds: f32, temperature: f32) -> Result<u32, String> {
-        self.advance_exposed(dt_seconds, temperature, 0.)
+        self.advance_with_exposure(dt_seconds, temperature, 0.)
     }
 
     pub fn advance_exposed(
+        &mut self,
+        dt_seconds: f32,
+        temperature: f32,
+        irradiated: bool,
+    ) -> Result<u32, String> {
+        let exposure = if irradiated { 1. } else { 0. };
+        self.advance_with_exposure(dt_seconds, temperature, exposure)
+    }
+
+    pub fn advance_with_exposure(
         &mut self,
         dt_seconds: f32,
         temperature: f32,
