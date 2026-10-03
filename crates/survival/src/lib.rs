@@ -756,7 +756,10 @@ impl Session {
         vitals.apply(&effects)?;
         if effects.heal > 0 {
             let healed = self.world.heal_player(LOCAL, effects.heal);
-            if !(effects.stop_bleeding && self.vitals.is_bleeding()) {
+            // Full health only blocks items whose sole use is healing.
+            let other_use =
+                (effects.stop_bleeding && self.vitals.is_bleeding()) || effects.hunger > 0.;
+            if !other_use {
                 healed?;
             }
         }
