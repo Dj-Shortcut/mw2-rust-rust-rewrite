@@ -444,7 +444,7 @@ fn initial_nodes(terrain: &Terrain) -> Result<BTreeMap<u32, ResourceNode>, Strin
     Ok(nodes)
 }
 
-fn height_at(terrain: &Terrain, xy: [f32; 2]) -> Option<f32> {
+pub(crate) fn height_at(terrain: &Terrain, xy: [f32; 2]) -> Option<f32> {
     for indices in terrain.indices.chunks_exact(3) {
         let a = *terrain.positions.get(indices[0] as usize)?;
         let b = *terrain.positions.get(indices[1] as usize)?;
