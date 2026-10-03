@@ -59,19 +59,14 @@ jobs:
         run: |
           "$RUNNER_TEMP/$BLENDER/blender" -b --factory-startup \
             --python scripts/generate_authored_content.py -- --output "$RUNNER_TEMP/models"
-      - name: Compare GLB files
+      - name: Compare with the committed files
         run: |
-          status=0
-          {
-            echo "### Model regeneration"
-            echo "| file | committed | regenerated |"
-            echo "|---|---|---|"
-          } >> "$GITHUB_STEP_SUMMARY"
-          for committed in assets/authored/*.glb; do
-            name=$(basename "$committed")
-            a=$(sha256sum "$committed" | cut -c1-12)
-            b=$(sha256sum "$RUNNER_TEMP/models/$name" 2>/dev/null | cut -c1-12)
-            echo "| $name | $a | ${b:-missing} |" >> "$GITHUB_STEP_SUMMARY"
-            [ "$a" = "$b" ] || status=1
-          done
-          exit $status
+          set -o pipefail
+          echo "### Model regeneration" >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/compare_glb.py assets/authored "$RUNNER_TEMP/models" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regenerated-models-${{ github.sha }}
+          path: ${{ runner.temp }}/models
+          retention-days: 14
