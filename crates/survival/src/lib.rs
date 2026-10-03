@@ -41,6 +41,8 @@ pub struct Session {
     pub skate_input: SkateInput,
     pub skate_roll: f32,
     pub last_skate_event: SkateEvent,
+    /// Skate score banked while not mounted; carried into the next mount.
+    skate_score: u64,
 }
 
 impl Session {
@@ -153,6 +155,7 @@ impl Session {
             skate_input: SkateInput::default(),
             skate_roll: 0.,
             last_skate_event: SkateEvent::None,
+            skate_score: 0,
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -167,7 +170,7 @@ impl Session {
         authority_step(&mut self.world, self.tick, cmd)?;
         let alive = self.world.player(LOCAL).is_some_and(|p| p.health > 0);
         if !alive {
-            self.skate = None;
+            self.dismount();
             self.world.set_external_motion(LOCAL, false);
             self.skate_input = SkateInput::default();
             return Ok(());
@@ -206,15 +209,32 @@ impl Session {
             .player(LOCAL)
             .filter(|p| p.health > 0)
             .ok_or("Player is not alive")?;
-        self.skate = if self.skate.is_some() {
-            None
+        if self.skate.is_some() {
+            self.dismount();
         } else {
-            Some(SkateState::new(player.viewangles[1])?)
-        };
+            let mut skate = SkateState::new(player.viewangles[1])?;
+            skate.total_score = self.skate_score;
+            self.skate = Some(skate);
+        }
         self.world.set_external_motion(LOCAL, self.skate.is_some());
         self.skate_input = SkateInput::default();
         self.skate_roll = 0.;
         Ok(())
+    }
+
+    /// The skate score earned so far, mounted or not.
+    pub fn skate_score(&self) -> u64 {
+        self.skate
+            .as_ref()
+            .map_or(self.skate_score, |k| k.total_score)
+    }
+
+    /// Leaves the board. Banked score stays with the session; an unfinished
+    /// grind and its pending points are dropped with the board state.
+    fn dismount(&mut self) {
+        if let Some(skate) = self.skate.take() {
+            self.skate_score = skate.total_score;
+        }
     }
 
     pub fn craft(&mut self, recipe: Recipe) -> Result<(), String> {
@@ -306,7 +326,7 @@ impl Session {
             )
             .map_err(|e| e.to_string())?;
         self.vitals = Vitals::default();
-        self.skate = None;
+        self.dismount();
         self.world.set_external_motion(LOCAL, false);
         self.skate_input = SkateInput::default();
         Ok(())
@@ -474,6 +494,7 @@ impl Session {
             deaths: meta.deaths,
             score: meta.score,
             skate: self.skate.as_ref().map(SkateState::saved),
+            skate_score: self.skate_score(),
         };
         saved.validate(player.max_health, facts.clip_size, facts.max_ammo)?;
         let scene = persistence::SavedSession {
@@ -535,6 +556,15 @@ impl Session {
             .max_health;
         let mut player = scene.player;
         let skate = player.skate.map(SkateState::from_saved).transpose()?;
+        // Saves from before the session-level score carry only the mounted
+        // total; otherwise both must agree.
+        let skate_score = match &skate {
+            Some(k) if player.skate_score == 0 || player.skate_score == k.total_score => {
+                k.total_score
+            }
+            Some(_) => return Err("Saved skate scores do not match".into()),
+            None => player.skate_score,
+        };
 
         let mut world = self.world.clone();
         world.install_content(authored_content(&self.terrain, &editor, &scene.gathering));
@@ -612,6 +642,7 @@ impl Session {
         self.vitals = scene.vitals;
         self.gathering = scene.gathering;
         self.skate = skate;
+        self.skate_score = skate_score;
         self.skate_input = SkateInput::default();
         self.skate_roll = 0.;
         self.last_skate_event = SkateEvent::None;

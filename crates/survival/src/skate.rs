@@ -86,6 +86,9 @@ pub struct SkateState {
     pending_trick: u32,
     release_rail: Option<u32>,
     release_cooldown: f32,
+    /// Points from safe landings within the current step; banked at its end
+    /// whatever event the step reports.
+    step_points: u32,
 }
 
 /// An active grind: the rail's editor ID, the rider's signed distance from
@@ -116,6 +119,7 @@ impl Default for SkateState {
             pending_trick: 0,
             release_rail: None,
             release_cooldown: 0.,
+            step_points: 0,
         }
     }
 }
@@ -261,6 +265,7 @@ impl SkateState {
             pending_trick: saved.pending_trick,
             release_rail: saved.release_rail,
             release_cooldown: saved.release_cooldown,
+            step_points: 0,
         })
     }
 
@@ -353,14 +358,19 @@ impl SkateState {
             self.cancel_grind();
         }
         self.find_ground(world, rails, &mut origin, &mut event);
-        if input.ollie && (self.grounded || self.grind.is_some()) {
+        // A bail in the ground check above ends the step's chance to ollie,
+        // and a landing it reported keeps priority over the Ollie event so its
+        // points are still banked below. Event priority: Bailed > Landed > Ollie.
+        if input.ollie && event != SkateEvent::Bailed && (self.grounded || self.grind.is_some()) {
             if let Some(grind) = self.grind {
                 self.release(grind.rail);
             }
             self.velocity[2] += OLLIE_SPEED;
             self.grounded = false;
             self.begin_flight();
-            event = SkateEvent::Ollie;
+            if event == SkateEvent::None {
+                event = SkateEvent::Ollie;
+            }
         }
         if input.flip && !self.grounded && self.grind.is_none() && self.flip_remaining <= 0. {
             self.flip_remaining = 360.;
@@ -387,10 +397,11 @@ impl SkateState {
                 self.bail(&mut event);
             }
         }
-        // Points are banked once per step, and never in a step that bailed.
-        if let SkateEvent::Landed { points } = event {
-            self.total_score = self.total_score.saturating_add(u64::from(points));
-        }
+        // Safe landings bank their points once, independent of the event
+        // that presents the step (a later bail in the same step still shows).
+        self.total_score = self
+            .total_score
+            .saturating_add(u64::from(std::mem::take(&mut self.step_points)));
         Ok(SkateStep {
             origin,
             velocity: self.velocity,
@@ -736,7 +747,7 @@ impl SkateState {
 
     /// A safe landing reports the flight's trick points plus any pending
     /// grind points as `Landed`; [`Self::advance`] banks them at the end of
-    /// the step unless the step bailed.
+    /// the step.
     fn land(&mut self, normal: [f32; 3], impact: f32, event: &mut SkateEvent) {
         let bailed = self.flight && {
             let horizontal = [self.velocity[0], self.velocity[1], 0.];
@@ -755,6 +766,7 @@ impl SkateState {
             }
             self.clear_pending();
             if points > 0 {
+                self.step_points = self.step_points.saturating_add(points);
                 match event {
                     SkateEvent::Bailed => {}
                     SkateEvent::Landed { points: earlier } => {

@@ -17,6 +17,8 @@ pub(crate) const MAX_SAVE_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const MAX_RESOURCE_BALANCE: u32 = 1_000_000;
 const MAX_COUNTER: i32 = 1_000_000;
 const MAX_PLAYER_SPEED: f32 = 5_000.;
+/// Same bound as the mounted total in `SkateState::from_saved`.
+const MAX_SKATE_SCORE: u64 = 1_000_000_000;
 pub(crate) const AUTHORED_WEAPON: u32 = 1;
 
 /// Format-2 player defaults: a fresh spawn of the authored carbine.
@@ -52,6 +54,10 @@ pub(crate) struct SavedPlayer {
     pub deaths: i32,
     pub score: i32,
     pub skate: Option<SavedSkate>,
+    /// Banked skate score, kept across dismount, death and respawn. Older
+    /// format-3 saves omit it.
+    #[serde(default)]
+    pub skate_score: u64,
 }
 
 #[derive(Deserialize)]
@@ -93,6 +99,7 @@ impl SavedPlayer {
             deaths: 0,
             score: 0,
             skate: None,
+            skate_score: 0,
         }
     }
 
@@ -132,6 +139,9 @@ impl SavedPlayer {
             || (!self.alive && self.deaths == 0)
         {
             return Err("Saved kills, deaths or score are out of range".into());
+        }
+        if self.skate_score > MAX_SKATE_SCORE {
+            return Err("Saved skate score is out of range".into());
         }
         if self.skate.is_some() && !self.alive {
             return Err("A dead player cannot be saved on a skateboard".into());
