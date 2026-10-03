@@ -117,12 +117,21 @@ impl LootBags {
         let mut moved = 0;
         let mut left = Vec::new();
         for stack in self.bags[index].inventory.stacks() {
+            if stack.wear > 0 {
+                if inventory.add_stack(*stack).is_ok() {
+                    moved += stack.quantity;
+                } else {
+                    left.push(*stack);
+                }
+                continue;
+            }
             let added = inventory.add_up_to(stack.item, stack.quantity);
             moved += added;
             if added < stack.quantity {
                 left.push(crate::Stack {
                     item: stack.item,
                     quantity: stack.quantity - added,
+                    wear: 0,
                 });
             }
         }
