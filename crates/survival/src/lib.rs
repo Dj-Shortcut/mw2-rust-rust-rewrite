@@ -552,6 +552,33 @@ impl Session {
         self.inventory.discard(slot, quantity)
     }
 
+    pub fn recycle_stack(&mut self, slot: usize, quantity: u32) -> Result<Resources, String> {
+        self.require_alive()?;
+        let item = self
+            .inventory
+            .stacks()
+            .get(slot)
+            .ok_or("No stack in that slot")?
+            .item;
+        let refund = Recipe::recycle_yield(item, quantity)?;
+        let mut balance = self.world.buildings().inventory(LOCAL.0);
+        balance.add(refund);
+        if [balance.wood, balance.stone, balance.metal]
+            .iter()
+            .any(|&n| n > persistence::MAX_RESOURCE_BALANCE)
+        {
+            return Err("Resource storage is full".into());
+        }
+        let mut inventory = self.inventory.clone();
+        inventory.discard(slot, quantity)?;
+        self.world
+            .buildings_mut()
+            .grant(LOCAL.0, refund)
+            .map_err(|e| e.to_string())?;
+        self.inventory = inventory;
+        Ok(refund)
+    }
+
     pub fn loot_bags(&self) -> &[LootBag] {
         self.loot.bags()
     }
