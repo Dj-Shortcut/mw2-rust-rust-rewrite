@@ -79,6 +79,14 @@ cargo run -p launcher --profile play --locked -- game
 De launcher kiest standaard hetzelfde zelfstandige native startpad. De eigen
 content staat onder `assets/authored/` en wordt vanuit de repository gevonden.
 F1 toont de bediening; Tab opent inventory, B bouwen, E de objecteditor en V skaten.
+Richt in bouwmodus op een eigen bouwstuk: T repareert, Z upgrade naar Stone en
+X naar Metal. Xbox Y repareert; D-pad Omhoog/Omlaag upgrade naar Stone/Metal,
+Links/Rechts kiest een bouwstuk en LB/RB draait de plaatsingsas. B sluit de
+bouwmodus. De bestaande Session-regels bepalen bereik, eigendom, gezondheid,
+kosten en fouten. De melding "Place cost" hoort bij het plaatsingsvoorbeeld;
+er is geen afzonderlijke reparatie-/upgradetargetpreview of kostenpreview
+en geen sloopbediening.
+Na een geslaagde F9-load is de bouwmodus uit; druk opnieuw B voor bouwacties.
 In de inventory kiezen 1–9 of PgUp/PgDn een recept; C craft en R onderzoekt de
 geselecteerde blauwdruk. O trekt de geselecteerde kleding aan, P trekt de
 gedragen kleding uit en T repareert het geselecteerde gereedschap. N begint
@@ -119,7 +127,13 @@ uitgevoerd. De vis-/kampvuurflow en geselecteerd gebruik via I zijn gecontroleer
 40 echte broncodecontroles, 2 aascompatibiliteitscontroles, 6 scene-updatecontroles
 en 114 keyboard/Mesa-controles
 (89 voor de volledige route, 25 voor foutgevallen);
-[TODO.md](TODO.md) houdt de scopes afzonderlijk bij. Dit is geen hardwareprestatiemeting.
+[TODO.md](TODO.md) houdt de scopes afzonderlijk bij. Bouwreparatie en Stone/Metal-upgrades
+zijn afzonderlijk gecontroleerd met 55 echte broncodecontroles, inclusief oude
+formaat-3-saves zonder regentonveld, en 116 keyboard/Mesa-controles
+(60 voor de route, 56 voor foutgevallen): proportionele reparatiekosten,
+grade/health/materiaalwisseling, geweigerde acties zonder mutatie en F5/F9.
+De broncodecontrole gebruikt synthetische controllerinvoer; grafische controles
+gebruiken toetsenbord/muis. Dit is geen hardwareprestatiemeting.
 Niet alle native flows zijn geverifieerd; hoorbaar geluid, Xbox-controllerhardware
 en multiplayer blijven open.
 

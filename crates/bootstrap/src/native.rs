@@ -12,6 +12,7 @@ use survival::{
     Item, LOCAL, PlacedObject, PropKind, Recipe, ResourceNode, Session, UNITS_TO_METERS,
 };
 
+mod building_actions;
 mod campfires;
 mod clothing;
 mod fishing;
@@ -59,6 +60,7 @@ enum WorldAction {
     Undo,
     Redo,
     PlaceBuilding(Kind, u8),
+    MaintainBuilding(building_actions::Action),
     Door,
     Save,
     Load,
@@ -754,10 +756,10 @@ fn input(
             controls.prop_selection = index;
         }
     }
-    let previous =
-        pad_just_pressed(GamepadButton::DPadLeft) || pad_just_pressed(GamepadButton::DPadUp);
-    let next =
-        pad_just_pressed(GamepadButton::DPadRight) || pad_just_pressed(GamepadButton::DPadDown);
+    let previous = pad_just_pressed(GamepadButton::DPadLeft)
+        || (!controls.building && pad_just_pressed(GamepadButton::DPadUp));
+    let next = pad_just_pressed(GamepadButton::DPadRight)
+        || (!controls.building && pad_just_pressed(GamepadButton::DPadDown));
     if previous != next {
         if controls.building {
             controls.selection = (controls.selection + if next { 1 } else { 3 }) % 4;
@@ -804,6 +806,30 @@ fn input(
         && (mouse.just_pressed(MouseButton::Right) || pad_just_pressed(GamepadButton::West))
     {
         controls.queue(WorldAction::Door);
+    }
+    if can_maintain(&controls, &game.0) {
+        let mut requests = [
+            (
+                keys.just_pressed(KeyCode::KeyT)
+                    || (pad_just_pressed(GamepadButton::North) && !skate_chord),
+                building_actions::Action::Repair,
+            ),
+            (
+                keys.just_pressed(KeyCode::KeyZ) || pad_just_pressed(GamepadButton::DPadUp),
+                building_actions::Action::Upgrade(Grade::Stone),
+            ),
+            (
+                keys.just_pressed(KeyCode::KeyX) || pad_just_pressed(GamepadButton::DPadDown),
+                building_actions::Action::Upgrade(Grade::Metal),
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(pressed, action)| pressed.then_some(action));
+        if let Some(action) = requests.next()
+            && requests.next().is_none()
+        {
+            controls.queue(WorldAction::MaintainBuilding(action));
+        }
     }
     if can_interact(&controls, &game.0)
         && (keys.just_pressed(KeyCode::KeyF)
@@ -930,6 +956,17 @@ fn can_interact(controls: &Controls, session: &Session) -> bool {
         && !controls.inventory_open
         && controls.error.is_none()
         && !controls.building
+        && !controls.editor
+        && session.skate.is_none()
+        && session.world.player(LOCAL).is_some_and(|p| p.health > 0)
+}
+
+fn can_maintain(controls: &Controls, session: &Session) -> bool {
+    controls.focused
+        && !controls.paused
+        && !controls.inventory_open
+        && controls.error.is_none()
+        && controls.building
         && !controls.editor
         && session.skate.is_none()
         && session.world.player(LOCAL).is_some_and(|p| p.health > 0)
@@ -1416,6 +1453,10 @@ fn advance(
         {
             continue;
         }
+        if matches!(&action, WorldAction::MaintainBuilding(_)) && !can_maintain(&controls, &game.0)
+        {
+            continue;
+        }
         let loading = matches!(&action, WorldAction::Load);
         let result = match action {
             WorldAction::Gather => game.0.gather_from_view().map(|harvest| {
@@ -1452,6 +1493,8 @@ fn advance(
                 .0
                 .toggle_door_from_view()
                 .map(|()| "Door toggled".into()),
+            WorldAction::MaintainBuilding(action) => building_actions::apply(&mut game.0, action)
+                .inspect(|_| sound(&mut commands, &sounds.ui)),
             WorldAction::Save => game
                 .0
                 .save(Path::new(SAVE_PATH))
@@ -1528,7 +1571,7 @@ fn refresh_placement(
             .preview_building_from_view(KINDS[controls.selection], controls.axis);
         let valid = preview.valid();
         let status = format!(
-            "Cost: wood {} / stone {} / metal {}\n{}",
+            "Place cost: wood {} / stone {} / metal {}\n{}",
             preview.cost.wood,
             preview.cost.stone,
             preview.cost.metal,
@@ -1893,7 +1936,7 @@ fn update_hud(
     } else if controls.editor {
         "1-6 object | Q/R rotate | LMB place | RMB remove | Ctrl-Z/Y undo/redo"
     } else if controls.building {
-        "1-4 building piece | R rotate | LMB place | RMB door | B close"
+        "1-4 building piece | R rotate | LMB place | RMB door | B close\nAim at your building: T repair | Z upgrade Stone | X upgrade Metal"
     } else {
         "LMB shoot | RMB ADS | R reload | F gather/loot/crate\nL cast/reel | G cook/take fish | B build | E editor | V skate"
     };
@@ -1902,7 +1945,9 @@ fn update_hud(
             "Xbox grind: LT brake | A ollie off | LB/RB + Y dismount\nRS camera | Start pause\n"
         } else if game.0.skate.is_some() {
             "Xbox skate: LS push/steer | RT push / LT brake | A ollie | LB/RB spin | X flip\nLB/RB + Y dismount | RS camera | Start pause\n"
-        } else if controls.building || controls.editor {
+        } else if controls.building {
+            "Xbox build: LS move / RS look | RT place | X door | A jump\nD-pad Left/Right piece | Up upgrade Stone / Down upgrade Metal\nY repair | LB/RB rotate | Back mode | Start pause\n"
+        } else if controls.editor {
             "Xbox: LS move / RS look | RT place | A jump\nLS click sprint | B crouch | X door/remove | Y gather/loot/crate\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
         } else {
             "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather/loot/crate\nD-pad Right cast/reel | D-pad Left cook/take fish\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
