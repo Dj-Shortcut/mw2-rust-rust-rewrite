@@ -13,6 +13,7 @@ use survival::{
 };
 
 mod inventory;
+mod loot;
 use inventory::{Action as InventoryAction, InventoryUi};
 
 #[derive(Resource)]
@@ -44,6 +45,7 @@ struct Controls {
 
 enum WorldAction {
     Gather,
+    PickUpLoot,
     PlaceProp(PropKind, f32),
     RemoveProp,
     Undo,
@@ -212,6 +214,7 @@ pub fn run() -> Result<(), String> {
                 refresh_buildings,
                 refresh_props,
                 refresh_gathering,
+                loot::refresh,
                 present_skate,
                 hit_feedback,
                 refresh_placement,
@@ -401,6 +404,7 @@ fn setup(
         sphere: meshes.add(Sphere::new(1.).mesh().uv(16, 12)),
         materials: node_materials,
     });
+    loot::setup(&mut commands, &mut meshes, &mut materials);
     let terrain = &game.0.terrain;
     commands.spawn((
         Mesh3d(meshes.add(surface_mesh(
@@ -682,13 +686,6 @@ fn input(
             controls.editor = false;
         }
     }
-    if game.0.skate.is_none() && !controls.building && !controls.editor {
-        if keys.just_pressed(KeyCode::KeyF)
-            || (pad_just_pressed(GamepadButton::North) && !skate_chord)
-        {
-            controls.queue(WorldAction::Gather);
-        }
-    }
     survival_shortcuts(&keys, &mut game.0, controls.recipe);
     let look = pad.map_or(Vec2::ZERO, |pad| filtered_stick(pad.right_stick()));
     let ads = game
@@ -798,6 +795,12 @@ fn input(
     {
         controls.queue(WorldAction::Door);
     }
+    if can_interact(&controls, &game.0)
+        && (keys.just_pressed(KeyCode::KeyF)
+            || (pad_just_pressed(GamepadButton::North) && !skate_chord))
+    {
+        controls.queue(interaction_action(&game.0));
+    }
     let held = |key| i8::from(keys.pressed(key));
     let movement = pad.map_or(Vec2::ZERO, |pad| filtered_stick(pad.left_stick()));
     let mut cmd = UserCmd {
@@ -898,6 +901,55 @@ fn survival_shortcuts(keys: &ButtonInput<KeyCode>, game: &mut Session, recipe: u
                 .unwrap_or_else(|e| e);
         }
     }
+}
+
+fn can_interact(controls: &Controls, session: &Session) -> bool {
+    controls.focused
+        && !controls.paused
+        && !controls.inventory_open
+        && controls.error.is_none()
+        && !controls.building
+        && !controls.editor
+        && session.skate.is_none()
+        && session.world.player(LOCAL).is_some_and(|p| p.health > 0)
+}
+
+fn interaction_action(session: &Session) -> WorldAction {
+    if session.loot_bag_in_reach().is_some() {
+        WorldAction::PickUpLoot
+    } else {
+        WorldAction::Gather
+    }
+}
+
+fn loot_hint(session: &Session) -> Option<String> {
+    let bag = session.loot_bag_in_reach()?;
+    let count: u32 = bag.inventory().stacks().iter().map(|s| s.quantity).sum();
+    Some(format!(
+        "Loot bag #{} | {count} items | F / Xbox Y to recover",
+        bag.id()
+    ))
+}
+
+fn recover_loot(session: &mut Session) -> Result<String, String> {
+    let id = session
+        .loot_bag_in_reach()
+        .ok_or("No loot bag within reach")?
+        .id();
+    let taken = session.pick_up_loot()?;
+    let remaining: u32 = session
+        .loot_bags()
+        .iter()
+        .find(|bag| bag.id() == id)
+        .map_or(0, |bag| {
+            bag.inventory().stacks().iter().map(|s| s.quantity).sum()
+        });
+    let noun = if taken == 1 { "item" } else { "items" };
+    Ok(if remaining == 0 {
+        format!("Recovered {taken} {noun}; loot bag emptied")
+    } else {
+        format!("Recovered {taken} {noun} | {remaining} left in bag")
+    })
 }
 
 fn inventory_input(
@@ -1238,6 +1290,11 @@ fn advance(
         {
             continue;
         }
+        if matches!(&action, WorldAction::Gather | WorldAction::PickUpLoot)
+            && !can_interact(&controls, &game.0)
+        {
+            continue;
+        }
         let loading = matches!(&action, WorldAction::Load);
         let result = match action {
             WorldAction::Gather => game.0.gather_from_view().map(|harvest| {
@@ -1248,6 +1305,9 @@ fn advance(
                     harvest.amount,
                     harvest.remaining
                 )
+            }),
+            WorldAction::PickUpLoot => recover_loot(&mut game.0).inspect(|_| {
+                sound(&mut commands, &sounds.ui);
             }),
             WorldAction::PlaceProp(kind, yaw) => game
                 .0
@@ -1710,7 +1770,7 @@ fn update_hud(
     } else if controls.building {
         "1-4 building piece | R rotate | LMB place | RMB door | B close"
     } else {
-        "LMB shoot | RMB ADS | R reload | F gather | B build | E editor | V skate"
+        "LMB shoot | RMB ADS | R reload | F gather/recover loot\nB build | E editor | V skate"
     };
     let pad_controls = if controls.pad.is_some() {
         if grinding {
@@ -1718,7 +1778,7 @@ fn update_hud(
         } else if game.0.skate.is_some() {
             "Xbox skate: LS push/steer | RT push / LT brake | A ollie | LB/RB spin | X flip\nLB/RB + Y dismount | RS camera | Start pause\n"
         } else {
-            "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
+            "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather/recover loot\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
         }
     } else {
         ""
@@ -1746,20 +1806,16 @@ fn update_hud(
         if !placement.status.is_empty() {
             content.push_str(&format!("\n{}", placement.status));
         }
-        if health > 0
-            && controls.focused
-            && !controls.paused
-            && controls.error.is_none()
-            && !controls.building
-            && !controls.editor
-            && game.0.skate.is_none()
-            && let Ok(Some(node)) = game.0.gather_target_from_view()
-        {
-            content.push_str(&format!(
-                "\n{} | {} remaining | F / Xbox Y to gather",
-                node.kind.name(),
-                node.remaining
-            ));
+        if can_interact(&controls, &game.0) {
+            if let Some(hint) = loot_hint(&game.0) {
+                content.push_str(&format!("\n{hint}"));
+            } else if let Ok(Some(node)) = game.0.gather_target_from_view() {
+                content.push_str(&format!(
+                    "\n{} | {} remaining | F / Xbox Y to gather",
+                    node.kind.name(),
+                    node.remaining
+                ));
+            }
         }
         content.push_str(&format!(
             "\n{}\nF1 controls | Tab inventory | F5 save / F9 load",
