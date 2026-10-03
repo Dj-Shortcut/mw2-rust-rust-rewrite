@@ -32,7 +32,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 | Eigen operator, carbine, board en timber-model | Ja | GLB-structuur, scene-aantallen en hashes gecontroleerd | Operator/carbine/board zichtbaar; volledige riganimatie open | Nee |
 | Zeven eigen korte CC0-WAV-cues | Ja | PCM/manifestcontrole en identieke regeneratie geslaagd | Playback nog open | Nee |
 | Native controller, ADS/recoil, inventory-/gather-/skatefeedback en audiohooks | Ja | Workspacecontrole en geoptimaliseerde build slagen | Deel van keyboard/muisflows uitgevoerd; audio/hardware open | Nee |
-| Volledige sessie-save/load (formaat 3, migratie van formaat 2) | Ja | Headless probe: 146 controles geslaagd (round-trips levend/dood, gewond/lege ammo, gemount/lopend, v2-migratie, 30+ ongeldige of botsende saves) | Nee; F5/F9 nog niet grafisch uitgevoerd | Nee |
+| Volledige sessie-save/load (formaat 3, migratie van formaat 2) | Ja | Headless probe: 184 controles geslaagd (round-trips levend/dood, gewond/lege ammo, gemount/lopend, v2-migratie, 30+ ongeldige of botsende saves) | Nee; F5/F9 nog niet grafisch uitgevoerd | Nee |
 | Engelse in-game tekst | Ja, vaste projectregel | HUD, inventory, controls, feedback en backenderrors nagekeken | HUD/inventory/editor/pauze in Engelse build uitgevoerd | Nee |
 
 - [x] Bestaande bouwscenario's, schadeprobes en mapvalidatie uitgevoerd.
@@ -52,6 +52,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Skatecamera, pushen, ollie en landing met score via keyboard uitvoeren.
 - [x] Alle in-game teksten naar Engels omzetten; Engels als vaste bijdragersregel vastleggen.
 - [x] Volledige sessie headless opslaan en laden: positie, snelheid, kijkrichting, health, levend/dood (GSC-lifecycle), wapen, clip/reserve, kills/deaths/score, gemounte skatestaat en -score, plus inventory, bouwresources, needs, depletion, gebouwen en editorobjecten.
+- [x] Dode spelers laden met opgeslagen positie, kijkrichting en snelheid (dood→dood en levend→dood), gecontroleerd vóór commit; probe met twee doden op verschillende plekken, herhaald laden en respawn.
 - [ ] Volledige native editor-/bouw-/gather-/respawnflow en Engelse meldingen verifiëren.
 - [ ] F5/F9 in het native venster uitvoeren; na laden de camerasturing van de frontend gelijkzetten met de herstelde kijkrichting (nu overschrijft de volgende frontendinvoer die).
 

@@ -95,18 +95,18 @@ restore(client, alive, origin, angles, velocity, health, clip, stock, kills, dea
             player setweaponammoclip("authored_carbine", clip);
             player setweaponammostock("authored_carbine", stock);
         }
-        else if (player.health > 0)
-        {
-            player setorigin(origin);
-            player setplayerangles(angles);
-            player.deaths = deaths - 1;
-            player suicide();
-        }
         else
         {
+            if (player.health > 0)
+            {
+                player.deaths = deaths - 1;
+                player suicide();
+            }
+            else
+                player.deaths = deaths;
             player setorigin(origin);
             player setplayerangles(angles);
-            player.deaths = deaths;
+            player setvelocity(velocity);
         }
     }
 }
