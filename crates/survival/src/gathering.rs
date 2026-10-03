@@ -64,6 +64,7 @@ pub struct Harvest {
     pub kind: ResourceKind,
     pub amount: u32,
     pub remaining: u32,
+    pub tool_broke: bool,
 }
 
 impl ResourceKind {
@@ -332,6 +333,7 @@ impl GatheringWorld {
             kind: node.kind,
             amount,
             remaining: node.remaining,
+            tool_broke: false,
         })
     }
 }

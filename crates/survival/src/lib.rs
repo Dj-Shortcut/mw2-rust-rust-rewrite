@@ -523,9 +523,11 @@ impl Session {
         let (start, end, obstacle_fraction) = self.gathering_ray_from_view()?;
         let mut gathering = self.gathering.clone();
         let tool = self.inventory.count(Item::Hatchet) > 0;
-        let harvested = gathering.harvest_from_ray(start, end, obstacle_fraction, tool)?;
+        let mut harvested = gathering.harvest_from_ray(start, end, obstacle_fraction, tool)?;
         let mut inventory = self.inventory.clone();
-        if tool && harvested.kind.is_solid() && inventory.wear_tool(Item::Hatchet) == Some(true) {
+        harvested.tool_broke =
+            tool && harvested.kind.is_solid() && inventory.wear_tool(Item::Hatchet) == Some(true);
+        if harvested.tool_broke {
             self.message = "Your stone hatchet broke".into();
         }
         match harvested.kind {
