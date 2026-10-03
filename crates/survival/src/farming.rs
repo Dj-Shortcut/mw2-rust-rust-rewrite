@@ -6,6 +6,8 @@ pub const GROW_SECONDS: f32 = 600.;
 pub const PLOT_REACH: f32 = 100.;
 pub const HARVEST_FOOD: u32 = 5;
 pub const HARVEST_SEEDS: u32 = 2;
+pub const FERTILIZER_SECONDS: f32 = 300.;
+pub const FERTILIZER_PER_FISH: u32 = 2;
 const LAYOUT: [[f32; 2]; 3] = [[180., 160.], [260., 160.], [340., 160.]];
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -135,6 +137,22 @@ impl Garden {
             }
             PlotState::Growing { .. } => Err("Something is already growing here".into()),
             PlotState::Ripe => Err("Harvest the ripe berries first".into()),
+        }
+    }
+
+    pub(crate) fn fertilize(&mut self, id: u32) -> Result<f32, String> {
+        let plot = self.plot_mut(id)?;
+        match plot.state {
+            PlotState::Growing { remaining } if remaining > FERTILIZER_SECONDS => {
+                let left = remaining - FERTILIZER_SECONDS;
+                plot.state = PlotState::Growing { remaining: left };
+                Ok(left)
+            }
+            PlotState::Growing { .. } => {
+                Err("These berries are too close to ripe to fertilize".into())
+            }
+            PlotState::Ripe => Err("The berries are already ripe".into()),
+            PlotState::Empty => Err("Nothing is planted here".into()),
         }
     }
 
