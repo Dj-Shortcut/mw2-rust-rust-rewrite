@@ -67,6 +67,47 @@ respawn(client, origin, angles)
         }
     }
 }
+
+restore(client, alive, origin, angles, velocity, health, clip, stock, kills, deaths, score)
+{
+    players = getentarray("player", "classname");
+    for (i = 0; i < players.size; i++)
+    {
+        player = players[i];
+        if (player getentitynumber() != client)
+            continue;
+        player.kills = kills;
+        player.score = score;
+        if (alive)
+        {
+            player.deaths = deaths;
+            if (player.health <= 0)
+            {
+                player.sessionstate = "playing";
+                player spawn(origin, angles);
+                player giveweapon("authored_carbine");
+                player switchtoweaponimmediate("authored_carbine");
+            }
+            player setorigin(origin);
+            player setplayerangles(angles);
+            player setvelocity(velocity);
+            player.health = health;
+            player setweaponammoclip("authored_carbine", clip);
+            player setweaponammostock("authored_carbine", stock);
+        }
+        else if (player.health > 0)
+        {
+            player setorigin(origin);
+            player setplayerangles(angles);
+            player.deaths = deaths - 1;
+            player suicide();
+        }
+        else
+        {
+            player.deaths = deaths;
+        }
+    }
+}
 "#;
 
 const CALLBACKS: &str = r#"
