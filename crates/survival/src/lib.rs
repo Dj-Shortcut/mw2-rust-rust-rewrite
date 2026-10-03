@@ -18,6 +18,7 @@ mod persistence;
 mod radiation;
 mod rules;
 mod skate;
+mod stash;
 mod terrain;
 mod trading;
 mod weather;
@@ -53,6 +54,7 @@ pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use markers::{Marker, MarkerKind, Waypoint, bearing, compass_heading};
 pub use radiation::{MAX_RADIATION, RADIATION_RADIUS, RADIATION_SICK};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
+pub use stash::{STASH_REACH, Stash};
 pub use terrain::Terrain;
 pub use trading::{TRADE_OFFERS, TRADER_REACH, TradeOffer, TradingPost};
 pub use weather::{MAX_SPELL_SECONDS, MIN_SPELL_SECONDS, RAIN_CHILL_CELSIUS, Weather};
@@ -130,6 +132,7 @@ pub struct Session {
     airdrops: Airdrops,
     garden: Garden,
     trader: TradingPost,
+    stash: Stash,
     waypoint: Option<Waypoint>,
     fishing: Option<Cast>,
     casts: u32,
@@ -356,6 +359,7 @@ impl Session {
         let airdrops = Airdrops::new(&terrain)?;
         let garden = Garden::new(&terrain)?;
         let trader = TradingPost::new(&terrain)?;
+        let stash = Stash::new(&terrain)?;
         world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
@@ -412,6 +416,7 @@ impl Session {
             airdrops,
             garden,
             trader,
+            stash,
             waypoint: None,
             fishing: None,
             casts: 0,
@@ -1210,6 +1215,7 @@ impl Session {
                 .map(|p| at(MarkerKind::GardenPlot, p.position())),
         );
         markers.push(at(MarkerKind::TradingPost, self.trader.position()));
+        markers.push(at(MarkerKind::Stash, self.stash.position()));
         markers.extend(
             self.crates
                 .crates()
@@ -1273,6 +1279,51 @@ impl Session {
             .player(LOCAL)
             .filter(|p| p.health > 0)
             .is_some_and(|p| self.trader.in_reach(p.origin))
+    }
+
+    pub fn stash(&self) -> &Stash {
+        &self.stash
+    }
+
+    pub fn stash_in_reach(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| self.stash.in_reach(p.origin))
+    }
+
+    pub fn deposit(&mut self, slot: usize, quantity: u32) -> Result<(), String> {
+        self.require_alive()?;
+        if !self.stash_in_reach() {
+            return Err("No stash within reach".into());
+        }
+        let mut inventory = self.inventory.clone();
+        let mut stored = self.stash.inventory().clone();
+        let moved = stash::transfer(&mut inventory, &mut stored, slot, quantity).map_err(|e| {
+            if e == "Inventory is full" {
+                "The stash is full".into()
+            } else {
+                e
+            }
+        })?;
+        self.inventory = inventory;
+        self.stash.set_inventory(stored);
+        self.message = format!("Stored {} {}", moved.quantity, moved.item.name());
+        Ok(())
+    }
+
+    pub fn withdraw(&mut self, slot: usize, quantity: u32) -> Result<(), String> {
+        self.require_alive()?;
+        if !self.stash_in_reach() {
+            return Err("No stash within reach".into());
+        }
+        let mut stored = self.stash.inventory().clone();
+        let mut inventory = self.inventory.clone();
+        let moved = stash::transfer(&mut stored, &mut inventory, slot, quantity)?;
+        self.inventory = inventory;
+        self.stash.set_inventory(stored);
+        self.message = format!("Took {} {}", moved.quantity, moved.item.name());
+        Ok(())
     }
 
     pub fn trade_offers(&self) -> &'static [TradeOffer] {
@@ -1787,6 +1838,7 @@ impl Session {
             airdrops: self.airdrops.saved(),
             garden: self.garden.saved(),
             waypoint: self.waypoint,
+            stash: self.stash.inventory().clone(),
             tea_warmth: self.tea_warmth,
             fishing: self.fishing,
             casts: self.casts,
@@ -1981,6 +2033,7 @@ impl Session {
         self.airdrops = airdrops;
         self.garden = garden;
         self.waypoint = scene.waypoint;
+        self.stash.set_inventory(scene.stash);
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
