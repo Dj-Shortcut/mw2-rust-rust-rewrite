@@ -1081,7 +1081,6 @@ impl Session {
         self.garden.plots()
     }
 
-    /// The nearest garden plot within reach of the living player.
     pub fn plot_in_reach(&self) -> Option<&Plot> {
         let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
         self.garden.in_reach(player.origin)
@@ -1131,7 +1130,6 @@ impl Session {
         self.campfires.all()
     }
 
-    /// The nearest campfire within reach of the living player.
     pub fn campfire_in_reach(&self) -> Option<&Campfire> {
         let player = self.world.player(LOCAL).filter(|p| p.health > 0)?;
         self.campfires.in_reach(player.origin)

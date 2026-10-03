@@ -110,7 +110,6 @@ impl Garden {
         &self.plots
     }
 
-    /// The nearest plot within reach of `origin`.
     pub fn in_reach(&self, origin: [f32; 3]) -> Option<&Plot> {
         self.plots
             .iter()
@@ -151,7 +150,6 @@ impl Garden {
         }
     }
 
-    /// Advances every plot; returns true when a plot ripened.
     pub(crate) fn advance(&mut self, dt_seconds: f32) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Invalid growing time step".into());
