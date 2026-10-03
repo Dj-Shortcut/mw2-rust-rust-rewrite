@@ -17,7 +17,7 @@ pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
 };
 pub use inventory::{
-    BLEED_THRESHOLD, Inventory, Item, MAX_BLEED, MAX_REGEN, Recipe, Stack, Vitals,
+    BLEED_THRESHOLD, Inventory, Item, MAX_BLEED, MAX_REGEN, MAX_TOOL_WEAR, Recipe, Stack, Vitals,
 };
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
@@ -522,8 +522,12 @@ impl Session {
     pub fn gather_from_view(&mut self) -> Result<Harvest, String> {
         let (start, end, obstacle_fraction) = self.gathering_ray_from_view()?;
         let mut gathering = self.gathering.clone();
-        let harvested = gathering.harvest_from_ray(start, end, obstacle_fraction)?;
+        let tool = self.inventory.count(Item::Hatchet) > 0;
+        let harvested = gathering.harvest_from_ray(start, end, obstacle_fraction, tool)?;
         let mut inventory = self.inventory.clone();
+        if tool && harvested.kind.is_solid() && inventory.wear_tool(Item::Hatchet) == Some(true) {
+            self.message = "Your stone hatchet broke".into();
+        }
         match harvested.kind {
             ResourceKind::Berry => inventory.add(Item::Food, harvested.amount)?,
             ResourceKind::Water => inventory.add(Item::Water, harvested.amount)?,
@@ -611,13 +615,20 @@ impl Session {
 
     pub fn recycle_stack(&mut self, slot: usize, quantity: u32) -> Result<Resources, String> {
         self.require_alive()?;
-        let item = self
+        let stack = *self
             .inventory
             .stacks()
             .get(slot)
-            .ok_or("No stack in that slot")?
-            .item;
-        let refund = Recipe::recycle_yield(item, quantity)?;
+            .ok_or("No stack in that slot")?;
+        let mut refund = Recipe::recycle_yield(stack.item, quantity)?;
+        if stack.wear > 0 {
+            let condition = |n: u32| n * (MAX_TOOL_WEAR - stack.wear) / MAX_TOOL_WEAR;
+            refund = Resources {
+                wood: condition(refund.wood),
+                stone: condition(refund.stone),
+                metal: condition(refund.metal),
+            };
+        }
         let mut balance = self.world.buildings().inventory(LOCAL.0);
         balance.add(refund);
         if [balance.wood, balance.stone, balance.metal]

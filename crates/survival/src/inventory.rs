@@ -9,6 +9,7 @@ const BLEED_PER_DAMAGE: f64 = 0.5;
 const BLEED_PER_SECOND: f64 = 1.;
 pub const MAX_REGEN: f32 = 40.;
 const REGEN_PER_SECOND: f64 = 2.;
+pub const MAX_TOOL_WEAR: u32 = 50;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Item {
@@ -17,15 +18,17 @@ pub enum Item {
     Food,
     Water,
     Syringe,
+    Hatchet,
 }
 
 impl Item {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
         Self::Water,
         Self::Syringe,
+        Self::Hatchet,
     ];
 
     pub fn name(self) -> &'static str {
@@ -35,7 +38,12 @@ impl Item {
             Self::Food => "Food",
             Self::Water => "Water",
             Self::Syringe => "Medical syringe",
+            Self::Hatchet => "Stone hatchet",
         }
+    }
+
+    pub fn is_tool(self) -> bool {
+        self == Self::Hatchet
     }
 
     pub fn stack_limit(self) -> u32 {
@@ -44,6 +52,7 @@ impl Item {
             Self::Ammo => 60,
             Self::Food => 20,
             Self::Syringe => 5,
+            Self::Hatchet => 1,
         }
     }
 }
@@ -53,16 +62,18 @@ pub enum Recipe {
     Bandage,
     Ammo,
     Syringe,
+    Hatchet,
 }
 
 impl Recipe {
-    pub const ALL: [Self; 3] = [Self::Bandage, Self::Ammo, Self::Syringe];
+    pub const ALL: [Self; 4] = [Self::Bandage, Self::Ammo, Self::Syringe, Self::Hatchet];
 
     pub fn name(self) -> &'static str {
         match self {
             Self::Bandage => "Bandage",
             Self::Ammo => "30 carbine rounds",
             Self::Syringe => "Medical syringe",
+            Self::Hatchet => "Stone hatchet",
         }
     }
 
@@ -80,6 +91,11 @@ impl Recipe {
             Self::Syringe => Resources {
                 wood: 15,
                 metal: 20,
+                ..Default::default()
+            },
+            Self::Hatchet => Resources {
+                wood: 100,
+                stone: 50,
                 ..Default::default()
             },
         }
@@ -108,6 +124,7 @@ impl Recipe {
             Self::Bandage => 3.,
             Self::Ammo => 5.,
             Self::Syringe => 10.,
+            Self::Hatchet => 8.,
         }
     }
 
@@ -116,6 +133,7 @@ impl Recipe {
             Self::Bandage => (Item::Bandage, 1),
             Self::Ammo => (Item::Ammo, 30),
             Self::Syringe => (Item::Syringe, 1),
+            Self::Hatchet => (Item::Hatchet, 1),
         }
     }
 }
@@ -125,6 +143,12 @@ impl Recipe {
 pub struct Stack {
     pub item: Item,
     pub quantity: u32,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub wear: u32,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
@@ -147,9 +171,12 @@ impl Inventory {
 
     pub fn from_stacks(slots: Vec<Stack>) -> Result<Self, String> {
         if slots.len() > INVENTORY_SLOTS
-            || slots
-                .iter()
-                .any(|s| s.quantity == 0 || s.quantity > s.item.stack_limit())
+            || slots.iter().any(|s| {
+                s.quantity == 0
+                    || s.quantity > s.item.stack_limit()
+                    || s.wear > 0 && !s.item.is_tool()
+                    || s.wear >= MAX_TOOL_WEAR
+            })
         {
             return Err("Invalid inventory capacity or item stack".into());
         }
@@ -185,10 +212,32 @@ impl Inventory {
             self.slots.push(Stack {
                 item,
                 quantity: added,
+                wear: 0,
             });
             remaining -= added;
         }
         Ok(())
+    }
+
+    pub(crate) fn add_stack(&mut self, stack: Stack) -> Result<(), String> {
+        if stack.wear == 0 {
+            return self.add(stack.item, stack.quantity);
+        }
+        if self.slots.len() >= INVENTORY_SLOTS {
+            return Err("Inventory is full".into());
+        }
+        self.slots.push(stack);
+        Ok(())
+    }
+
+    pub(crate) fn wear_tool(&mut self, item: Item) -> Option<bool> {
+        let slot = self.slots.iter().position(|s| s.item == item)?;
+        self.slots[slot].wear += 1;
+        let broke = self.slots[slot].wear >= MAX_TOOL_WEAR;
+        if broke {
+            self.slots.remove(slot);
+        }
+        Some(broke)
     }
 
     pub fn add_up_to(&mut self, item: Item, quantity: u32) -> u32 {
@@ -219,23 +268,7 @@ impl Inventory {
     }
 
     pub fn use_item(&mut self, item: Item, quantity: u32) -> Result<Effects, String> {
-        if quantity == 0 || item != Item::Ammo && quantity != 1 {
-            return Err("Use one consumable or a positive number of rounds".into());
-        }
-        if self.count(item) < quantity {
-            return Err("Item is not available".into());
-        }
-        let mut remaining = quantity;
-        for stack in self.slots.iter_mut().filter(|s| s.item == item) {
-            let taken = remaining.min(stack.quantity);
-            stack.quantity -= taken;
-            remaining -= taken;
-            if remaining == 0 {
-                break;
-            }
-        }
-        self.slots.retain(|s| s.quantity > 0);
-        Ok(match item {
+        let effects = match item {
             Item::Bandage => Effects {
                 heal: 25,
                 stop_bleeding: true,
@@ -259,7 +292,25 @@ impl Inventory {
                 stop_bleeding: true,
                 ..Default::default()
             },
-        })
+            Item::Hatchet => return Err("That item cannot be used".into()),
+        };
+        if quantity == 0 || item != Item::Ammo && quantity != 1 {
+            return Err("Use one consumable or a positive number of rounds".into());
+        }
+        if self.count(item) < quantity {
+            return Err("Item is not available".into());
+        }
+        let mut remaining = quantity;
+        for stack in self.slots.iter_mut().filter(|s| s.item == item) {
+            let taken = remaining.min(stack.quantity);
+            stack.quantity -= taken;
+            remaining -= taken;
+            if remaining == 0 {
+                break;
+            }
+        }
+        self.slots.retain(|s| s.quantity > 0);
+        Ok(effects)
     }
 
     pub fn split(&mut self, slot: usize, quantity: u32) -> Result<(), String> {
@@ -274,6 +325,7 @@ impl Inventory {
         self.slots.push(Stack {
             item: stack.item,
             quantity,
+            wear: 0,
         });
         Ok(())
     }
@@ -307,11 +359,11 @@ impl Inventory {
             return Err("Discard between one item and the whole stack".into());
         }
         stack.quantity -= quantity;
-        let item = stack.item;
+        let taken = Stack { quantity, ..*stack };
         if stack.quantity == 0 {
             self.slots.remove(slot);
         }
-        Ok(Stack { item, quantity })
+        Ok(taken)
     }
 }
 

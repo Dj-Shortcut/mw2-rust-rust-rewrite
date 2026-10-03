@@ -314,13 +314,15 @@ impl GatheringWorld {
         start: [f32; 3],
         end: [f32; 3],
         world_obstacle_fraction: f32,
+        tool: bool,
     ) -> Result<Harvest, String> {
         let id = self
             .target_from_ray(start, end, world_obstacle_fraction)?
             .map(|node| node.id)
             .ok_or("Aim at a resource within reach")?;
         let node = self.nodes.get_mut(&id).ok_or("Resource no longer exists")?;
-        let amount = node.remaining.min(node.kind.harvest_amount());
+        let bonus = if tool && node.kind.is_solid() { 2 } else { 1 };
+        let amount = node.remaining.min(node.kind.harvest_amount() * bonus);
         node.remaining -= amount;
         if node.remaining == 0 {
             node.regrow_in = REGROW_SECONDS;
