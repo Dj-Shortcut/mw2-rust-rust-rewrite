@@ -36,7 +36,7 @@ pub use crates::{
 pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use farming::{
     FERTILIZER_PER_FISH, FERTILIZER_SECONDS, GROW_SECONDS, Garden, HARVEST_FOOD, HARVEST_SEEDS,
-    PLOT_REACH, Plot, PlotState,
+    PLOT_REACH, Plot, PlotState, RAIN_GROWTH,
 };
 pub use fishing::{
     BAIT_PER_FOOD, BAITED_CATCH_PERCENT, CAST_SECONDS, CATCH_PERCENT, Cast, FISHING_REACH,
@@ -433,7 +433,8 @@ impl Session {
         let unlocked = self.crates.advance(0.017)?;
         let cooked = self.campfires.advance(0.017)?;
         let drops = self.airdrops.advance(0.017)?;
-        let ripened = self.garden.advance(0.017)?;
+        // Before the weather step: a tick grows at the rain state it started with.
+        let ripened = self.garden.advance(0.017, self.weather.is_raining())?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         if alive {
