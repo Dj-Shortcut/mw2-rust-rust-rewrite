@@ -30,6 +30,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 | Inventory, twee recepten, consumables, honger/dorst | Ja | Grenzen/persistentie plus geïntegreerde resourcekosten, healing en ammo geslaagd | Inventorypauze, beide craftkosten en ammo-transfer uitgevoerd | Nee |
 | 30 eindige oogstnodes | Ja | Generatie, reach/occlusie, depletion en pure target/harvest-pariteit geslaagd | Tree-hint, 12 oogsten, verdwijnen bij uitputting en voorraad/depletion na laden uitgevoerd | Nee |
 | Skatecontroller en loop/skate-overgang | Ja | Push/steer/ollie/tricks/bail/collisie en gemonteerde push/handoff geslaagd | Camera/mount, push, ollie/landingsscore en afstappen uitgevoerd | Nee |
+| Eerste authored railgrinds en Engelse grind-HUD | Ja | 26 live railscenario's, 28 landings-/bailcontroles en 14 score-/savegroepen geslaagd | F9 hervatten, keyboard Space→rail→landing en afstappen met scorebehoud uitgevoerd via Mesa en gecontroleerde saves | Nee |
 | Eigen operator, carbine, board en timber-model | Ja | GLB-structuur, scene-aantallen en hashes gecontroleerd | Operator/carbine/board zichtbaar; volledige riganimatie open | Nee |
 | Zeven eigen korte CC0-WAV-cues | Ja | PCM/manifestcontrole en identieke regeneratie geslaagd | Playback nog open | Nee |
 | Native controller, ADS/recoil, inventory-/gather-/skatefeedback en audiohooks | Ja | Workspacecontrole en geoptimaliseerde build slagen | Deel van keyboard/muisflows uitgevoerd; audio/hardware open | Nee |
@@ -47,6 +48,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Craftkosten, bandagegebruik/healing, ammo-refill en finite harvesting geïntegreerd gecontroleerd.
 - [x] Dode spelers kunnen niet craften/healen/gatheren; respawn en schade na respawn gecontroleerd.
 - [x] Gemount skaten, pushen en terug naar lopen geïntegreerd gecontroleerd.
+- [x] Inventorystapels splitsen, samenvoegen/wisselen en weggooien headless via `Session` gecontroleerd, inclusief geweigerde acties zonder wijziging, volle inventory, dode speler en save/load ([#31](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/31)). Nog geen native bediening, wereld-drops of containers.
 - [x] Eigen WAV-pack gecontroleerd en byte voor byte geregenereerd.
 - [x] Geoptimaliseerde native executable bouwen en eigen modellen/terrein in het venster controleren.
 - [x] Inventorypauze, crafting/resourcekosten/ammo, schieten/schade/herladen/ADS grafisch uitvoeren.
@@ -68,9 +70,8 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Dode spelers laden met opgeslagen positie, kijkrichting en snelheid (dood→dood en levend→dood), gecontroleerd vóór commit; probe met twee doden op verschillende plekken, herhaald laden en respawn.
 - [x] Rail grinds headless via `Session::advance`: vangen na een echte ollie (yaw 0/90/37, beide richtingen), afglijden, loslaten aan het eind, ollie-uit en remmen; grindpunten pas bij een veilige landing; bails, near misses, muur en verwijderen/undo vangen niets of vervallen; mid-grind save/load en oude saves gecontroleerd.
 - [x] Ledge grinds headless via `Session::advance` (#27): funboxdeck (twee lange randen) en platform (vier randen) zijn grindbaar met dezelfde vang-, glij-, los- en scoreregels als de rail. Ollie vanaf de kicker op de funboxrand en vanaf de grond op de platformrand (yaw 0/37/90, beide randen, beide richtingen) grinden en landen met één beloning; over het deck rijden zonder ollie, een ollie midden op het deck en langs de zijkant rijden vangen niets. Mid-ledge save/load hervat op dezelfde rand; een ongeldige of verkeerde randindex weigert de hele load; rail-saves zonder randveld laden als rand 0.
-- [ ] Rail grind in het native venster uitvoeren en een grind-HUD tonen (`is_grinding`/`pending_points`; frontend #15).
+- [x] Engelse native grind-HUD met snelheid, verdiende/pending punten en controls uitvoeren: F9 mid-grind → veilig landen met 34 punten → V afstappen behoudt 34; Space vanaf een gecontroleerde approach-save vangt de rail en landt met 32 punten. De startsnelheid van 220 is fixturedata; Xbox-hardware en overige skateobjecten blijven open.
 - [ ] Volledige native editor-/bouw-/gather-/respawnflow en Engelse meldingen verifiëren.
-- [ ] F5/F9 in het native venster uitvoeren; na laden de camerasturing van de frontend gelijkzetten met de herstelde kijkrichting (nu overschrijft de volgende frontendinvoer die).
 
 ## Actuele verificatiefase
 

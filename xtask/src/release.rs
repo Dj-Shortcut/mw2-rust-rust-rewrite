@@ -19,10 +19,6 @@ const ZSTD_LEVEL: &str = "3";
 /// re-compresses, it never silently reuses a differently produced blob.
 const ZSTD_THREADS: &str = "0";
 
-/// The password on the portable ZIPs. Not a secret — it exists so a browser
-/// or an antivirus scanner cannot open the archive on the way down.
-const ARCHIVE_PASSWORD: &[u8] = b"contextrot";
-
 pub struct Git {
     pub rev: String,
     pub dirty: bool,
@@ -445,6 +441,7 @@ const LEGAL_FILES: &[(&str, &str)] = &[
 /// built and nothing is uploaded.
 pub fn bundles(root: &Path, env: &Env, profile: &str) -> Res<()> {
     windows::require_profile(profile)?;
+    let archive_password = crate::bundle_zip::archive_password()?;
     let host = public_host(env)?;
     let ca_cert = windows::public_ca(env)?;
     let bins = windows::build(profile, &ca_cert)?;
@@ -488,7 +485,7 @@ pub fn bundles(root: &Path, env: &Env, profile: &str) -> Res<()> {
             .into_iter()
             .map(|name| stage.join(name).display().to_string())
             .collect::<Vec<_>>();
-        crate::bundle_zip::write_archive(&archive, &files, ARCHIVE_PASSWORD)?;
+        crate::bundle_zip::write_archive(&archive, &files, &archive_password)?;
         println!("[windows] {channel} archive: {}", archive.display());
     }
     Ok(())

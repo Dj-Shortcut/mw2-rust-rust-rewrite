@@ -17,8 +17,7 @@ Claim the next task in its GitHub issue before editing, reporting the branch and
 owned files. Check existing issues and PRs to avoid duplicate work. Use isolated
 worktrees or checkouts; never push to another agent's branch. Keep unrelated work
 in separate PRs; a focused correction may use a clearly identified stacked PR.
-For the current rail milestone, Codex owns native presentation and integration
-while Claude owns rail gameplay and checked saves in issue #16/PR #18.
+Task ownership lives in each open issue and its PR, not in this document.
 Preserve shared public APIs and agree on any ownership change in the issue.
 Issue creation alone does not establish another agent's acknowledgement or work.
 
