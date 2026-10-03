@@ -1163,7 +1163,7 @@ impl Session {
             blueprints: self.blueprints.clone(),
             clock: self.clock,
             worn: self.worn,
-            crates: self.crates.saved(),
+            crates: Some(self.crates.saved()),
             gathering: self.gathering.clone(),
             player: saved,
         };
@@ -1288,7 +1288,7 @@ impl Session {
         }
         verify_restored(&world, &player)?;
         let mut crates = self.crates.clone();
-        crates.restore(&scene.crates);
+        crates.restore(scene.crates.as_ref());
         if scene.worn.is_some_and(|item| !item.is_clothing()) {
             return Err("Only clothing can be worn".into());
         }

@@ -53,10 +53,16 @@ pub(crate) struct SavedSession {
     pub clock: WorldClock,
     #[serde(default)]
     pub worn: Option<Item>,
-    #[serde(default)]
-    pub crates: SavedCrates,
+    #[serde(default, deserialize_with = "present_crates")]
+    pub crates: Option<SavedCrates>,
     pub gathering: GatheringWorld,
     pub player: SavedPlayer,
+}
+
+fn present_crates<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<SavedCrates>, D::Error> {
+    SavedCrates::deserialize(deserializer).map(Some)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -210,7 +216,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     blueprints: Blueprints::default(),
                     clock: WorldClock::default(),
                     worn: None,
-                    crates: SavedCrates::default(),
+                    crates: None,
                     gathering: old.gathering,
                     player: SavedPlayer::v2_default(),
                 },
