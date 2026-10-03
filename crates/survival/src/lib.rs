@@ -87,6 +87,7 @@ pub struct Session {
     crafting: CraftQueue,
     blueprints: Blueprints,
     clock: WorldClock,
+    worn: Option<Item>,
 }
 
 impl Session {
@@ -349,6 +350,7 @@ impl Session {
             crafting: CraftQueue::default(),
             blueprints: Blueprints::default(),
             clock: WorldClock::default(),
+            worn: None,
         };
         session.advance(UserCmd {
             weapon: 1,
@@ -368,7 +370,7 @@ impl Session {
             .saturating_sub(self.queued_damage);
         self.queued_damage = 0;
         self.regrow_resources();
-        let was_freezing = self.clock.temperature() < FREEZING_CELSIUS;
+        let was_freezing = self.felt_temperature() < FREEZING_CELSIUS;
         self.clock.advance(0.017)?;
         let alive = after > 0;
         if alive {
@@ -410,7 +412,7 @@ impl Session {
         if healed > 0 {
             let _ = self.world.heal_player(LOCAL, healed);
         }
-        let temperature = self.clock.temperature();
+        let temperature = self.felt_temperature();
         if !was_freezing && temperature < FREEZING_CELSIUS {
             self.message = "You are freezing".into();
         }
@@ -458,6 +460,43 @@ impl Session {
 
     pub fn clock(&self) -> WorldClock {
         self.clock
+    }
+
+    pub fn worn(&self) -> Option<Item> {
+        self.worn
+    }
+
+    pub fn felt_temperature(&self) -> f32 {
+        self.clock.temperature() + self.worn.map_or(0., Item::warmth)
+    }
+
+    pub fn wear(&mut self, slot: usize) -> Result<(), String> {
+        self.require_alive()?;
+        let stack = self
+            .inventory
+            .stacks()
+            .get(slot)
+            .ok_or("No stack in that slot")?;
+        if !stack.item.is_clothing() {
+            return Err("That item cannot be worn".into());
+        }
+        let mut inventory = self.inventory.clone();
+        let taken = inventory.discard(slot, 1)?;
+        if let Some(old) = self.worn {
+            inventory.add(old, 1)?;
+        }
+        self.inventory = inventory;
+        self.worn = Some(taken.item);
+        self.message = format!("Wearing {}", taken.item.name().to_lowercase());
+        Ok(())
+    }
+
+    pub fn take_off(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        let item = self.worn.ok_or("Nothing is worn")?;
+        self.inventory.add(item, 1)?;
+        self.worn = None;
+        Ok(())
     }
 
     pub fn blueprints(&self) -> &Blueprints {
@@ -742,6 +781,14 @@ impl Session {
     }
 
     fn drop_loot(&mut self) -> Result<(), String> {
+        if let Some(item) = self.worn.take() {
+            if self.inventory.add(item, 1).is_err() {
+                let origin = self.world.player(LOCAL).ok_or("Player is missing")?.origin;
+                let mut worn = Inventory::default();
+                worn.add(item, 1)?;
+                bag_inventory(&self.world, origin, &mut worn, &mut self.loot)?;
+            }
+        }
         if self.inventory.stacks().is_empty() {
             return Ok(());
         }
@@ -1077,6 +1124,7 @@ impl Session {
             crafting: self.crafting.clone(),
             blueprints: self.blueprints.clone(),
             clock: self.clock,
+            worn: self.worn,
             gathering: self.gathering.clone(),
             player: saved,
         };
@@ -1200,6 +1248,12 @@ impl Session {
             return Err(format!("Restoring the player failed: {fault}"));
         }
         verify_restored(&world, &player)?;
+        if scene.worn.is_some_and(|item| !item.is_clothing()) {
+            return Err("Only clothing can be worn".into());
+        }
+        if !player.alive && scene.worn.is_some() {
+            return Err("A dead player cannot wear clothing".into());
+        }
         if !player.alive && !scene.crafting.jobs().is_empty() {
             return Err("A dead player cannot have queued crafting".into());
         }
@@ -1231,6 +1285,7 @@ impl Session {
         self.crafting = scene.crafting;
         self.blueprints = scene.blueprints;
         self.clock = scene.clock;
+        self.worn = scene.worn;
         Ok(())
     }
 }
