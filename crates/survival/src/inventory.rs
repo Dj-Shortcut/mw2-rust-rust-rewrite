@@ -36,10 +36,11 @@ pub enum Item {
     Bait,
     Fertilizer,
     BerryTea,
+    Raincoat,
 }
 
 impl Item {
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 18] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
@@ -57,6 +58,7 @@ impl Item {
         Self::Bait,
         Self::Fertilizer,
         Self::BerryTea,
+        Self::Raincoat,
     ];
 
     pub fn name(self) -> &'static str {
@@ -78,17 +80,22 @@ impl Item {
             Self::Bait => "Fishing bait",
             Self::Fertilizer => "Fertilizer",
             Self::BerryTea => "Berry tea",
+            Self::Raincoat => "Raincoat",
         }
     }
 
     pub fn is_clothing(self) -> bool {
-        matches!(self, Self::Jacket | Self::HazmatSuit)
+        matches!(self, Self::Jacket | Self::HazmatSuit | Self::Raincoat)
+    }
+
+    pub fn rain_proof(self) -> bool {
+        self == Self::Raincoat
     }
 
     pub fn warmth(self) -> f32 {
         match self {
             Self::Jacket => 8.,
-            Self::HazmatSuit => 2.,
+            Self::HazmatSuit | Self::Raincoat => 2.,
             _ => 0.,
         }
     }
@@ -112,7 +119,12 @@ impl Item {
             Self::Ammo => 60,
             Self::Food | Self::BerrySeeds | Self::Bait | Self::Fertilizer => 20,
             Self::Syringe => 5,
-            Self::Hatchet | Self::Pickaxe | Self::Jacket | Self::FishingRod | Self::HazmatSuit => 1,
+            Self::Hatchet
+            | Self::Pickaxe
+            | Self::Jacket
+            | Self::FishingRod
+            | Self::HazmatSuit
+            | Self::Raincoat => 1,
         }
     }
 }
@@ -491,6 +503,7 @@ impl Inventory {
             | Item::Jacket
             | Item::FishingRod
             | Item::HazmatSuit
+            | Item::Raincoat
             | Item::BerrySeeds
             | Item::Bait
             | Item::Fertilizer => {
