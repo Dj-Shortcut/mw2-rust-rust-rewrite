@@ -8,6 +8,7 @@ pub const HARVEST_FOOD: u32 = 5;
 pub const HARVEST_SEEDS: u32 = 2;
 pub const FERTILIZER_SECONDS: f32 = 300.;
 pub const FERTILIZER_PER_FISH: u32 = 2;
+pub const RAIN_GROWTH: f32 = 1.5;
 const LAYOUT: [[f32; 2]; 3] = [[180., 160.], [260., 160.], [340., 160.]];
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -168,14 +169,19 @@ impl Garden {
         }
     }
 
-    pub(crate) fn advance(&mut self, dt_seconds: f32) -> Result<bool, String> {
+    pub(crate) fn advance(&mut self, dt_seconds: f32, raining: bool) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Invalid growing time step".into());
         }
+        let grown = if raining {
+            dt_seconds * RAIN_GROWTH
+        } else {
+            dt_seconds
+        };
         let mut ripened = false;
         for plot in &mut self.plots {
             if let PlotState::Growing { remaining } = plot.state {
-                let left = remaining - dt_seconds;
+                let left = remaining - grown;
                 plot.state = if left <= 0. {
                     ripened = true;
                     PlotState::Ripe
