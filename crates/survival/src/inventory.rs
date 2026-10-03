@@ -30,10 +30,11 @@ pub enum Item {
     FishingRod,
     Fish,
     AntiRadPills,
+    HazmatSuit,
 }
 
 impl Item {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
@@ -45,6 +46,7 @@ impl Item {
         Self::FishingRod,
         Self::Fish,
         Self::AntiRadPills,
+        Self::HazmatSuit,
     ];
 
     pub fn name(self) -> &'static str {
@@ -60,15 +62,24 @@ impl Item {
             Self::FishingRod => "Fishing rod",
             Self::Fish => "Raw fish",
             Self::AntiRadPills => "Anti-radiation pills",
+            Self::HazmatSuit => "Hazmat suit",
         }
     }
 
     pub fn is_clothing(self) -> bool {
-        self == Self::Jacket
+        matches!(self, Self::Jacket | Self::HazmatSuit)
     }
 
     pub fn warmth(self) -> f32 {
-        if self == Self::Jacket { 8. } else { 0. }
+        match self {
+            Self::Jacket => 8.,
+            Self::HazmatSuit => 2.,
+            _ => 0.,
+        }
+    }
+
+    pub fn radiation_protection(self) -> f32 {
+        if self == Self::HazmatSuit { 0.75 } else { 0. }
     }
 
     pub fn is_tool(self) -> bool {
@@ -81,7 +92,7 @@ impl Item {
             Self::Ammo => 60,
             Self::Food => 20,
             Self::Syringe => 5,
-            Self::Hatchet | Self::Pickaxe | Self::Jacket | Self::FishingRod => 1,
+            Self::Hatchet | Self::Pickaxe | Self::Jacket | Self::FishingRod | Self::HazmatSuit => 1,
         }
     }
 }
@@ -96,10 +107,11 @@ pub enum Recipe {
     Jacket,
     FishingRod,
     AntiRadPills,
+    HazmatSuit,
 }
 
 impl Recipe {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Bandage,
         Self::Ammo,
         Self::Syringe,
@@ -108,6 +120,7 @@ impl Recipe {
         Self::Jacket,
         Self::FishingRod,
         Self::AntiRadPills,
+        Self::HazmatSuit,
     ];
 
     pub fn name(self) -> &'static str {
@@ -120,6 +133,7 @@ impl Recipe {
             Self::Jacket => "Padded jacket",
             Self::FishingRod => "Fishing rod",
             Self::AntiRadPills => "Anti-radiation pills",
+            Self::HazmatSuit => "Hazmat suit",
         }
     }
 
@@ -159,6 +173,11 @@ impl Recipe {
                 metal: 15,
                 ..Default::default()
             },
+            Self::HazmatSuit => Resources {
+                wood: 50,
+                metal: 40,
+                ..Default::default()
+            },
         }
     }
 
@@ -189,11 +208,12 @@ impl Recipe {
             Self::Jacket => 6.,
             Self::FishingRod => 5.,
             Self::AntiRadPills => 3.,
+            Self::HazmatSuit => 8.,
         }
     }
 
     pub fn needs_blueprint(self) -> bool {
-        matches!(self, Self::Syringe | Self::Pickaxe)
+        matches!(self, Self::Syringe | Self::Pickaxe | Self::HazmatSuit)
     }
 
     pub fn research_cost(self) -> Resources {
@@ -232,6 +252,7 @@ impl Recipe {
             Self::Jacket => (Item::Jacket, 1),
             Self::FishingRod => (Item::FishingRod, 1),
             Self::AntiRadPills => (Item::AntiRadPills, 1),
+            Self::HazmatSuit => (Item::HazmatSuit, 1),
         }
     }
 }
@@ -435,7 +456,7 @@ impl Inventory {
                 radiation: 50.,
                 ..Default::default()
             },
-            Item::Hatchet | Item::Pickaxe | Item::Jacket | Item::FishingRod => {
+            Item::Hatchet | Item::Pickaxe | Item::Jacket | Item::FishingRod | Item::HazmatSuit => {
                 return Err("That item cannot be used".into());
             }
         };
@@ -600,7 +621,7 @@ impl Vitals {
     }
 
     pub fn advance(&mut self, dt_seconds: f32, temperature: f32) -> Result<u32, String> {
-        self.advance_exposed(dt_seconds, temperature, false)
+        self.advance_with_exposure(dt_seconds, temperature, 0.)
     }
 
     pub fn advance_exposed(
@@ -609,13 +630,27 @@ impl Vitals {
         temperature: f32,
         irradiated: bool,
     ) -> Result<u32, String> {
+        let exposure = if irradiated { 1. } else { 0. };
+        self.advance_with_exposure(dt_seconds, temperature, exposure)
+    }
+
+    pub fn advance_with_exposure(
+        &mut self,
+        dt_seconds: f32,
+        temperature: f32,
+        exposure: f32,
+    ) -> Result<u32, String> {
         if !dt_seconds.is_finite() || !(0. ..=MAX_VITAL_SECONDS).contains(&dt_seconds) {
             return Err("Invalid survival time step".into());
         }
         if !temperature.is_finite() {
             return Err("Invalid temperature".into());
         }
+        if !exposure.is_finite() || !(0. ..=1.).contains(&exposure) {
+            return Err("Invalid radiation exposure".into());
+        }
         let dt = f64::from(dt_seconds);
+        let rise = RADIATION_PER_SECOND * f64::from(exposure);
         let hunger_rate = if temperature < COLD_CELSIUS {
             0.04
         } else {
@@ -627,14 +662,14 @@ impl Vitals {
             0.
         };
         let sick = f64::from(RADIATION_SICK);
-        let sick_time = if irradiated {
-            (dt - ((sick - self.radiation) / RADIATION_PER_SECOND).max(0.)).max(0.)
+        let sick_time = if rise > 0. {
+            (dt - ((sick - self.radiation) / rise).max(0.)).max(0.)
         } else {
             ((self.radiation - sick) / RADIATION_DECAY_PER_SECOND).clamp(0., dt)
         };
         let sickness = sick_time * RADIATION_DAMAGE_PER_SECOND;
-        self.radiation = if irradiated {
-            (self.radiation + dt * RADIATION_PER_SECOND).min(f64::from(MAX_RADIATION))
+        self.radiation = if rise > 0. {
+            (self.radiation + dt * rise).min(f64::from(MAX_RADIATION))
         } else {
             (self.radiation - dt * RADIATION_DECAY_PER_SECOND).max(0.)
         };

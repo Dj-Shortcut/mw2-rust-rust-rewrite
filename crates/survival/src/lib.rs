@@ -444,9 +444,9 @@ impl Session {
             self.message = "You entered a radiation zone".into();
         }
         self.irradiated = irradiated;
-        let damage = self
-            .vitals
-            .advance_exposed(0.017, temperature, irradiated)?;
+        let damage =
+            self.vitals
+                .advance_with_exposure(0.017, temperature, self.radiation_exposure())?;
         if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             self.world.queue_environment_damage(LOCAL, damage)?;
             self.queued_damage += damage;
@@ -498,6 +498,14 @@ impl Session {
 
     pub fn felt_temperature(&self) -> f32 {
         self.clock.temperature() + self.worn.map_or(0., Item::warmth)
+    }
+
+    pub fn radiation_exposure(&self) -> f32 {
+        if self.in_radiation_zone() {
+            1. - self.worn.map_or(0., Item::radiation_protection)
+        } else {
+            0.
+        }
     }
 
     pub fn in_radiation_zone(&self) -> bool {
