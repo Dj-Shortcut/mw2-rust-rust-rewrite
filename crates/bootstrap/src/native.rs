@@ -33,6 +33,37 @@ struct Controls {
     inventory_open: bool,
     recipe: usize,
     inventory_slot: usize,
+    capture_frames: u8,
+    captured: bool,
+    help: bool,
+    actions: Vec<WorldAction>,
+}
+
+enum WorldAction {
+    Gather,
+    PlaceProp(PropKind, f32),
+    RemoveProp,
+    Undo,
+    Redo,
+    PlaceBuilding(Kind, u8),
+    Door,
+    Save,
+    Load,
+    Respawn,
+}
+
+impl Controls {
+    fn queue(&mut self, action: WorldAction) {
+        if self.actions.len() < 16 {
+            self.actions.push(action);
+        }
+    }
+
+    fn neutral(&mut self) {
+        self.command.buttons = 0;
+        self.command.forwardmove = 0;
+        self.command.rightmove = 0;
+    }
 }
 
 #[derive(Resource, Default)]
@@ -81,6 +112,22 @@ struct EditorVisuals {
     templates: Vec<(PropKind, Handle<Mesh>, Handle<StandardMaterial>)>,
 }
 
+#[derive(Clone, PartialEq)]
+enum PlacementGhost {
+    Prop(PlacedObject, bool),
+    Building(Vec<([f32; 3], [f32; 3])>, bool),
+}
+
+#[derive(Resource)]
+struct PlacementVisuals {
+    ghost: Option<PlacementGhost>,
+    entities: Vec<Entity>,
+    cube: Handle<Mesh>,
+    valid: Handle<StandardMaterial>,
+    invalid: Handle<StandardMaterial>,
+    status: String,
+}
+
 #[derive(Component)]
 struct PlayerCamera;
 
@@ -123,7 +170,8 @@ const SAVE_PATH: &str = "iw4l-artifacts/survival/base.json";
 
 pub fn run() -> Result<(), String> {
     let assets = asset_directory()?;
-    let session = Session::new()?;
+    let mut session = Session::new()?;
+    session.message = "Gather resources, build, or create a skate park.".into();
     let mut app = App::new();
     app.insert_resource(GameSession(session))
         .init_resource::<Controls>()
@@ -163,6 +211,7 @@ pub fn run() -> Result<(), String> {
                 refresh_gathering,
                 present_skate,
                 hit_feedback,
+                refresh_placement,
                 update_hud,
                 update_inventory,
             )
@@ -397,6 +446,21 @@ fn setup(
         entities: Vec::new(),
         templates,
     });
+    let ghost_material = |color| StandardMaterial {
+        base_color: color,
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        ..default()
+    };
+    commands.insert_resource(PlacementVisuals {
+        ghost: None,
+        entities: Vec::new(),
+        cube: meshes.add(Cuboid::new(1., 1., 1.)),
+        valid: materials.add(ghost_material(Color::srgba(0.15, 1., 0.45, 0.42))),
+        invalid: materials.add(ghost_material(Color::srgba(1., 0.15, 0.12, 0.42))),
+        status: String::new(),
+    });
     commands.spawn((
         DirectionalLight {
             illuminance: 12000.,
@@ -535,7 +599,9 @@ fn input(
     if controls.inventory_open && pad_just_pressed(GamepadButton::East) {
         controls.inventory_open = false;
     }
-    let returned = window.focused && !controls.focused;
+    if window.focused && keys.just_pressed(KeyCode::F1) {
+        controls.help = !controls.help;
+    }
     controls.focused = window.focused;
     let active =
         window.focused && !controls.paused && !controls.inventory_open && controls.error.is_none();
@@ -548,26 +614,33 @@ fn input(
         inventory_input(&keys, pad, &mut controls, &mut game.0);
     }
     cursor.visible = !active;
-    cursor.grab_mode = if active && !returned {
+    let reacquired = active && !controls.captured;
+    controls.captured = active;
+    if reacquired {
+        controls.capture_frames = 2;
+    }
+    cursor.grab_mode = if active {
         CursorGrabMode::Locked
     } else {
         CursorGrabMode::None
     };
-    if !active || returned {
-        controls.command.buttons = 0;
-        controls.command.forwardmove = 0;
-        controls.command.rightmove = 0;
+    if !active || controls.capture_frames > 0 {
+        controls.capture_frames = controls.capture_frames.saturating_sub(1);
+        controls.neutral();
+        controls.actions.clear();
         game.0.skate_input = survival::SkateInput::default();
         return;
     }
+    if keys.just_pressed(KeyCode::F5) {
+        controls.queue(WorldAction::Save);
+    }
+    if keys.just_pressed(KeyCode::F9) {
+        controls.queue(WorldAction::Load);
+    }
     if game.0.world.player(LOCAL).is_none_or(|p| p.health <= 0) {
-        controls.command = UserCmd::default();
+        controls.neutral();
         if keys.just_pressed(KeyCode::Enter) || pad_just_pressed(GamepadButton::South) {
-            game.0.message = game
-                .0
-                .respawn()
-                .map(|()| "Respawn requested".into())
-                .unwrap_or_else(|e| e);
+            controls.queue(WorldAction::Respawn);
         }
         return;
     }
@@ -587,19 +660,7 @@ fn input(
         if keys.just_pressed(KeyCode::KeyF)
             || (pad_just_pressed(GamepadButton::North) && !skate_chord)
         {
-            game.0.message = game
-                .0
-                .gather_from_view()
-                .map(|harvest| {
-                    sound(&mut commands, &sounds.gather);
-                    format!(
-                        "{} +{} | {} remaining",
-                        harvest.kind.name(),
-                        harvest.amount,
-                        harvest.remaining
-                    )
-                })
-                .unwrap_or_else(|e| e);
+            controls.queue(WorldAction::Gather);
         }
     }
     survival_shortcuts(&keys, &mut game.0, controls.recipe);
@@ -613,9 +674,11 @@ fn input(
     controls.yaw =
         (controls.yaw - motion.delta.x * 0.1 - look.x * 220. * time.delta_secs() * sensitivity)
             .rem_euclid(360.);
-    controls.pitch = (controls.pitch + motion.delta.y * 0.1
+    let pitch_delta = game.0.world.player(LOCAL).map_or(0., |p| p.delta_angles[0]);
+    controls.pitch = (controls.pitch + pitch_delta + motion.delta.y * 0.1
         - look.y * 150. * time.delta_secs() * sensitivity)
-        .clamp(-89., 89.);
+        .clamp(-89., 89.)
+        - pitch_delta;
     if pad_just_pressed(GamepadButton::Select) {
         if game.0.skate.is_some() {
             let _ = game.0.toggle_skate();
@@ -684,65 +747,30 @@ fn input(
         }
         let control = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
         if control && keys.just_pressed(KeyCode::KeyZ) {
-            game.0.message = game
-                .0
-                .undo_props()
-                .map(|()| "Object change undone".into())
-                .unwrap_or_else(|e| e);
+            controls.queue(WorldAction::Undo);
         }
         if control && keys.just_pressed(KeyCode::KeyY) {
-            game.0.message = game
-                .0
-                .redo_props()
-                .map(|()| "Object change redone".into())
-                .unwrap_or_else(|e| e);
+            controls.queue(WorldAction::Redo);
         }
         if mouse.just_pressed(MouseButton::Left) || pad_just_pressed(GamepadButton::RightTrigger2) {
-            game.0.message = game
-                .0
-                .place_prop_from_view(PropKind::ALL[controls.prop_selection], controls.prop_yaw)
-                .map(|id| format!("Object {id} placed"))
-                .unwrap_or_else(|e| e);
+            let action =
+                WorldAction::PlaceProp(PropKind::ALL[controls.prop_selection], controls.prop_yaw);
+            controls.queue(action);
         }
         if mouse.just_pressed(MouseButton::Right) || pad_just_pressed(GamepadButton::West) {
-            game.0.message = game
-                .0
-                .remove_prop_from_view()
-                .map(|()| "Object removed".into())
-                .unwrap_or_else(|e| e);
+            controls.queue(WorldAction::RemoveProp);
         }
-    }
-    if keys.just_pressed(KeyCode::F5) {
-        game.0.message = game
-            .0
-            .save(Path::new(SAVE_PATH))
-            .map(|()| "Scene saved".into())
-            .unwrap_or_else(|e| e);
-    }
-    if keys.just_pressed(KeyCode::F9) {
-        game.0.message = game
-            .0
-            .load(Path::new(SAVE_PATH))
-            .map(|()| "Scene loaded".into())
-            .unwrap_or_else(|e| e);
     }
     if controls.building
         && (mouse.just_pressed(MouseButton::Left) || pad_just_pressed(GamepadButton::RightTrigger2))
     {
-        game.0.message = game
-            .0
-            .place_from_view(KINDS[controls.selection], controls.axis)
-            .map(|id| format!("Building piece {id} placed"))
-            .unwrap_or_else(|e| e);
+        let action = WorldAction::PlaceBuilding(KINDS[controls.selection], controls.axis);
+        controls.queue(action);
     }
     if controls.building
         && (mouse.just_pressed(MouseButton::Right) || pad_just_pressed(GamepadButton::West))
     {
-        game.0.message = game
-            .0
-            .toggle_door_from_view()
-            .map(|()| "Door toggled".into())
-            .unwrap_or_else(|e| e);
+        controls.queue(WorldAction::Door);
     }
     let held = |key| i8::from(keys.pressed(key));
     let movement = pad.map_or(Vec2::ZERO, |pad| filtered_stick(pad.left_stick()));
@@ -1075,6 +1103,7 @@ fn advance(
         .map_or(0, |p| p.health);
     if let Err(error) = game.0.advance(controls.command) {
         controls.error = Some(format!("Simulation stopped: {error}"));
+        controls.actions.clear();
         return;
     }
     let fired = (before - game.0.ammo().0).max(0) as f32;
@@ -1132,6 +1161,193 @@ fn advance(
             }
         }
     }
+    for action in std::mem::take(&mut controls.actions) {
+        if game.0.world.player(LOCAL).is_none_or(|p| p.health <= 0)
+            && !matches!(
+                &action,
+                WorldAction::Save | WorldAction::Load | WorldAction::Respawn
+            )
+        {
+            continue;
+        }
+        let loading = matches!(&action, WorldAction::Load);
+        let result = match action {
+            WorldAction::Gather => game.0.gather_from_view().map(|harvest| {
+                sound(&mut commands, &sounds.gather);
+                format!(
+                    "{} +{} | {} remaining",
+                    harvest.kind.name(),
+                    harvest.amount,
+                    harvest.remaining
+                )
+            }),
+            WorldAction::PlaceProp(kind, yaw) => game
+                .0
+                .place_prop_from_view(kind, yaw)
+                .map(|id| format!("Object {id} placed")),
+            WorldAction::RemoveProp => game
+                .0
+                .remove_prop_from_view()
+                .map(|()| "Object removed".into()),
+            WorldAction::Undo => game.0.undo_props().map(|()| "Object change undone".into()),
+            WorldAction::Redo => game.0.redo_props().map(|()| "Object change redone".into()),
+            WorldAction::PlaceBuilding(kind, axis) => game
+                .0
+                .place_from_view(kind, axis)
+                .map(|id| format!("Building piece {id} placed")),
+            WorldAction::Door => game
+                .0
+                .toggle_door_from_view()
+                .map(|()| "Door toggled".into()),
+            WorldAction::Save => game
+                .0
+                .save(Path::new(SAVE_PATH))
+                .map(|()| "Session saved".into()),
+            WorldAction::Load => game.0.load(Path::new(SAVE_PATH)).map(|()| {
+                if let Some(player) = game.0.world.player(LOCAL) {
+                    // Dead movement retains its last accepted command. Keep that
+                    // history so the next scripted spawn rebases the view correctly.
+                    let angles = if player.health <= 0 {
+                        game.0
+                            .world
+                            .old_cmd_angles(LOCAL)
+                            .unwrap_or(controls.command.angles)
+                    } else {
+                        std::array::from_fn(|k| {
+                            ((player.viewangles[k] - player.delta_angles[k]) * 65536. / 360.)
+                                .round() as i32
+                        })
+                    };
+                    controls.pitch = angles[0] as f32 * (360. / 65536.);
+                    controls.yaw = (angles[1] as f32 * (360. / 65536.)).rem_euclid(360.);
+                    controls.command = UserCmd {
+                        angles,
+                        weapon: player.weapon as u16,
+                        ..default()
+                    };
+                }
+                controls.building = false;
+                controls.editor = false;
+                sounds.step_distance = 0.;
+                *feedback = WeaponFeedback::default();
+                "Session loaded".into()
+            }),
+            WorldAction::Respawn => game.0.respawn().map(|()| "Respawn requested".into()),
+        };
+        let loaded = loading && result.is_ok();
+        game.0.message = result.unwrap_or_else(|error| error);
+        if loaded {
+            break;
+        }
+    }
+}
+
+fn refresh_placement(
+    mut commands: Commands,
+    game: Res<GameSession>,
+    controls: Res<Controls>,
+    editor: Res<EditorVisuals>,
+    mut visuals: ResMut<PlacementVisuals>,
+) {
+    let active = controls.focused
+        && !controls.paused
+        && !controls.inventory_open
+        && controls.error.is_none()
+        && game.0.skate.is_none()
+        && game.0.world.player(LOCAL).is_some_and(|p| p.health > 0);
+    let (ghost, status) = if active && controls.editor {
+        let preview = game
+            .0
+            .preview_prop_from_view(PropKind::ALL[controls.prop_selection], controls.prop_yaw);
+        let valid = preview.valid();
+        let status = preview
+            .error
+            .unwrap_or_else(|| "Ready to place | LMB / Xbox RT".into());
+        (
+            preview
+                .object
+                .map(|object| PlacementGhost::Prop(object, valid)),
+            status,
+        )
+    } else if active && controls.building {
+        let preview = game
+            .0
+            .preview_building_from_view(KINDS[controls.selection], controls.axis);
+        let valid = preview.valid();
+        let status = format!(
+            "Cost: wood {} / stone {} / metal {}\n{}",
+            preview.cost.wood,
+            preview.cost.stone,
+            preview.cost.metal,
+            preview
+                .error
+                .unwrap_or_else(|| "Ready to place | LMB / Xbox RT".into())
+        );
+        (
+            (!preview.bounds.is_empty()).then_some(PlacementGhost::Building(preview.bounds, valid)),
+            status,
+        )
+    } else {
+        (None, String::new())
+    };
+    visuals.status = status;
+    if ghost == visuals.ghost {
+        return;
+    }
+    for entity in visuals.entities.drain(..) {
+        commands.entity(entity).despawn();
+    }
+    if let Some(ghost) = &ghost {
+        let valid = match ghost {
+            PlacementGhost::Prop(_, valid) | PlacementGhost::Building(_, valid) => *valid,
+        };
+        let material = if valid {
+            &visuals.valid
+        } else {
+            &visuals.invalid
+        }
+        .clone();
+        let mut spawn = |mesh, transform| {
+            commands
+                .spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(material.clone()),
+                    transform,
+                    bevy::light::NotShadowCaster,
+                    bevy::light::NotShadowReceiver,
+                ))
+                .id()
+        };
+        match ghost {
+            PlacementGhost::Prop(object, _) => {
+                if let Some((_, mesh, _)) = editor
+                    .templates
+                    .iter()
+                    .find(|(kind, _, _)| *kind == object.kind)
+                {
+                    let entity = spawn(
+                        mesh.clone(),
+                        Transform::from_translation(point(object.position))
+                            .with_rotation(Quat::from_rotation_y(object.yaw.to_radians())),
+                    );
+                    visuals.entities.push(entity);
+                }
+            }
+            PlacementGhost::Building(bounds, _) => {
+                for (lo, hi) in bounds {
+                    let center = std::array::from_fn(|i| (lo[i] + hi[i]) * 0.5);
+                    let size =
+                        Vec3::new(hi[0] - lo[0], hi[2] - lo[2], hi[1] - lo[1]) * UNITS_TO_METERS;
+                    let entity = spawn(
+                        visuals.cube.clone(),
+                        Transform::from_translation(point(center)).with_scale(size),
+                    );
+                    visuals.entities.push(entity);
+                }
+            }
+        }
+    }
+    visuals.ghost = ghost;
 }
 
 fn present(
@@ -1160,13 +1376,15 @@ fn present(
     if let Some(player) = game.0.world.player(LOCAL) {
         let skating = game.0.skate.is_some();
         let pitch = if skating {
-            controls.pitch
+            (controls.command.angles[0] as f32 * (360. / 65536.) + player.delta_angles[0])
+                .clamp(-89., 89.)
         } else {
             player.viewangles[0]
         }
         .to_radians();
         let yaw = if skating {
-            controls.yaw
+            (controls.command.angles[1] as f32 * (360. / 65536.) + player.delta_angles[1])
+                .rem_euclid(360.)
         } else {
             player.viewangles[1]
         }
@@ -1367,17 +1585,13 @@ fn update_hud(
     game: Res<GameSession>,
     controls: Res<Controls>,
     models: Res<NativeModels>,
+    placement: Res<PlacementVisuals>,
     mut hud: Query<&mut Text, With<StatusText>>,
 ) {
     let player = game.0.world.player(LOCAL);
     let health = player.map_or(0, |p| p.health);
     let resources = game.0.world.buildings().inventory(LOCAL.0);
     let (clip, reserve) = game.0.ammo();
-    let target = game
-        .0
-        .world
-        .player(sim::ClientId(1))
-        .map_or(0, |p| p.health);
     let mode = if health <= 0 {
         "DEAD | Enter / Xbox A to respawn".into()
     } else if controls.inventory_open {
@@ -1438,16 +1652,47 @@ fn update_hud(
             );
             continue;
         }
-        **text = format!(
-            "SURVIVAL / FPS / SKATE\n{mode}\nHealth {health}  Ammo {clip}/{reserve}  Target {target}\nHunger {:.0}  Thirst {:.0}  Wood {}  Stone {}  Metal {}\nWASD move | Shift sprint | Space jump | Ctrl crouch\n{mode_controls}\nTab inventory | C craft | H bandage | J food | K water | U ammo\nF5 save / F9 load | Esc release mouse\n{pad_controls}{}\n{}\n{}",
+        let mut content = format!(
+            "{mode}\nHealth {health}  Ammo {clip}/{reserve}  Hunger {:.0}  Thirst {:.0}\nWood {}  Stone {}  Metal {}",
             game.0.vitals.hunger(),
             game.0.vitals.thirst(),
             resources.wood,
             resources.stone,
             resources.metal,
-            models.status,
-            game.0.message,
-            controls.error.as_deref().unwrap_or("")
         );
+        if !placement.status.is_empty() {
+            content.push_str(&format!("\n{}", placement.status));
+        }
+        if health > 0
+            && controls.focused
+            && !controls.paused
+            && controls.error.is_none()
+            && !controls.building
+            && !controls.editor
+            && game.0.skate.is_none()
+            && let Ok(Some(node)) = game.0.gather_target_from_view()
+        {
+            content.push_str(&format!(
+                "\n{} | {} remaining | F / Xbox Y to gather",
+                node.kind.name(),
+                node.remaining
+            ));
+        }
+        content.push_str(&format!(
+            "\n{}\nF1 controls | Tab inventory | F5 save / F9 load",
+            game.0.message
+        ));
+        if models.status != "Models loaded" {
+            content.push_str(&format!("\n{}", models.status));
+        }
+        if let Some(error) = &controls.error {
+            content.push_str(&format!("\n{error}"));
+        }
+        if controls.help {
+            content.push_str(&format!(
+                "\n\nCONTROLS\nWASD move | Shift sprint | Space jump | Ctrl crouch\n{mode_controls}\nTab inventory | C craft | H bandage | J food | K water | U ammo\nEsc pause / release mouse | F1 hide controls\n{pad_controls}"
+            ));
+        }
+        **text = content;
     }
 }

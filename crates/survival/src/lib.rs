@@ -1,5 +1,5 @@
 use playerstate_iw4::UserCmd;
-use rust_building::{BuildingWorld, CELL, Kind, Resources, Socket, WALL_HEIGHT};
+use rust_building::{BuildingWorld, CELL, Grade, Kind, Piece, Resources, Socket, WALL_HEIGHT};
 use sim::{ClientId, SimBrush, SimContentBuilder, SimWorld, Tick, TickInput};
 use std::path::Path;
 mod editor;
@@ -27,6 +27,34 @@ const SPAWN_POINTS: [[f32; 3]; 5] = [
 ];
 const PLAYER_MINS: [f32; 3] = [-15., -15., 0.];
 const PLAYER_MAXS: [f32; 3] = [15., 15., 70.];
+
+#[derive(Clone, Debug)]
+pub struct PropPlacementPreview {
+    pub object: Option<PlacedObject>,
+    pub error: Option<String>,
+}
+
+impl PropPlacementPreview {
+    pub fn valid(&self) -> bool {
+        self.object.is_some() && self.error.is_none()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BuildingPlacementPreview {
+    pub kind: Kind,
+    pub socket: Option<Socket>,
+    pub bounds: Vec<([f32; 3], [f32; 3])>,
+    pub cost: Resources,
+    pub resources: Resources,
+    pub error: Option<String>,
+}
+
+impl BuildingPlacementPreview {
+    pub fn valid(&self) -> bool {
+        self.socket.is_some() && self.error.is_none()
+    }
+}
 
 pub struct Session {
     pub world: SimWorld,
@@ -59,14 +87,65 @@ impl Session {
         )
     }
 
-    pub fn place_prop_from_view(&mut self, kind: PropKind, yaw: f32) -> Result<u32, String> {
-        let (start, end) = self.view_ray()?;
-        let hit = self.world.trace_world(start, end, [0.; 3], [0.; 3], 1);
-        if hit.startsolid != 0 || hit.fraction >= 1. || hit.normal[2] < 0.7 {
-            return Err("Aim at a flat surface within reach".into());
+    pub fn preview_prop_from_view(&self, kind: PropKind, yaw: f32) -> PropPlacementPreview {
+        self.prop_placement_from_view(kind, yaw).0
+    }
+
+    fn prop_placement_from_view(
+        &self,
+        kind: PropKind,
+        yaw: f32,
+    ) -> (PropPlacementPreview, Option<PlacedObject>) {
+        let mut preview = PropPlacementPreview {
+            object: None,
+            error: None,
+        };
+        let candidate = (|| {
+            let (start, end) = self.view_ray()?;
+            let hit = self.world.trace_world(start, end, [0.; 3], [0.; 3], 1);
+            if hit.startsolid != 0 || hit.fraction >= 1. {
+                return Err("Aim at a flat surface within reach".into());
+            }
+            preview.object = Some(PlacedObject {
+                id: 0,
+                kind,
+                position: hit.endpos,
+                yaw: if yaw.is_finite() {
+                    yaw.rem_euclid(360.)
+                } else {
+                    0.
+                },
+            });
+            if hit.normal[2] < 0.7 {
+                return Err("Aim at a flat surface within reach".into());
+            }
+            let object = self.editor.placement_candidate(kind, hit.endpos, yaw)?;
+            preview.object = Some(object.clone());
+            if props_overlap_players(&self.world, &self.editor)
+                || brushes_overlap_players(&self.world, &object.brushes())
+            {
+                return Err("Editor object overlaps a player".into());
+            }
+            Ok(object)
+        })();
+        match candidate {
+            Ok(candidate) => (preview, Some(candidate)),
+            Err(error) => {
+                preview.error = Some(error);
+                (preview, None)
+            }
         }
+    }
+
+    pub fn place_prop_from_view(&mut self, kind: PropKind, yaw: f32) -> Result<u32, String> {
+        let (preview, candidate) = self.prop_placement_from_view(kind, yaw);
+        let object = candidate.ok_or_else(|| {
+            preview
+                .error
+                .unwrap_or_else(|| "No editor placement target".into())
+        })?;
         let mut editor = self.editor.clone();
-        let id = editor.place(kind, hit.endpos, yaw)?;
+        let id = editor.place(object.kind, object.position, object.yaw)?;
         self.install_editor(editor)?;
         Ok(id)
     }
@@ -249,14 +328,25 @@ impl Session {
         Ok(())
     }
 
-    pub fn gather_from_view(&mut self) -> Result<Harvest, String> {
+    fn gathering_ray_from_view(&self) -> Result<([f32; 3], [f32; 3], f32), String> {
         let (start, end) = self.view_ray()?;
         let obstacle = self.world.trace_world(start, end, [0.; 3], [0.; 3], 1);
         if obstacle.startsolid != 0 {
             return Err("Cannot gather through a solid object".into());
         }
+        Ok((start, end, obstacle.fraction))
+    }
+
+    pub fn gather_target_from_view(&self) -> Result<Option<&ResourceNode>, String> {
+        let (start, end, obstacle_fraction) = self.gathering_ray_from_view()?;
+        self.gathering
+            .target_from_ray(start, end, obstacle_fraction)
+    }
+
+    pub fn gather_from_view(&mut self) -> Result<Harvest, String> {
+        let (start, end, obstacle_fraction) = self.gathering_ray_from_view()?;
         let mut gathering = self.gathering.clone();
-        let harvested = gathering.harvest_from_ray(start, end, obstacle.fraction)?;
+        let harvested = gathering.harvest_from_ray(start, end, obstacle_fraction)?;
         let mut inventory = self.inventory.clone();
         match harvested.kind {
             ResourceKind::Berry => inventory.add(Item::Food, harvested.amount)?,
@@ -355,84 +445,139 @@ impl Session {
         ))
     }
 
-    pub fn place_from_view(&mut self, kind: Kind, axis: u8) -> Result<u32, String> {
-        let (start, end) = self.view_ray()?;
-        let hit = self.world.trace_world(start, end, [0.; 3], [0.; 3], 1);
-        if hit.fraction >= 1. || hit.startsolid != 0 {
-            return Err("Aim at ground or a building within reach".into());
-        }
-        let anchor = self.world.buildings().anchor;
-        let pos =
-            std::array::from_fn::<_, 3, _>(|k| hit.endpos[k] + hit.normal[k] * 0.2 - anchor[k]);
-        let deck = matches!(kind, Kind::Foundation | Kind::Floor);
-        let axis = if deck { 0 } else { axis % 2 };
-        let socket = Socket {
-            x: if !deck && axis == 1 {
-                (pos[0] / CELL).round() as i32
-            } else {
-                (pos[0] / CELL).floor() as i32
-            },
-            y: if !deck && axis == 0 {
-                (pos[1] / CELL).round() as i32
-            } else {
-                (pos[1] / CELL).floor() as i32
-            },
-            level: if kind == Kind::Foundation {
-                0
-            } else {
-                (pos[2] / WALL_HEIGHT).round().max(0.) as i32
-            },
-            axis,
+    pub fn preview_building_from_view(&self, kind: Kind, axis: u8) -> BuildingPlacementPreview {
+        self.building_placement_from_view(kind, axis).0
+    }
+
+    fn building_placement_from_view(
+        &self,
+        kind: Kind,
+        axis: u8,
+    ) -> (BuildingPlacementPreview, Option<(Socket, bool)>) {
+        let mut preview = BuildingPlacementPreview {
+            kind,
+            socket: None,
+            bounds: Vec::new(),
+            cost: Grade::Wood.cost(kind),
+            resources: self.world.buildings().inventory(LOCAL.0),
+            error: None,
         };
-        let mut candidate = self.world.buildings().clone();
-        let grounded = if kind == Kind::Foundation {
-            [(0.1, 0.1), (0.9, 0.1), (0.1, 0.9), (0.9, 0.9)]
-                .iter()
-                .all(|&(x, y)| {
-                    let p = [
-                        anchor[0] + (socket.x as f32 + x) * CELL,
-                        anchor[1] + (socket.y as f32 + y) * CELL,
-                        anchor[2],
-                    ];
-                    let tr = self.world.trace_static_world(
-                        [p[0], p[1], p[2] + 16.],
-                        [p[0], p[1], p[2] - 16.],
-                        [0.; 3],
-                        [0.; 3],
-                        1,
-                    );
-                    tr.fraction < 1.
-                        && tr.startsolid == 0
-                        && tr.normal[2] >= 0.7
-                        && (tr.endpos[2] - p[2]).abs() <= 1.
-                })
-        } else {
-            false
-        };
-        let id = candidate
-            .place(LOCAL.0, kind, socket, grounded)
-            .map_err(|e| e.to_string())?;
-        if overlaps_players(&self.world, &candidate) {
-            return Err("Building overlaps a player".into());
-        }
-        if kind != Kind::Foundation {
-            let piece = candidate.piece(id).ok_or("Building was not created")?;
-            for (lo, hi) in candidate.bounds(piece) {
-                let center = std::array::from_fn(|k| (lo[k] + hi[k]) * 0.5);
-                let mins = std::array::from_fn(|k| lo[k] - center[k] + 0.5);
-                let maxs = std::array::from_fn(|k| hi[k] - center[k] - 0.5);
-                if self
-                    .world
-                    .trace_static_world(center, center, mins, maxs, 1)
-                    .startsolid
-                    != 0
+        let candidate = (|| {
+            let (start, end) = self.view_ray()?;
+            let hit = self.world.trace_world(start, end, [0.; 3], [0.; 3], 1);
+            if hit.fraction >= 1. || hit.startsolid != 0 {
+                return Err("Aim at ground or a building within reach".into());
+            }
+            let buildings = self.world.buildings();
+            let anchor = buildings.anchor;
+            let pos =
+                std::array::from_fn::<_, 3, _>(|k| hit.endpos[k] + hit.normal[k] * 0.2 - anchor[k]);
+            let deck = matches!(kind, Kind::Foundation | Kind::Floor);
+            let axis = if deck { 0 } else { axis % 2 };
+            let socket = Socket {
+                x: if !deck && axis == 1 {
+                    (pos[0] / CELL).round() as i32
+                } else {
+                    (pos[0] / CELL).floor() as i32
+                },
+                y: if !deck && axis == 0 {
+                    (pos[1] / CELL).round() as i32
+                } else {
+                    (pos[1] / CELL).floor() as i32
+                },
+                level: if kind == Kind::Foundation {
+                    0
+                } else {
+                    (pos[2] / WALL_HEIGHT).round().max(0.) as i32
+                },
+                axis,
+            };
+            preview.socket = Some(socket);
+            let piece = Piece {
+                id: 0,
+                owner: LOCAL.0,
+                kind,
+                grade: Grade::Wood,
+                socket,
+                health: Grade::Wood.health(),
+                open: false,
+            };
+            preview.bounds = buildings.bounds(&piece);
+            let grounded = if kind == Kind::Foundation {
+                [(0.1, 0.1), (0.9, 0.1), (0.1, 0.9), (0.9, 0.9)]
+                    .iter()
+                    .all(|&(x, y)| {
+                        let p = [
+                            anchor[0] + (socket.x as f32 + x) * CELL,
+                            anchor[1] + (socket.y as f32 + y) * CELL,
+                            anchor[2],
+                        ];
+                        let tr = self.world.trace_static_world(
+                            [p[0], p[1], p[2] + 16.],
+                            [p[0], p[1], p[2] - 16.],
+                            [0.; 3],
+                            [0.; 3],
+                            1,
+                        );
+                        tr.fraction < 1.
+                            && tr.startsolid == 0
+                            && tr.normal[2] >= 0.7
+                            && (tr.endpos[2] - p[2]).abs() <= 1.
+                    })
+            } else {
+                false
+            };
+            buildings
+                .can_place(LOCAL.0, kind, socket, grounded)
+                .map_err(|error| error.to_string())?;
+            let mut player_overlap = overlaps_players(&self.world, buildings);
+            self.world.visit_players(|_, player| {
+                if player.health > 0
+                    && buildings.overlaps_piece(&piece, player.origin, PLAYER_MINS, PLAYER_MAXS)
                 {
-                    return Err("Building overlaps terrain".into());
+                    player_overlap = true;
+                }
+            });
+            if player_overlap {
+                return Err("Building overlaps a player".into());
+            }
+            if kind != Kind::Foundation {
+                for (lo, hi) in &preview.bounds {
+                    let center = std::array::from_fn(|k| (lo[k] + hi[k]) * 0.5);
+                    let mins = std::array::from_fn(|k| lo[k] - center[k] + 0.5);
+                    let maxs = std::array::from_fn(|k| hi[k] - center[k] - 0.5);
+                    if self
+                        .world
+                        .trace_static_world(center, center, mins, maxs, 1)
+                        .startsolid
+                        != 0
+                    {
+                        return Err("Building overlaps terrain".into());
+                    }
                 }
             }
+            Ok((socket, grounded))
+        })();
+        match candidate {
+            Ok(candidate) => (preview, Some(candidate)),
+            Err(error) => {
+                preview.error = Some(error);
+                (preview, None)
+            }
         }
-        *self.world.buildings_mut() = candidate;
-        Ok(id)
+    }
+
+    pub fn place_from_view(&mut self, kind: Kind, axis: u8) -> Result<u32, String> {
+        let (preview, candidate) = self.building_placement_from_view(kind, axis);
+        let (socket, grounded) = candidate.ok_or_else(|| {
+            preview
+                .error
+                .unwrap_or_else(|| "No building placement target".into())
+        })?;
+        self.world
+            .buildings_mut()
+            .place(LOCAL.0, kind, socket, grounded)
+            .map_err(|error| error.to_string())
     }
 
     pub fn toggle_door_from_view(&mut self) -> Result<(), String> {
