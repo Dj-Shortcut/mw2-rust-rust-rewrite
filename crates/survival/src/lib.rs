@@ -14,7 +14,9 @@ pub use editor::{EditorState, Geometry, PlacedObject, PropKind, RailSegment};
 pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
 };
-pub use inventory::{BLEED_THRESHOLD, Inventory, Item, MAX_BLEED, Recipe, Stack, Vitals};
+pub use inventory::{
+    BLEED_THRESHOLD, Inventory, Item, MAX_BLEED, MAX_REGEN, Recipe, Stack, Vitals,
+};
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use terrain::Terrain;
@@ -294,6 +296,10 @@ impl Session {
         }
         self.skate_input.ollie = false;
         self.skate_input.flip = false;
+        let healed = self.vitals.regenerate(0.017);
+        if healed > 0 {
+            let _ = self.world.heal_player(LOCAL, healed);
+        }
         let damage = self.vitals.advance(0.017)?;
         if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             self.world.queue_environment_damage(LOCAL, damage)?;
