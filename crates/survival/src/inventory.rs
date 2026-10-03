@@ -353,10 +353,13 @@ impl Vitals {
         self.regen as f32
     }
 
-    pub fn regenerate(&mut self, dt_seconds: f32) -> u32 {
+    pub fn regenerate(&mut self, dt_seconds: f32) -> Result<u32, String> {
+        if !dt_seconds.is_finite() || !(0. ..=MAX_VITAL_SECONDS).contains(&dt_seconds) {
+            return Err("Invalid survival time step".into());
+        }
         let before = self.regen.ceil();
         self.regen = (self.regen - f64::from(dt_seconds) * REGEN_PER_SECOND).max(0.);
-        (before - self.regen.ceil()) as u32
+        Ok((before - self.regen.ceil()) as u32)
     }
 
     pub fn wound(&mut self, damage: u32) {

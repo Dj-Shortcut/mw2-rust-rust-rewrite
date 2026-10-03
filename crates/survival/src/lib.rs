@@ -389,7 +389,7 @@ impl Session {
         }
         self.skate_input.ollie = false;
         self.skate_input.flip = false;
-        let healed = self.vitals.regenerate(0.017);
+        let healed = self.vitals.regenerate(0.017)?;
         if healed > 0 {
             let _ = self.world.heal_player(LOCAL, healed);
         }
