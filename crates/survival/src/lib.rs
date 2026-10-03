@@ -23,7 +23,10 @@ pub use airdrop::{
     Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, FIRST_DROP_SECONDS, SupplyDrop,
 };
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
-pub use cooking::{CAMPFIRE_REACH, COOK_SECONDS, COOK_WOOD, Campfire, Campfires, FireState};
+pub use cooking::{
+    CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COOK_SECONDS, COOK_WOOD, Campfire,
+    Campfires, FireState,
+};
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{
     CRATE_REACH, CrateTier, HACK_SECONDS, LockState, LockedCrate, LootCrate, LootCrates,
@@ -108,6 +111,7 @@ pub struct Session {
     weather: Weather,
     worn: Option<Item>,
     freezing: bool,
+    warming: bool,
     irradiated: bool,
     crates: LootCrates,
     campfires: Campfires,
@@ -384,6 +388,7 @@ impl Session {
             weather: Weather::default(),
             worn: None,
             freezing: false,
+            warming: false,
             irradiated: false,
             crates,
             campfires,
@@ -421,6 +426,7 @@ impl Session {
             self.vitals.wound(external);
         } else {
             self.freezing = false;
+            self.warming = false;
             self.irradiated = false;
             self.fishing = None;
             self.refund_crafting()?;
@@ -471,6 +477,21 @@ impl Session {
         }
         self.skate_input.ollie = false;
         self.skate_input.flip = false;
+        // After skating moves the player; never replaces an event message from this tick.
+        let warming = self.near_campfire();
+        let event = unlocked
+            || cooked
+            || ripened
+            || drops.lost
+            || weather_changed
+            || matches!(
+                self.last_skate_event,
+                SkateEvent::Bailed | SkateEvent::Landed { .. }
+            );
+        if warming && !self.warming && !event {
+            self.message = "You warm up by the campfire".into();
+        }
+        self.warming = warming;
         if let Some(recipe) = self.crafting.advance(0.017, &mut self.inventory)? {
             self.message = format!("Crafted {}", recipe.name());
         }
@@ -555,7 +576,19 @@ impl Session {
     }
 
     pub fn felt_temperature(&self) -> f32 {
-        self.clock.temperature() - self.weather.chill() + self.worn.map_or(0., Item::warmth)
+        let fire = if self.near_campfire() {
+            CAMPFIRE_WARMTH
+        } else {
+            0.
+        };
+        self.clock.temperature() - self.weather.chill() + self.worn.map_or(0., Item::warmth) + fire
+    }
+
+    pub fn near_campfire(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| self.campfires.warms(p.origin))
     }
 
     pub fn radiation_exposure(&self) -> f32 {
@@ -1703,6 +1736,7 @@ impl Session {
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
+        self.warming = false;
         self.irradiated = false;
         Ok(())
     }
