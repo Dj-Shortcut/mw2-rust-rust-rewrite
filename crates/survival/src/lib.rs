@@ -673,26 +673,25 @@ impl Session {
 
     pub fn repair_from_view(&mut self) -> Result<(), String> {
         let (start, end) = self.view_ray()?;
-        let outcome = self.world.bullet_trace(
-            sim::BulletTraceQuery {
-                start,
-                end,
-                mask: 1,
-                ignore: Some(LOCAL),
-                ignore_hit: None,
-                ignore_model: None,
-            },
-            None,
-        );
-        let sim::TraceOutcome::Hit {
-            collider:
-                sim::ColliderId::World {
-                    building_id: Some(id),
-                    ..
-                },
-            ..
-        } = outcome
-        else {
+        // Buildings win coplanar ties with the terrain: the shared bullet
+        // trace only reports a building when it is strictly nearer, which
+        // makes ground-level foundation tops unselectable. Trace the pieces
+        // directly and let static geometry occlude them instead.
+        let (hit, piece) = self
+            .world
+            .buildings()
+            .trace_hit(start, end, [0.; 3], [0.; 3], 1);
+        let blocked = self
+            .world
+            .trace_static_world(start, end, [0.; 3], [0.; 3], 1);
+        let ray_len = dot(sub(end, start), sub(end, start)).sqrt();
+        let id = piece.filter(|_| {
+            hit.startsolid == 0
+                && hit.fraction < 1.
+                && blocked.startsolid == 0
+                && hit.fraction * ray_len <= blocked.fraction * ray_len + 0.5
+        });
+        let Some(id) = id else {
             return Err("Aim at a building within reach".into());
         };
         self.world
