@@ -46,6 +46,7 @@ struct Controls {
 enum WorldAction {
     Gather,
     PickUpLoot,
+    OpenCrate,
     PlaceProp(PropKind, f32),
     RemoveProp,
     Undo,
@@ -917,6 +918,8 @@ fn can_interact(controls: &Controls, session: &Session) -> bool {
 fn interaction_action(session: &Session) -> WorldAction {
     if session.loot_bag_in_reach().is_some() {
         WorldAction::PickUpLoot
+    } else if session.crate_in_reach().is_some() {
+        WorldAction::OpenCrate
     } else {
         WorldAction::Gather
     }
@@ -928,6 +931,15 @@ fn loot_hint(session: &Session) -> Option<String> {
     Some(format!(
         "Loot bag #{} | {count} items | F / Xbox Y to recover",
         bag.id()
+    ))
+}
+
+fn crate_hint(session: &Session) -> Option<String> {
+    let lootable = session.crate_in_reach()?;
+    Some(format!(
+        "{} #{} | F / Xbox Y to open",
+        lootable.tier().name(),
+        lootable.id()
     ))
 }
 
@@ -944,6 +956,11 @@ fn gather_feedback(harvest: survival::Harvest) -> String {
         message.push_str(&format!(" | {} broke", tool.name()));
     }
     message
+}
+
+fn open_crate(session: &mut Session) -> Result<String, String> {
+    session.open_crate()?;
+    Ok(session.message.clone())
 }
 
 fn recover_loot(session: &mut Session) -> Result<String, String> {
@@ -1333,8 +1350,10 @@ fn advance(
         {
             continue;
         }
-        if matches!(&action, WorldAction::Gather | WorldAction::PickUpLoot)
-            && !can_interact(&controls, &game.0)
+        if matches!(
+            &action,
+            WorldAction::Gather | WorldAction::PickUpLoot | WorldAction::OpenCrate
+        ) && !can_interact(&controls, &game.0)
         {
             continue;
         }
@@ -1345,6 +1364,9 @@ fn advance(
                 gather_feedback(harvest)
             }),
             WorldAction::PickUpLoot => recover_loot(&mut game.0).inspect(|_| {
+                sound(&mut commands, &sounds.ui);
+            }),
+            WorldAction::OpenCrate => open_crate(&mut game.0).inspect(|_| {
                 sound(&mut commands, &sounds.ui);
             }),
             WorldAction::PlaceProp(kind, yaw) => game
@@ -1808,7 +1830,7 @@ fn update_hud(
     } else if controls.building {
         "1-4 building piece | R rotate | LMB place | RMB door | B close"
     } else {
-        "LMB shoot | RMB ADS | R reload | F gather/recover loot\nB build | E editor | V skate"
+        "LMB shoot | RMB ADS | R reload | F gather/loot/crate\nB build | E editor | V skate"
     };
     let pad_controls = if controls.pad.is_some() {
         if grinding {
@@ -1816,7 +1838,7 @@ fn update_hud(
         } else if game.0.skate.is_some() {
             "Xbox skate: LS push/steer | RT push / LT brake | A ollie | LB/RB spin | X flip\nLB/RB + Y dismount | RS camera | Start pause\n"
         } else {
-            "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather/recover loot\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
+            "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather/loot/crate\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
         }
     } else {
         ""
@@ -1846,6 +1868,8 @@ fn update_hud(
         }
         if can_interact(&controls, &game.0) {
             if let Some(hint) = loot_hint(&game.0) {
+                content.push_str(&format!("\n{hint}"));
+            } else if let Some(hint) = crate_hint(&game.0) {
                 content.push_str(&format!("\n{hint}"));
             } else if let Ok(Some(node)) = game.0.gather_target_from_view() {
                 content.push_str(&format!(
