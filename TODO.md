@@ -58,6 +58,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Dead-posecorrectie uit [PR #13](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/13) onafhankelijk controleren: positie, kijkrichting en snelheid bij dood→dood en levend→dood; ongeldige load blijft atomair. #14 is opgelost.
 - [x] Native herhaald F9 met dode saves, Enter-respawn zonder yaw-sprong en daarna lopen/skaten/schieten controleren; geaccepteerde commandhoek behouden bij dode loads.
 - [x] Pure previews verifiëren: alle zes objecttypen, geldige/ongeldige bouwkosten en geen wijzigingen vóór plaatsing.
+- [x] Bouwpreview zonder gekloonde bouwwereld: gedeelde read-only validatie, collision-/foutpariteit en statebehoud gecontroleerd. Bij 4.095 bouwstukken vraagt de preview 288.040 bytes en 684 allocaties minder per query dan het behouden clone-pad; de gemeten tijd bewijst geen versnelling.
 - [x] Ramp plaatsen/verwijderen, undo/redo, scene save/load en foundationkosten via native bediening uitvoeren.
 - [x] Gerichte verzamelhint, finite tree-harvest/depletion en herstel van voorraad/depletion grafisch uitvoeren.
 - [x] Ongewijzigd camerabeeld na inventory sluiten, pauze hervatten en focus terugkrijgen controleren.

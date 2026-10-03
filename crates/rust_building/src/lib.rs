@@ -202,10 +202,12 @@ impl BuildingWorld {
             .values()
             .any(|p| p.socket == socket && deck(p.kind) == deck(kind))
     }
-    fn deck_at(&self, x: i32, y: i32, level: i32, keep: &BTreeSet<u32>) -> bool {
+    fn deck_at(&self, x: i32, y: i32, level: i32, keep: Option<&BTreeSet<u32>>) -> bool {
         self.pieces.values().any(|p| {
-            keep.contains(&p.id)
-                && deck(p.kind)
+            keep.map_or_else(
+                || self.pieces.contains_key(&p.id),
+                |keep| keep.contains(&p.id),
+            ) && deck(p.kind)
                 && p.socket
                     == Socket {
                         x,
@@ -215,7 +217,7 @@ impl BuildingWorld {
                     }
         })
     }
-    fn supported(&self, p: &Piece, keep: &BTreeSet<u32>) -> bool {
+    fn supported(&self, p: &Piece, keep: Option<&BTreeSet<u32>>) -> bool {
         let s = p.socket;
         match p.kind {
             Kind::Foundation => true,
@@ -229,8 +231,10 @@ impl BuildingWorld {
                     )
             }
             Kind::Floor => self.pieces.values().any(|wall| {
-                keep.contains(&wall.id)
-                    && !deck(wall.kind)
+                keep.map_or_else(
+                    || self.pieces.contains_key(&wall.id),
+                    |keep| keep.contains(&wall.id),
+                ) && !deck(wall.kind)
                     && wall.socket.level == s.level - 1
                     && ((wall.socket.x == s.x && wall.socket.y == s.y)
                         || (wall.socket.axis == 0
@@ -267,8 +271,7 @@ impl BuildingWorld {
             health: 250,
             open: false,
         };
-        let keep = self.pieces.keys().copied().collect();
-        if (kind == Kind::Foundation && !grounded) || !self.supported(&candidate, &keep) {
+        if (kind == Kind::Foundation && !grounded) || !self.supported(&candidate, None) {
             return Err(BuildError::Unsupported);
         }
         if !self.inventory(owner).covers(Grade::Wood.cost(kind)) {
@@ -371,7 +374,7 @@ impl BuildingWorld {
             let more: Vec<_> = self
                 .pieces
                 .values()
-                .filter(|p| !keep.contains(&p.id) && self.supported(p, &keep))
+                .filter(|p| !keep.contains(&p.id) && self.supported(p, Some(&keep)))
                 .map(|p| p.id)
                 .collect();
             if more.is_empty() {
@@ -438,6 +441,40 @@ impl BuildingWorld {
         mask: u32,
     ) -> trace_iw4::Trace {
         self.trace_hit(start, end, mins, maxs, mask).0
+    }
+    pub fn overlaps_piece(
+        &self,
+        piece: &Piece,
+        origin: [f32; 3],
+        mins: [f32; 3],
+        maxs: [f32; 3],
+    ) -> bool {
+        let flags = [0; 6];
+        self.bounds(piece).into_iter().any(|(lo, hi)| {
+            let planes = [
+                [1., 0., 0., hi[0]],
+                [-1., 0., 0., -lo[0]],
+                [0., 1., 0., hi[1]],
+                [0., -1., 0., -lo[1]],
+                [0., 0., 1., hi[2]],
+                [0., 0., -1., -lo[2]],
+            ];
+            trace_iw4::trace_box(
+                std::iter::once(trace_iw4::BrushRef {
+                    planes: &planes,
+                    contents: 1,
+                    plane_surface_flags: &flags,
+                    glass_encoded: 0,
+                }),
+                origin,
+                origin,
+                mins,
+                maxs,
+                1,
+            )
+            .startsolid
+                != 0
+        })
     }
     pub fn trace_hit(
         &self,

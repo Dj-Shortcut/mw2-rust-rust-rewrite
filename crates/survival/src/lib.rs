@@ -432,7 +432,7 @@ impl Session {
         &self,
         kind: Kind,
         axis: u8,
-    ) -> (BuildingPlacementPreview, Option<(BuildingWorld, u32)>) {
+    ) -> (BuildingPlacementPreview, Option<(Socket, bool)>) {
         let mut preview = BuildingPlacementPreview {
             kind,
             socket: None,
@@ -472,7 +472,7 @@ impl Session {
                 axis,
             };
             preview.socket = Some(socket);
-            preview.bounds = buildings.bounds(&Piece {
+            let piece = Piece {
                 id: 0,
                 owner: LOCAL.0,
                 kind,
@@ -480,7 +480,8 @@ impl Session {
                 socket,
                 health: Grade::Wood.health(),
                 open: false,
-            });
+            };
+            preview.bounds = buildings.bounds(&piece);
             let grounded = if kind == Kind::Foundation {
                 [(0.1, 0.1), (0.9, 0.1), (0.1, 0.9), (0.9, 0.9)]
                     .iter()
@@ -505,11 +506,18 @@ impl Session {
             } else {
                 false
             };
-            let mut candidate = buildings.clone();
-            let id = candidate
-                .place(LOCAL.0, kind, socket, grounded)
+            buildings
+                .can_place(LOCAL.0, kind, socket, grounded)
                 .map_err(|error| error.to_string())?;
-            if overlaps_players(&self.world, &candidate) {
+            let mut player_overlap = overlaps_players(&self.world, buildings);
+            self.world.visit_players(|_, player| {
+                if player.health > 0
+                    && buildings.overlaps_piece(&piece, player.origin, PLAYER_MINS, PLAYER_MAXS)
+                {
+                    player_overlap = true;
+                }
+            });
+            if player_overlap {
                 return Err("Building overlaps a player".into());
             }
             if kind != Kind::Foundation {
@@ -527,7 +535,7 @@ impl Session {
                     }
                 }
             }
-            Ok((candidate, id))
+            Ok((socket, grounded))
         })();
         match candidate {
             Ok(candidate) => (preview, Some(candidate)),
@@ -540,13 +548,15 @@ impl Session {
 
     pub fn place_from_view(&mut self, kind: Kind, axis: u8) -> Result<u32, String> {
         let (preview, candidate) = self.building_placement_from_view(kind, axis);
-        let (candidate, id) = candidate.ok_or_else(|| {
+        let (socket, grounded) = candidate.ok_or_else(|| {
             preview
                 .error
                 .unwrap_or_else(|| "No building placement target".into())
         })?;
-        *self.world.buildings_mut() = candidate;
-        Ok(id)
+        self.world
+            .buildings_mut()
+            .place(LOCAL.0, kind, socket, grounded)
+            .map_err(|error| error.to_string())
     }
 
     pub fn toggle_door_from_view(&mut self) -> Result<(), String> {
