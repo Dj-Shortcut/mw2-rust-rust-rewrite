@@ -615,6 +615,24 @@ impl Session {
         self.inventory.discard(slot, quantity)
     }
 
+    pub fn repair_tool(&mut self, slot: usize) -> Result<Resources, String> {
+        self.require_alive()?;
+        let stack = *self
+            .inventory
+            .stacks()
+            .get(slot)
+            .ok_or("No stack in that slot")?;
+        let cost = Recipe::repair_cost(stack.item, stack.wear)?;
+        let mut inventory = self.inventory.clone();
+        inventory.repair(slot)?;
+        self.world
+            .buildings_mut()
+            .consume(LOCAL.0, cost)
+            .map_err(|_| "Not enough resources to repair".to_string())?;
+        self.inventory = inventory;
+        Ok(cost)
+    }
+
     pub fn recycle_stack(&mut self, slot: usize, quantity: u32) -> Result<Resources, String> {
         self.require_alive()?;
         let stack = *self
