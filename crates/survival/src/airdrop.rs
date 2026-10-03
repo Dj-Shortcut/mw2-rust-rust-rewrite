@@ -53,7 +53,12 @@ impl<'de> Deserialize<'de> for SavedAirdrops {
         }
         let saved = Saved::deserialize(deserializer)?;
         let within = |t: f32, limit: f32| t.is_finite() && t > 0. && t <= limit;
-        if !within(saved.next_in, FIRST_DROP_SECONDS.max(DROP_INTERVAL_SECONDS)) {
+        let longest = if saved.drops == 0 {
+            FIRST_DROP_SECONDS
+        } else {
+            DROP_INTERVAL_SECONDS
+        };
+        if !within(saved.next_in, longest) {
             return Err(serde::de::Error::custom(
                 "Supply drop timer is out of range",
             ));

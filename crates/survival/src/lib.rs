@@ -433,9 +433,6 @@ impl Session {
         if drops.lost {
             self.message = "The supply drop was lost".into();
         }
-        if let Some(p) = self.airdrops.position().filter(|_| drops.landed) {
-            self.message = format!("A supply drop landed near ({:.0}, {:.0})", p[0], p[1]);
-        }
         if weather_changed {
             self.message = if self.weather.is_raining() {
                 "It started raining".into()
@@ -494,6 +491,10 @@ impl Session {
         if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             self.world.queue_environment_damage(LOCAL, damage)?;
             self.queued_damage += damage;
+        }
+        // Last, so no other message on the same tick hides the drop's location.
+        if let Some(p) = self.airdrops.position().filter(|_| drops.landed) {
+            self.message = format!("A supply drop landed near ({:.0}, {:.0})", p[0], p[1]);
         }
         Ok(())
     }
