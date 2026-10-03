@@ -46,6 +46,9 @@ cargo fmt --all
 cargo clippy --workspace --all-targets
 ```
 
+CI fails on clippy findings only in the packages listed in
+`scripts/clippy_clean.txt`; add a package there once it has none.
+
 `CONTEXT.md` documents how the maintainer works — artifacts, iterations, agent
 clones. It is a maintainer's workflow, not a requirement for contributing: you
 do not need `make mr`, the iteration naming, or anything under `context/` to

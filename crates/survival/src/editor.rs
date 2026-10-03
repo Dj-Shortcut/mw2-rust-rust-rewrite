@@ -4,6 +4,20 @@ use std::collections::BTreeMap;
 
 pub const MAX_PROPS: usize = 1024;
 
+/// Local grind centerline of [`PropKind::Rail`]: the top of its beam.
+const RAIL_START: [f32; 3] = [-120., 0., 50.];
+const RAIL_END: [f32; 3] = [120., 0., 50.];
+pub(crate) const RAIL_LENGTH: f32 = RAIL_END[0] - RAIL_START[0];
+
+/// The grindable centerline of one authored rail, in world space. `id` is
+/// the editor object ID, which stays stable across undo/redo and saves.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RailSegment {
+    pub id: u32,
+    pub start: [f32; 3],
+    pub end: [f32; 3],
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PropKind {
     Ramp,
@@ -110,6 +124,11 @@ impl EditorState {
     }
     pub fn brushes(&self) -> Vec<SimBrush> {
         self.objects().flat_map(PlacedObject::brushes).collect()
+    }
+    pub fn rails(&self) -> Vec<RailSegment> {
+        self.objects()
+            .filter_map(PlacedObject::rail_segment)
+            .collect()
     }
 }
 
@@ -227,9 +246,30 @@ impl PropKind {
 }
 
 impl PlacedObject {
+    /// The rail's centerline rotated by yaw around Z and translated by the
+    /// object position; `None` for every other prop.
+    pub fn rail_segment(&self) -> Option<RailSegment> {
+        if self.kind != PropKind::Rail {
+            return None;
+        }
+        let (sin, cos) = self.yaw.to_radians().sin_cos();
+        let place = |p: [f32; 3]| {
+            [
+                p[0] * cos - p[1] * sin + self.position[0],
+                p[0] * sin + p[1] * cos + self.position[1],
+                p[2] + self.position[2],
+            ]
+        };
+        Some(RailSegment {
+            id: self.id,
+            start: place(RAIL_START),
+            end: place(RAIL_END),
+        })
+    }
     pub fn brushes(&self) -> Vec<SimBrush> {
         let (sin, cos) = self.yaw.to_radians().sin_cos();
-        self.kind
+        let mut solids: Vec<Vec<[f32; 4]>> = self
+            .kind
             .solids()
             .into_iter()
             .map(|(x, y, z)| {
@@ -239,14 +279,28 @@ impl PlacedObject {
                 } else {
                     0.
                 };
-                let mut planes = vec![
+                vec![
                     [1., 0., 0., x[1]],
                     [-1., 0., 0., -x[0]],
                     [0., 1., 0., y[1]],
                     [0., -1., 0., -y[0]],
                     [-slope, 0., 1., z[0] - slope * x[0]],
                     [0., 0., -1., -bottom],
-                ];
+                ]
+            })
+            .collect();
+        if self.kind == PropKind::Funbox {
+            // The funbox profile (kicker, deck, kicker) is convex, so collide
+            // with it as one brush. Three touching boxes leave the deck's end
+            // faces as seams that a rider coming up a kicker runs into.
+            let [up, deck, down] = [&solids[0], &solids[1], &solids[2]];
+            solids = vec![vec![
+                down[0], up[1], deck[2], deck[3], up[4], deck[4], down[4], deck[5],
+            ]];
+        }
+        solids
+            .into_iter()
+            .map(|mut planes| {
                 for plane in &mut planes {
                     let length =
                         (plane[0] * plane[0] + plane[1] * plane[1] + plane[2] * plane[2]).sqrt();

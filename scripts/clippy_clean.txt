@@ -1,0 +1,13 @@
+# Packages with no clippy findings. scripts/clippy_gate.py fails CI if any of
+# these gets one. Add a package once `cargo clippy` reports nothing for it.
+approved_tests
+asset_transport
+d3d9_decl
+d3d9_state
+frame
+killcam_iw4
+launcher
+math_iw4
+playerstate_iw4
+trace_iw4
+updater
