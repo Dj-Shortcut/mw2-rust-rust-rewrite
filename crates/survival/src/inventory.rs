@@ -34,10 +34,11 @@ pub enum Item {
     CookedFish,
     BerrySeeds,
     Bait,
+    Fertilizer,
 }
 
 impl Item {
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 16] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
@@ -53,6 +54,7 @@ impl Item {
         Self::CookedFish,
         Self::BerrySeeds,
         Self::Bait,
+        Self::Fertilizer,
     ];
 
     pub fn name(self) -> &'static str {
@@ -72,6 +74,7 @@ impl Item {
             Self::CookedFish => "Cooked fish",
             Self::BerrySeeds => "Berry seeds",
             Self::Bait => "Fishing bait",
+            Self::Fertilizer => "Fertilizer",
         }
     }
 
@@ -99,7 +102,7 @@ impl Item {
         match self {
             Self::Bandage | Self::Water | Self::Fish | Self::CookedFish | Self::AntiRadPills => 10,
             Self::Ammo => 60,
-            Self::Food | Self::BerrySeeds | Self::Bait => 20,
+            Self::Food | Self::BerrySeeds | Self::Bait | Self::Fertilizer => 20,
             Self::Syringe => 5,
             Self::Hatchet | Self::Pickaxe | Self::Jacket | Self::FishingRod | Self::HazmatSuit => 1,
         }
@@ -476,7 +479,8 @@ impl Inventory {
             | Item::FishingRod
             | Item::HazmatSuit
             | Item::BerrySeeds
-            | Item::Bait => {
+            | Item::Bait
+            | Item::Fertilizer => {
                 return Err("That item cannot be used".into());
             }
         };
