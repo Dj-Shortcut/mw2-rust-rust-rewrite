@@ -47,6 +47,7 @@ de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd
 - [x] Craftkosten, bandagegebruik/healing, ammo-refill en finite harvesting geïntegreerd gecontroleerd.
 - [x] Dode spelers kunnen niet craften/healen/gatheren; respawn en schade na respawn gecontroleerd.
 - [x] Gemount skaten, pushen en terug naar lopen geïntegreerd gecontroleerd.
+- [x] Inventorystapels splitsen, samenvoegen/wisselen en weggooien headless via `Session` gecontroleerd, inclusief geweigerde acties zonder wijziging, volle inventory, dode speler en save/load ([#31](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/31)). Nog geen native bediening, wereld-drops of containers.
 - [x] Eigen WAV-pack gecontroleerd en byte voor byte geregenereerd.
 - [x] Geoptimaliseerde native executable bouwen en eigen modellen/terrein in het venster controleren.
 - [x] Inventorypauze, crafting/resourcekosten/ammo, schieten/schade/herladen/ADS grafisch uitvoeren.
