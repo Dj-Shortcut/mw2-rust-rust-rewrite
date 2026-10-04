@@ -947,11 +947,7 @@ impl Session {
         let mut inventory = self.inventory.clone();
         if let Some(tool) = carried(harvested.kind) {
             harvested.tool_broke = inventory.wear_tool(tool) == Some(true);
-            if harvested.tool_broke {
-                self.message = format!("Your {} broke", tool.name().to_lowercase());
-            } else if almost_broken(&inventory, tool) {
-                self.message = format!("Your {} is almost broken", tool.name().to_lowercase());
-            }
+            harvested.tool_almost_broken = !harvested.tool_broke && almost_broken(&inventory, tool);
         }
         match harvested.kind {
             ResourceKind::Berry => {
@@ -971,6 +967,13 @@ impl Session {
         }
         self.inventory = inventory;
         self.gathering = gathering;
+        if let Some(tool) = harvested.kind.tool() {
+            if harvested.tool_broke {
+                self.message = format!("Your {} broke", tool.name().to_lowercase());
+            } else if harvested.tool_almost_broken {
+                self.message = format!("Your {} is almost broken", tool.name().to_lowercase());
+            }
+        }
         Ok(harvested)
     }
 
