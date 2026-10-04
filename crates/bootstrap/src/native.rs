@@ -16,6 +16,7 @@ mod building_actions;
 mod campfires;
 mod clothing;
 mod fishing;
+mod garden;
 mod inventory;
 mod loot;
 mod object_actions;
@@ -60,6 +61,7 @@ enum WorldAction {
     Fishing,
     Campfire,
     Water(water::Action),
+    Garden,
     PlaceProp(PropKind, f32),
     RemoveProp,
     EditProp(object_actions::Action),
@@ -233,6 +235,7 @@ pub fn run() -> Result<(), String> {
                 loot::refresh,
                 campfires::refresh,
                 water::refresh,
+                garden::refresh,
                 present_skate,
                 hit_feedback,
                 refresh_placement,
@@ -425,6 +428,7 @@ fn setup(
     loot::setup(&mut commands, &mut meshes, &mut materials);
     campfires::setup(&mut commands, &mut meshes, &mut materials);
     water::setup(&mut commands, &mut meshes, &mut materials);
+    garden::setup(&mut commands, &mut meshes, &mut materials);
     let terrain = &game.0.terrain;
     commands.spawn((
         Mesh3d(meshes.add(surface_mesh(
@@ -872,6 +876,13 @@ fn input(
         controls.queue(interaction_action(&game.0));
     }
     if can_interact(&controls, &game.0) {
+        if keys.just_pressed(KeyCode::KeyT)
+            || (!skate_chord
+                && pad_pressed(GamepadButton::LeftTrigger)
+                && pad_just_pressed(GamepadButton::RightTrigger))
+        {
+            controls.queue(WorldAction::Garden);
+        }
         let sip = keys.just_pressed(KeyCode::KeyP) || pad_just_pressed(GamepadButton::RightThumb);
         let collect = keys.just_pressed(KeyCode::KeyO) || pad_just_pressed(GamepadButton::DPadUp);
         if sip && collect {
@@ -1556,6 +1567,7 @@ fn advance(
                 | WorldAction::Fishing
                 | WorldAction::Campfire
                 | WorldAction::Water(_)
+                | WorldAction::Garden
         ) && !can_interact(&controls, &game.0)
         {
             continue;
@@ -1589,6 +1601,9 @@ fn advance(
                 sound(&mut commands, &sounds.ui);
             }),
             WorldAction::Water(action) => water::apply(&mut game.0, action).inspect(|_| {
+                sound(&mut commands, &sounds.ui);
+            }),
+            WorldAction::Garden => garden::apply(&mut game.0).inspect(|_| {
                 sound(&mut commands, &sounds.ui);
             }),
             WorldAction::PlaceProp(kind, yaw) => game
@@ -2056,7 +2071,7 @@ fn update_hud(
     } else if controls.building {
         "1-4 building piece | R rotate | LMB place | RMB door | B close\nAim at your building: T repair | Z upgrade Stone | X upgrade Metal"
     } else {
-        "LMB shoot | RMB ADS | R reload | F gather/loot/crate\nP sip water | O collect barrel | L cast/reel | G cook/take fish\nB build | E editor | V skate"
+        "LMB shoot | RMB ADS | R reload | F gather/loot/crate\nP sip water | O collect barrel | L cast/reel | G cook/take fish\nT plant/harvest | B build | E editor | V skate"
     };
     let pad_controls = if controls.pad.is_some() {
         if grinding {
@@ -2068,7 +2083,7 @@ fn update_hud(
         } else if controls.editor {
             "Xbox editor: LS move / RS look | RT place | X remove | Y move\nD-pad select | LB/RB preview rotate | LT + LB/RB object rotate\nBack mode | LB/RB + Y skate | Start pause\n"
         } else {
-            "Xbox: LS move / RS look | RT shoot | LT ADS | A jump\nLS click sprint | B crouch | X reload | Y gather/loot/crate\nRS click sip water | D-pad Up collect barrel / Down inventory\nD-pad Right cast/reel | D-pad Left cook/take fish\nBack mode | LB/RB + Y skate | Start pause\n"
+            "Xbox: LS move / RS look | RT shoot | LT ADS | A jump\nLS click sprint | B crouch | X reload | Y gather/loot/crate\nRS click sip water | D-pad Up collect barrel / Down inventory\nD-pad Right cast/reel | D-pad Left cook/take fish\nHold LB + press RB garden | Back mode | LB/RB + Y skate | Start pause\n"
         }
     } else {
         ""
@@ -2100,6 +2115,9 @@ fn update_hud(
         }
         if can_interact(&controls, &game.0) {
             if let Some(hint) = water::hint(&game.0) {
+                content.push_str(&format!("\n{hint}"));
+            }
+            if let Some(hint) = garden::hint(&game.0) {
                 content.push_str(&format!("\n{hint}"));
             }
             if let Some(hint) = fishing::hint(&game.0) {
