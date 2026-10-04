@@ -172,7 +172,7 @@ impl Garden {
     pub(crate) fn advance(
         &mut self,
         dt_seconds: f32,
-        raining: bool,
+        watered: bool,
         frost: bool,
     ) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
@@ -181,7 +181,7 @@ impl Garden {
         if frost {
             return Ok(false);
         }
-        let grown = if raining {
+        let grown = if watered {
             dt_seconds * RAIN_GROWTH
         } else {
             dt_seconds

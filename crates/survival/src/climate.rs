@@ -32,9 +32,12 @@ impl WorldClock {
         !(6. ..20.).contains(&hour)
     }
 
+    pub fn is_dawn(&self) -> bool {
+        (5. ..7.).contains(&self.hour())
+    }
+
     pub fn is_twilight(&self) -> bool {
-        let hour = self.hour();
-        (5. ..7.).contains(&hour) || (19. ..21.).contains(&hour)
+        self.is_dawn() || (19. ..21.).contains(&self.hour())
     }
 
     pub fn temperature(&self) -> f32 {

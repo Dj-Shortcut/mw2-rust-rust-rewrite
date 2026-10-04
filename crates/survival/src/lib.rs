@@ -468,9 +468,11 @@ impl Session {
         let drops = self.airdrops.advance(0.017)?;
         // Before the weather step: a tick grows at the rain state it started with.
         let frost = self.clock.temperature() < FREEZING_CELSIUS;
-        let ripened = self
-            .garden
-            .advance(0.017, self.weather.is_raining(), frost)?;
+        let ripened = self.garden.advance(
+            0.017,
+            self.weather.is_raining() || self.clock.is_dawn(),
+            frost,
+        )?;
         self.rain_barrel
             .advance(0.017, self.weather.is_raining() && !frost)?;
         self.beehive
