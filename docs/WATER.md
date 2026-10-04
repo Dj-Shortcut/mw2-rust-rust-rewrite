@@ -1,7 +1,7 @@
 # Standalone water
 
-Proposed native PC water flow for [#212](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/212).
-The new controls and barrel visual are not implemented or graphically verified.
+Native PC water flow for [#212](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/212).
+133 actual native-input/Session checks passed; keyboard/Mesa scope is below.
 
 On foot, aim at a reachable water node to sip without carrying an item.
 A sip restores 10 thirst, up to 100, without consuming items or node stock.
@@ -37,14 +37,14 @@ Stored water remains collectible while it is dry or freezing.
 Rain fills one Water per 60 simulation seconds when world temperature is at least 0 C.
 Dry/frozen weather pauses progress; a full barrel resets its fill timer.
 It fills while the player is dead. Inventory, pause and focus loss pause the world.
-English hints distinguish collecting, paused and full; a proposed original
+English hints distinguish collecting, paused and full; an original
 primitive barrel visual reflects stored count and adds no new collision rule.
 
 F5/F9 already preserve thirst, carried Water, node stock and barrel state.
 Close inventory before saving/loading. No schema, packaged asset files or dependency change.
-Acceptance: actual Session/native-input checks and Linux/Mesa keyboard flows
-for sip, gather/use, barrel collection, atomic errors, gates, old controls,
-English hints/visuals and save/load. Session advances before queued actions;
-account for ordinary thirst/timer progress. Exactly-full thirst refusal is an
-authority check, not a promised GUI state.
+Keyboard/Mesa: sip, gather/use, partly filled/full/frozen barrels, visuals and F5/F9.
+Frozen/no-target/empty/far/full-inventory refusals and build gate passed at 1280x720.
+Editor/pause/inventory gates and F1 with a live queue also passed at 1280x720.
+Dead/focus/chords/controller inputs have source checks; graphical coverage is bounded.
+Session advances before actions; allow thirst/timer progress. Full-thirst refusal is authority-only.
 Physical controllers, audible audio, Windows/macOS gameplay and release remain open.
