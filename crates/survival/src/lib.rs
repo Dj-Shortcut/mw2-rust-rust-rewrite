@@ -468,7 +468,8 @@ impl Session {
         // Before the weather step: a tick grows at the rain state it started with.
         let ripened = self.garden.advance(0.017, self.weather.is_raining())?;
         self.rain_barrel.advance(0.017, self.weather.is_raining())?;
-        self.beehive.advance(0.017, self.weather.is_raining())?;
+        self.beehive
+            .advance(0.017, self.weather.is_raining() || self.clock.is_night())?;
         let trapped = self.fish_trap.advance(0.017, self.weather.is_raining())?;
         self.trader.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
