@@ -16,6 +16,7 @@ use crate::farming::SavedGarden;
 use crate::fishtrap::SavedTrap;
 use crate::markers::Waypoint;
 use crate::rainbarrel::SavedBarrel;
+use crate::trading::SavedRequest;
 use crate::{
     Blueprints, Cast, CraftQueue, GatheringWorld, Inventory, Item, LootBags, PlacedObject,
     SavedSkate, Vitals, WORLD_HALF, Weather, WorldClock,
@@ -82,6 +83,8 @@ pub(crate) struct SavedSession {
     pub rain_barrel: SavedBarrel,
     #[serde(default)]
     pub beehive: SavedHive,
+    #[serde(default)]
+    pub trader_request: SavedRequest,
     #[serde(default)]
     pub tea_warmth: f32,
     #[serde(default)]
@@ -260,6 +263,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     fish_trap: SavedTrap::default(),
                     rain_barrel: SavedBarrel::default(),
                     beehive: SavedHive::default(),
+                    trader_request: SavedRequest::default(),
                     tea_warmth: 0.,
                     fishing: None,
                     casts: 0,

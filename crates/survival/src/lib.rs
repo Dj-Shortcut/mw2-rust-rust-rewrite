@@ -64,7 +64,10 @@ pub use rainbarrel::{BARREL_FILL_SECONDS, BARREL_REACH, BARREL_WATER, RainBarrel
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use stash::{STASH_REACH, Stash};
 pub use terrain::Terrain;
-pub use trading::{TRADE_OFFERS, TRADER_REACH, TradeOffer, TradingPost};
+pub use trading::{
+    REQUEST_SECONDS, SavedRequest, TRADE_OFFERS, TRADE_REQUESTS, TRADER_REACH, TradeOffer,
+    TradingPost,
+};
 pub use weather::{MAX_SPELL_SECONDS, MIN_SPELL_SECONDS, RAIN_CHILL_CELSIUS, Weather};
 
 pub const UNITS_TO_METERS: f32 = 0.0254;
@@ -465,6 +468,7 @@ impl Session {
         self.rain_barrel.advance(0.017, self.weather.is_raining())?;
         self.beehive.advance(0.017, self.weather.is_raining())?;
         let trapped = self.fish_trap.advance(0.017)?;
+        self.trader.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         if alive {
@@ -1501,6 +1505,21 @@ impl Session {
         Ok(())
     }
 
+    pub fn fulfill_request(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if !self.trader_in_reach() {
+            return Err("No trading post within reach".into());
+        }
+        let done = self.trader.fulfill(&mut self.inventory)?;
+        let ((paid, price), (item, quantity)) = (done.price, done.goods);
+        self.message = format!(
+            "Filled the trader's request: {price} {} for {quantity} {}",
+            paid.name(),
+            item.name()
+        );
+        Ok(())
+    }
+
     pub fn make_fertilizer(&mut self) -> Result<(), String> {
         self.require_alive()?;
         if self.inventory.count(Item::Fish) == 0 {
@@ -2030,6 +2049,7 @@ impl Session {
             fish_trap: self.fish_trap.saved(),
             rain_barrel: self.rain_barrel.saved(),
             beehive: self.beehive.saved(),
+            trader_request: self.trader.saved(),
             tea_warmth: self.tea_warmth,
             fishing: self.fishing,
             casts: self.casts,
@@ -2228,6 +2248,7 @@ impl Session {
         self.fish_trap.restore(scene.fish_trap);
         self.rain_barrel.restore(scene.rain_barrel);
         self.beehive.restore(scene.beehive);
+        self.trader.restore(scene.trader_request);
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;
