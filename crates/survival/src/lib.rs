@@ -3,6 +3,7 @@ use rust_building::{BuildingWorld, CELL, Grade, Kind, Piece, Resources, Socket, 
 use sim::{ClientId, SimBrush, SimContentBuilder, SimWorld, Tick, TickInput};
 use std::path::Path;
 mod airdrop;
+mod beehive;
 mod climate;
 mod cooking;
 mod crafting;
@@ -28,6 +29,7 @@ pub use airdrop::{
     Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, FIRST_DROP_SECONDS, FLARE_SECONDS,
     SupplyDrop,
 };
+pub use beehive::{Beehive, HIVE_HONEY, HIVE_REACH, HIVE_SECONDS, SavedHive};
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use cooking::{
     CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COMFORT_SECONDS_PER_HP, COOK_SECONDS,
@@ -140,6 +142,7 @@ pub struct Session {
     stash: Stash,
     fish_trap: FishTrap,
     rain_barrel: RainBarrel,
+    beehive: Beehive,
     waypoint: Option<Waypoint>,
     fishing: Option<Cast>,
     casts: u32,
@@ -369,6 +372,7 @@ impl Session {
         let stash = Stash::new(&terrain)?;
         let fish_trap = FishTrap::new(&terrain)?;
         let rain_barrel = RainBarrel::new(&terrain)?;
+        let beehive = Beehive::new(&terrain)?;
         world.install_content(authored_content(&terrain, &editor, &gathering));
         world
             .bootstrap(sim::MatchBootstrap {
@@ -428,6 +432,7 @@ impl Session {
             stash,
             fish_trap,
             rain_barrel,
+            beehive,
             waypoint: None,
             fishing: None,
             casts: 0,
@@ -457,6 +462,7 @@ impl Session {
         // Before the weather step: a tick grows at the rain state it started with.
         let ripened = self.garden.advance(0.017, self.weather.is_raining())?;
         self.rain_barrel.advance(0.017, self.weather.is_raining())?;
+        self.beehive.advance(0.017, self.weather.is_raining())?;
         let trapped = self.fish_trap.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
@@ -1237,6 +1243,7 @@ impl Session {
         markers.push(at(MarkerKind::Stash, self.stash.position()));
         markers.push(at(MarkerKind::FishTrap, self.fish_trap.position()));
         markers.push(at(MarkerKind::RainBarrel, self.rain_barrel.position()));
+        markers.push(at(MarkerKind::Beehive, self.beehive.position()));
         markers.extend(
             self.crates
                 .crates()
@@ -1412,6 +1419,32 @@ impl Session {
             .map_err(|_| "Not enough inventory space for the water")?;
         self.rain_barrel = barrel;
         self.message = format!("Took {water} water from the rain barrel");
+        Ok(())
+    }
+
+    pub fn beehive(&self) -> &Beehive {
+        &self.beehive
+    }
+
+    pub fn beehive_in_reach(&self) -> bool {
+        self.world
+            .player(LOCAL)
+            .filter(|p| p.health > 0)
+            .is_some_and(|p| self.beehive.in_reach(p.origin))
+    }
+
+    pub fn harvest_beehive(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if !self.beehive_in_reach() {
+            return Err("No beehive within reach".into());
+        }
+        let mut hive = self.beehive.clone();
+        let honey = hive.take_honey()?;
+        self.inventory
+            .add(Item::Honey, honey)
+            .map_err(|_| "Not enough inventory space for the honey")?;
+        self.beehive = hive;
+        self.message = format!("Took {honey} honey from the beehive");
         Ok(())
     }
 
@@ -1962,6 +1995,7 @@ impl Session {
             stash: self.stash.inventory().clone(),
             fish_trap: self.fish_trap.saved(),
             rain_barrel: self.rain_barrel.saved(),
+            beehive: self.beehive.saved(),
             tea_warmth: self.tea_warmth,
             fishing: self.fishing,
             casts: self.casts,
@@ -2159,6 +2193,7 @@ impl Session {
         self.stash.set_inventory(scene.stash);
         self.fish_trap.restore(scene.fish_trap);
         self.rain_barrel.restore(scene.rain_barrel);
+        self.beehive.restore(scene.beehive);
         self.fishing = scene.fishing;
         self.casts = scene.casts;
         self.freezing = false;

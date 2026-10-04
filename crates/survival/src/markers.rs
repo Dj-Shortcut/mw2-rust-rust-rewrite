@@ -14,6 +14,7 @@ pub enum MarkerKind {
     Stash,
     FishTrap,
     RainBarrel,
+    Beehive,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
