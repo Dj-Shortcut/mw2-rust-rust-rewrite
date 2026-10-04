@@ -474,7 +474,9 @@ impl Session {
             .advance(0.017, self.weather.is_raining() && !frost)?;
         self.beehive
             .advance(0.017, self.weather.is_raining() || self.clock.is_night())?;
-        let trapped = self.fish_trap.advance(0.017, self.weather.is_raining())?;
+        let trapped = self
+            .fish_trap
+            .advance(0.017, self.weather.is_raining(), frost)?;
         self.trader.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
