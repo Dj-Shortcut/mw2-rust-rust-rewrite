@@ -43,12 +43,13 @@ impl WorldClock {
         (MEAN_CELSIUS + SWING_CELSIUS * phase.cos()) as f32
     }
 
-    pub(crate) fn advance(&mut self, dt_seconds: f32) -> Result<(), String> {
+    pub(crate) fn advance(&mut self, dt_seconds: f32) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Invalid clock time step".into());
         }
+        let night = self.is_night();
         self.seconds = (self.seconds + f64::from(dt_seconds)).rem_euclid(DAY_SECONDS);
-        Ok(())
+        Ok(night != self.is_night())
     }
 }
 

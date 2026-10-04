@@ -462,7 +462,7 @@ impl Session {
             .saturating_sub(self.queued_damage);
         self.queued_damage = 0;
         self.regrow_resources();
-        self.clock.advance(0.017)?;
+        let night_turned = self.clock.advance(0.017)?;
         let unlocked = self.crates.advance(0.017)?;
         let cooked = self.campfires.advance(0.017, self.weather.is_raining())?;
         let drops = self.airdrops.advance(0.017)?;
@@ -496,6 +496,13 @@ impl Session {
             self.world.set_external_motion(LOCAL, false);
             self.skate_input = SkateInput::default();
             return Ok(());
+        }
+        if night_turned {
+            self.message = if self.clock.is_night() {
+                "Night falls".into()
+            } else {
+                "Day breaks".into()
+            };
         }
         if unlocked {
             self.message = "The locked crate is unlocked".into();
@@ -555,7 +562,8 @@ impl Session {
         self.skate_input.flip = false;
         // After skating moves the player; never replaces an event message from this tick.
         let warming = self.near_campfire();
-        let event = unlocked
+        let event = night_turned
+            || unlocked
             || cooked
             || ripened
             || trapped
