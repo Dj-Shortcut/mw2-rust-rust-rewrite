@@ -1,66 +1,141 @@
 # Contributing
 
-IW4L is a personal, experimental project. It is open so that it can be read,
-built and fixed — not because it comes with an obligation to serve every
-request. Decisions are the maintainer's.
+Welcome! We are building a standalone PC game in Rust and Bevy: survival and
+building inspired by Rust, gunplay inspired by MW2, and skating and a park
+editor inspired by Skate 3. Volunteers can help with documentation, focused
+gameplay improvements, original art and audio, and reproducible bug reports.
+The game is still in development; [TODO.md](TODO.md) records what exists,
+what has been verified, and what remains unfinished.
 
-## Bug reports
+## Documentation first
 
-Reports are welcome, with no promised fix date. A report is prioritised against
-what the project actually claims:
+Before writing code, read [README.md](README.md), [TODO.md](TODO.md), and the
+relevant guides in [docs/INDEX.md](docs/INDEX.md). Check the project's
+[open issues](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues) and
+[pull requests](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pulls) to
+see whether someone is already working on the same area.
 
-> A failure in a scenario the project says works outweighs a missing feature it
-> never promised.
+Start in an issue. For an existing task, comment with your proposed scope,
+branch and files before editing. Otherwise, open an issue describing the
+problem and intended behavior. Include how you will verify the result. An
+issue is a coordination record; opening one does not establish agreement
+with another contributor whose work overlaps yours.
 
-`README.md` says what is claimed. "Add everything the original had" is not a
-roadmap item.
+For a new feature, public API or subsystem, start a draft PR with a short
+design note or an update to the relevant guide **before implementation**.
+Describe the player flow, controls, rules, failure cases, save compatibility
+and acceptance criteria where applicable. Agree on the direction in the
+issue, then implement in the same focused PR. Architectural changes need
+discussion before a large branch is built. A bug fix starts with a written
+reproduction and expected behavior; a documentation fix can be its own PR.
 
-What a useful report contains, and nothing more:
+Documentation is a useful first contribution. Improving setup instructions,
+explaining an existing API, documenting controls, or clarifying an unfinished
+TODO item helps the next contributor start with accurate information.
 
-* the release tag or commit
-* OS and GPU
-* which game's data you pointed IW4L at, and which map
-* the steps, and what happened instead
+## Choose a focused task
 
-That is the whole list. Do not attach your `.env`, a memory dump, or an archive
-of the game — none of those will be read, and the last one cannot be accepted.
+Work on one issue at a time. State which files you own and coordinate shared
+files or public API changes in the issue. Use your own branch or worktree;
+do not push to another contributor's branch. Keep unrelated fixes and broad
+formatting changes out of your PR.
 
-## Changes
+Useful contributions include small documented bug fixes, English UI and
+control improvements, bounded survival/building/skate features from the
+roadmap, and original models or sound cues. Describe the specific behavior
+you intend to deliver rather than claiming an entire roadmap category.
 
-All in-game text is English and must remain English. This includes the HUD,
-menus, item names, control hints, interaction messages and errors shown to a
-player. Check new and changed text in the running game, including failure paths.
+## Build and run the standalone game
 
-* **Small and self-contained** — a fix, a crash, a wrong constant, a doc
-  correction: open it directly.
-* **Architectural** — a new crate, a new subsystem, a change to how data flows
-  between `sim`, `render_frontend` and `net`: open an issue first. A large
-  branch that arrives unannounced is likely to be turned down for reasons that
-  have nothing to do with its quality.
-
-Before opening anything:
+Install Rust through rustup and the system dependencies in
+[docs/BUILD.md](docs/BUILD.md). Fork the repository on GitHub, then replace
+`YOUR_USERNAME` below with your account name:
 
 ```bash
-make publish-check   # the tracked tree is the product and nothing else
-cargo fmt --all
-cargo clippy --workspace --all-targets
+git clone https://github.com/YOUR_USERNAME/mw2-rust-rust-rewrite.git
+cd mw2-rust-rust-rewrite
+git remote add upstream https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite.git
+git fetch upstream
+git switch -c feature/short-description upstream/main
+cargo check -p launcher --locked
+cargo run -p launcher --profile play --locked -- game
 ```
 
-CI fails on clippy findings only in the packages listed in
-`scripts/clippy_clean.txt`; add a package there once it has none.
+Run from the repository so the authored assets can be found. F1 shows the
+controls. This standalone path needs no original game files or `IW4L_GAMES`
+configuration. The installation/import sections in the inherited build,
+run and Skate guides describe separate optional upstream modes.
 
-`CONTEXT.md` documents how the maintainer works — artifacts, iterations, agent
-clones. It is a maintainer's workflow, not a requirement for contributing: you
-do not need `make mr`, the iteration naming, or anything under `context/` to
-change the runtime.
+## Project rules
 
-## Game data
+- All player-facing text must remain **English**: HUD, menus, item names,
+  controls, feedback and errors. Check changed text in the running game,
+  including failure paths and whether it fits the UI.
+- Use open-source code and original content created from scratch. Never commit,
+  attach or link proprietary game files or content extracted or recorded from
+  other games. Downloaded asset packs are outside this project's authored-content
+  workflow. Keep credentials and private dumps out of GitHub.
+- Preserve licences and attribution in [LICENSE](LICENSE) and [NOTICE](NOTICE),
+  including the separate terms for imported modules. New code follows the
+  repository's Apache-2.0 licence; the project's generated authored assets
+  use CC0-1.0. Document the origin and licence of any proposed addition.
+- Follow the [authored model guide](assets/authored/README.md) and
+  [audio guide](assets/authored/audio/README.md). Include editable sources or
+  reproducible generators and update the appropriate manifest and hashes.
+  Asset checks validate files and manifests; they do not prove authorship.
+- AI-assisted contributions follow the same rules. The contributor remains
+  responsible for understanding, reviewing and verifying the submitted work.
 
-Never attach, commit or link original game files — maps, weapons, sounds,
-executables. That holds for issues, pull requests and release assets alike.
-IW4L reads data from an installation each user already owns, and the project is
-not a distribution channel for it.
+## Verify and document the result
 
-## Written by an LLM
+Exercise the behavior you changed, including relevant rejection cases and
+save/load. Report the commit, platform, commands, inputs and observed results.
+Distinguish compiler checks, headless behavior, graphical play, physical
+controller checks and release readiness. A successful build proves compilation;
+a screenshot or software controller event has its own narrower scope.
 
-This whole project is written by an LLM.
+Before opening a ready-for-review PR, run the relevant repository gates:
+
+```bash
+python3 scripts/check_assets.py
+make publish-check
+cargo check --workspace --all-targets --locked
+cargo test --workspace --locked
+```
+
+For documentation-only changes, check links, instructions and scope, and run
+the asset/publish gates; a new gameplay build is not needed. Format only the
+Rust files your PR owns. `rustfmt --edition 2024 path/to/changed.rs` can visit
+child modules, so review its diff and keep unrelated files unchanged. CI
+checks the committed changed files, rather than whole-workspace formatting.
+
+Clippy follows the pinned toolchain and gate in
+[the CI workflow](.github/workflows/ci.yml). It blocks findings in the packages
+listed in [scripts/clippy_clean.txt](scripts/clippy_clean.txt); other imported
+code is reported. A whole-workspace warning report is not a clean Clippy gate.
+
+Permanent tests may only be added to `crates/approved_tests` after the project
+owner approves the scenario by name; see its
+[test policy](crates/approved_tests/README.md). Keep temporary probes, fixtures
+and development logs out of the published tree. Contributors do not need the
+maintainer's artifact naming or clone workflow in [CONTEXT.md](CONTEXT.md).
+
+Update the relevant documentation and `TODO.md` in the same PR when behavior
+or verified progress changes. Keep implemented, tested and unfinished work
+separate; leave broad roadmap items open until their full flow is verified.
+
+## Open the pull request
+
+Link the issue with `Closes #123` when its scope is complete, or `Refs #123`
+for partial work. Use the existing PR template: explain what changes, what
+actually works, how to run it, the verification performed and remaining limits.
+Keep it a draft while implementation or verification is incomplete. Respond
+to review and let maintainers handle integration after the relevant checks.
+
+## Report a bug
+
+Open an issue with the commit or development-build identifier, OS/GPU,
+standalone or optional import mode, reproduction steps, expected behavior and
+actual result. Include relevant controls, save/load steps and sanitized logs
+or screenshots. For an import-mode bug, name the game/map without uploading
+its files. Do not attach secrets, private dumps or game archives.

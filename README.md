@@ -20,6 +20,12 @@ product of releasebinary.** De repository dient als broncodeoverdracht en
 voortgangsoverzicht. Wij verifiëren de implementatie zelf voordat we een
 speelbare release leveren.
 
+## Bijdragen
+
+Vrijwilligers zijn welkom. Begin met de documentatie en een afgebakend issue,
+werk op een eigen branch en lever een gerichte PR met controles en bijgewerkte
+docs. De Engelstalige [CONTRIBUTING.md](CONTRIBUTING.md) beschrijft de werkwijze.
+
 ## Huidige implementatie
 
 - Rust/Bevy-enginebasis met IW4L en de publieke MW2/Skate-integratie uit
