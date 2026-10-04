@@ -82,7 +82,7 @@ impl Beehive {
             <= HIVE_REACH
     }
 
-    pub(crate) fn advance(&mut self, dt_seconds: f32, raining: bool) -> Result<(), String> {
+    pub(crate) fn advance(&mut self, dt_seconds: f32, resting: bool) -> Result<(), String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Beehive time step must be finite and non-negative".into());
         }
@@ -91,7 +91,7 @@ impl Beehive {
             state.remaining = HIVE_SECONDS;
             return Ok(());
         }
-        if raining {
+        if resting {
             return Ok(());
         }
         state.remaining -= dt_seconds;
