@@ -32,6 +32,11 @@ impl WorldClock {
         !(6. ..20.).contains(&hour)
     }
 
+    pub fn is_twilight(&self) -> bool {
+        let hour = self.hour();
+        (5. ..7.).contains(&hour) || (19. ..21.).contains(&hour)
+    }
+
     pub fn temperature(&self) -> f32 {
         let hour = self.seconds / DAY_SECONDS * 24.;
         let phase = (hour - WARMEST_HOUR) / 24. * std::f64::consts::TAU;

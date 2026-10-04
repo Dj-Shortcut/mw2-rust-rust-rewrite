@@ -40,9 +40,9 @@ impl<'de> Deserialize<'de> for Cast {
     }
 }
 
-pub(crate) fn bites(seed: u32, node: u32, casts: u32, baited: bool, raining: bool) -> bool {
+pub(crate) fn bites(seed: u32, node: u32, casts: u32, baited: bool, feeding: bool) -> bool {
     let mut state = (u64::from(seed) << 32) ^ (u64::from(node) << 20) ^ u64::from(casts) ^ 0xF15F;
-    let percent = match (baited, raining) {
+    let percent = match (baited, feeding) {
         (false, false) => CATCH_PERCENT,
         (true, false) => BAITED_CATCH_PERCENT,
         (false, true) => RAIN_CATCH_PERCENT,
