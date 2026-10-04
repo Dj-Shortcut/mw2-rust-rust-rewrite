@@ -11,7 +11,7 @@ The inherited run/import guides below document optional upstream modes.
 | [`AUTONOMY.md`](AUTONOMY.md) | standing authorization, task ownership and verification | continuing work or coordinating agents |
 | [`BUILDINGS.md`](BUILDINGS.md) | local host building, controller bindings, persistence and unfinished systems | using or changing construction |
 | [`CRAFTING.md`](CRAFTING.md) | native queue controls, payment/refund, pause and verification scope | using or changing queued crafting |
-| [`WATER.md`](WATER.md) | proposed native sip/barrel controls, existing water rules and acceptance scope | reviewing or implementing standalone water |
+| [`WATER.md`](WATER.md) | native sip/barrel controls, water rules and verification scope | using or changing standalone water |
 | [`PARK-EDITOR.md`](PARK-EDITOR.md) | standalone prop placement, native move/rotate controls and verification limits | using or changing the authored park editor |
 | [`RUST-MAPS.md`](RUST-MAPS.md) | bounded Rust.World SDK-v9 map reader; inspection limits and missing runtime installation | inspecting Rust map formats |
 | [`SKATE.md`](SKATE.md) | Skate 3 mode: what you need, where `default.xex` comes from, setup, controls, how it works, building a release | playing or changing the skate mode |

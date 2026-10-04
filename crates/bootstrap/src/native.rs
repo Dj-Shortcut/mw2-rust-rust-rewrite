@@ -22,6 +22,7 @@ mod object_actions;
 mod queued_crafting;
 mod research;
 mod tool_actions;
+mod water;
 use inventory::{Action as InventoryAction, InventoryUi};
 
 #[derive(Resource)]
@@ -58,6 +59,7 @@ enum WorldAction {
     OpenSupplyDrop,
     Fishing,
     Campfire,
+    Water(water::Action),
     PlaceProp(PropKind, f32),
     RemoveProp,
     EditProp(object_actions::Action),
@@ -230,6 +232,7 @@ pub fn run() -> Result<(), String> {
                 refresh_gathering,
                 loot::refresh,
                 campfires::refresh,
+                water::refresh,
                 present_skate,
                 hit_feedback,
                 refresh_placement,
@@ -421,6 +424,7 @@ fn setup(
     });
     loot::setup(&mut commands, &mut meshes, &mut materials);
     campfires::setup(&mut commands, &mut meshes, &mut materials);
+    water::setup(&mut commands, &mut meshes, &mut materials);
     let terrain = &game.0.terrain;
     commands.spawn((
         Mesh3d(meshes.add(surface_mesh(
@@ -868,6 +872,17 @@ fn input(
         controls.queue(interaction_action(&game.0));
     }
     if can_interact(&controls, &game.0) {
+        let sip = keys.just_pressed(KeyCode::KeyP) || pad_just_pressed(GamepadButton::RightThumb);
+        let collect = keys.just_pressed(KeyCode::KeyO) || pad_just_pressed(GamepadButton::DPadUp);
+        if sip && collect {
+            game.0.message = "Choose one water action (P or O)".into();
+        } else if sip || collect {
+            controls.queue(WorldAction::Water(if sip {
+                water::Action::Sip
+            } else {
+                water::Action::Collect
+            }));
+        }
         let fish = keys.just_pressed(KeyCode::KeyL) || pad_just_pressed(GamepadButton::DPadRight);
         let cook = keys.just_pressed(KeyCode::KeyG) || pad_just_pressed(GamepadButton::DPadLeft);
         if fish != cook {
@@ -1536,6 +1551,7 @@ fn advance(
                 | WorldAction::OpenSupplyDrop
                 | WorldAction::Fishing
                 | WorldAction::Campfire
+                | WorldAction::Water(_)
         ) && !can_interact(&controls, &game.0)
         {
             continue;
@@ -1566,6 +1582,9 @@ fn advance(
                 sound(&mut commands, &sounds.ui);
             }),
             WorldAction::Campfire => campfires::apply(&mut game.0).inspect(|_| {
+                sound(&mut commands, &sounds.ui);
+            }),
+            WorldAction::Water(action) => water::apply(&mut game.0, action).inspect(|_| {
                 sound(&mut commands, &sounds.ui);
             }),
             WorldAction::PlaceProp(kind, yaw) => game
@@ -2033,7 +2052,7 @@ fn update_hud(
     } else if controls.building {
         "1-4 building piece | R rotate | LMB place | RMB door | B close\nAim at your building: T repair | Z upgrade Stone | X upgrade Metal"
     } else {
-        "LMB shoot | RMB ADS | R reload | F gather/loot/crate\nL cast/reel | G cook/take fish | B build | E editor | V skate"
+        "LMB shoot | RMB ADS | R reload | F gather/loot/crate\nP sip water | O collect barrel | L cast/reel | G cook/take fish\nB build | E editor | V skate"
     };
     let pad_controls = if controls.pad.is_some() {
         if grinding {
@@ -2045,7 +2064,7 @@ fn update_hud(
         } else if controls.editor {
             "Xbox editor: LS move / RS look | RT place | X remove | Y move\nD-pad select | LB/RB preview rotate | LT + LB/RB object rotate\nBack mode | LB/RB + Y skate | Start pause\n"
         } else {
-            "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather/loot/crate\nD-pad Right cast/reel | D-pad Left cook/take fish\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
+            "Xbox: LS move / RS look | RT shoot | LT ADS | A jump\nLS click sprint | B crouch | X reload | Y gather/loot/crate\nRS click sip water | D-pad Up collect barrel / Down inventory\nD-pad Right cast/reel | D-pad Left cook/take fish\nBack mode | LB/RB + Y skate | Start pause\n"
         }
     } else {
         ""
@@ -2076,6 +2095,9 @@ fn update_hud(
             content.push_str(&format!("\n{}", placement.status));
         }
         if can_interact(&controls, &game.0) {
+            if let Some(hint) = water::hint(&game.0) {
+                content.push_str(&format!("\n{hint}"));
+            }
             if let Some(hint) = fishing::hint(&game.0) {
                 content.push_str(&format!("\n{hint}"));
             }

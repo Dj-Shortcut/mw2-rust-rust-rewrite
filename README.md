@@ -113,6 +113,15 @@ recycling van de gekozen hoeveelheid; Enter bevestigt en Backspace annuleert. Xb
 blauwdruk; Xbox Y/B bevestigen/annuleren een recyclingactie. Kledingbeheer en
 reparatie/recycling starten voorlopig met het toetsenbord.
 I gebruikt het geselecteerde item in de inventory (Xbox A doet hetzelfde).
+In loopmodus drinkt P / Xbox RS click rechtstreeks uit bereikbaar water voor
++10 dorst, zonder itemverbruik of voorraadverlies. O / Xbox D-pad Omhoog neemt
+al het opgeslagen water uit de regenton bij de spawn, mits alles in je inventory
+past. De eigen ton toont opgeslagen water met blauwe markeringen; droogte en
+vorst pauzeren het vullen, terwijl reeds opgeslagen water bereikbaar blijft.
+F / Xbox Y verzamelt maximaal 10 Water per oogst uit eindige voorraad; K of
+inventory I / Xbox A gebruikt één Water voor +35 dorst. De bestaande inventory
+O/P-kledingbediening blijft behouden. Zie [de watergids](docs/WATER.md) voor
+bereik, fouten, tijdsverloop en verificatiegrenzen.
 Craft een hengel via recept 7; richt in loopmodus op bereikbaar water en druk
 L om te vissen. L haalt een actieve lijn weer binnen. Xbox D-pad Rechts gebruikt
 dezelfde visactie. Bij een kampvuur binnen bereik start G het bakken van één
@@ -151,6 +160,12 @@ zijn afzonderlijk gecontroleerd met 55 echte broncodecontroles, inclusief oude
 formaat-3-saves zonder regentonveld, en 116 keyboard/Mesa-controles
 (60 voor de route, 56 voor foutgevallen): proportionele reparatiekosten,
 grade/health/materiaalwisseling, geweigerde acties zonder mutatie en F5/F9.
+Waterbediening heeft 133 echte broncodecontroles voor Session, native invoer/
+dispatch, hints en tonvisuals. Via keyboard/Mesa zijn drinken, Water verzamelen/
+gebruiken, gedeeltelijk gevulde/volle/bevroren tonnen legen, atomische fouten,
+bouwmodeblokkering en F5/F9 met relevante sessiestaat uitgevoerd.
+Editor-/pauze-/inventorygates en F1 met craftingwachtrij op 1280×720 zijn gecontroleerd;
+[de watergids](docs/WATER.md) beschrijft de afgebakende controle en open onderdelen.
 De broncodecontrole gebruikt synthetische controllerinvoer; grafische controles
 gebruiken toetsenbord/muis. Dit is geen hardwareprestatiemeting.
 Niet alle native flows zijn geverifieerd; hoorbaar geluid, Xbox-controllerhardware
