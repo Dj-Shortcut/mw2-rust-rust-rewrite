@@ -19,6 +19,7 @@ mod fishing;
 mod inventory;
 mod loot;
 mod object_actions;
+mod queued_crafting;
 mod research;
 mod tool_actions;
 use inventory::{Action as InventoryAction, InventoryUi};
@@ -1101,6 +1102,10 @@ fn inventory_input(
     controls: &mut Controls,
     game: &mut Session,
 ) {
+    if !controls.focused || !controls.inventory_open || controls.paused || controls.error.is_some()
+    {
+        return;
+    }
     let pressed = |button| pad.is_some_and(|pad| pad.just_pressed(button));
     for (index, (key, _)) in [
         KeyCode::Digit1,
@@ -1130,6 +1135,32 @@ fn inventory_input(
         } else {
             (controls.recipe + 1) % count
         };
+    }
+    let enqueue = keys.just_pressed(KeyCode::KeyV);
+    let cancel = keys.just_pressed(KeyCode::KeyF);
+    if enqueue || cancel {
+        controls.inventory.apply(InventoryAction::Cancel, game);
+        let result = if !game
+            .world
+            .player(LOCAL)
+            .is_some_and(|player| player.health > 0)
+        {
+            Err("Player is not alive".into())
+        } else if enqueue && cancel {
+            Err("Choose one queue action (V or F)".into())
+        } else {
+            queued_crafting::apply(
+                game,
+                if enqueue {
+                    queued_crafting::Action::Queue(Recipe::ALL[controls.recipe])
+                } else {
+                    queued_crafting::Action::CancelFirst
+                },
+            )
+        };
+        game.message = result.unwrap_or_else(|error| error);
+        controls.inventory.sync(game);
+        return;
     }
     if keys.just_pressed(KeyCode::ArrowLeft) || pressed(GamepadButton::DPadLeft) {
         controls
@@ -1269,10 +1300,11 @@ fn update_inventory(
             content.push('\n');
         }
         content.push_str(&format!(
-            "{}\n{}\n{}\n",
+            "{}\n{}\n{}\n{}\n",
             controls.inventory.status(&game.0),
             tool_actions::status(&game.0, controls.inventory.slot),
             clothing::status(&game.0),
+            queued_crafting::summary(&game.0, true),
         ));
         content.push_str("RECIPES | blueprint status: Known / Locked\n");
         for (index, recipe) in Recipe::ALL.into_iter().enumerate() {
@@ -1295,7 +1327,7 @@ fn update_inventory(
             ));
         }
         content.push_str(&format!(
-            "{}\nArrow keys slot | Q/E quantity | S split | Enter move/confirm | I use\nT repair | N recycle (confirm) | Delete discard (destroys items)\nBackspace cancel/close | Tab close | H bandage | J food | K water | U ammo\n1-{} / PgUp/PgDn recipe | C craft | R research\nXbox: D-pad slot | LT/RT quantity | RS split | Y move/confirm\nLS discard | B cancel/close | LB/RB recipe | X craft | A use | Back research",
+            "{}\nArrow keys slot | Q/E quantity | S split | Enter move/confirm | I use\nT repair | N recycle (confirm) | Delete discard (destroys items)\nBackspace cancel/close | Tab close | H bandage | J food | K water | U ammo\n1-{} / PgUp/PgDn recipe | C craft | R research | V queue | F cancel first\nXbox: D-pad slot | LT/RT quantity | RS split | Y move/confirm\nLS discard | B cancel/close | LB/RB recipe | X craft | A use | Back research",
             research::status(&game.0, Recipe::ALL[controls.recipe]),
             Recipe::ALL.len().min(9)
         ));
@@ -1957,11 +1989,11 @@ fn update_hud(
         .as_ref()
         .is_some_and(|skate| skate.is_grinding());
     let mode = if health <= 0 && controls.inventory_open {
-        "DEAD | Tab / Xbox B: close inventory\nThen Enter / Xbox A to respawn".into()
+        "DEAD | Tab close\nXbox B cancel/close\nThen Enter / Xbox A to respawn".into()
     } else if health <= 0 {
         "DEAD | Enter / Xbox A to respawn".into()
     } else if controls.inventory_open {
-        "INVENTORY | Tab close | Xbox B cancel/close".into()
+        "INVENTORY | Tab close\nXbox B cancel/close".into()
     } else if controls.paused {
         "PAUSED | Esc / Start to resume".into()
     } else if controls.building {
@@ -2021,11 +2053,10 @@ fn update_hud(
     for mut text in &mut hud {
         if controls.inventory_open {
             **text = format!(
-                "{mode}\nHealth {health}  Ammo {clip}/{reserve}\nWood {}  Stone {}  Metal {}\n{}\n{}",
+                "{mode}\nHealth {health}  Ammo {clip}/{reserve}\nWood {}\nStone {}\nMetal {}\n{}",
                 resources.wood,
                 resources.stone,
                 resources.metal,
-                game.0.message,
                 controls.error.as_deref().unwrap_or("")
             );
             continue;
@@ -2038,6 +2069,9 @@ fn update_hud(
             resources.stone,
             resources.metal,
         );
+        if !game.0.crafting_queue().is_empty() {
+            content.push_str(&format!("\n{}", queued_crafting::summary(&game.0, false)));
+        }
         if !placement.status.is_empty() {
             content.push_str(&format!("\n{}", placement.status));
         }
