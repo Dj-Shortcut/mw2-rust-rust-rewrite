@@ -625,7 +625,12 @@ impl Session {
         if healed > 0 {
             let _ = self.world.heal_player(LOCAL, healed);
         }
-        self.tea_warmth = (self.tea_warmth - 0.017).max(0.);
+        if self.tea_warmth > 0. {
+            self.tea_warmth = (self.tea_warmth - 0.017).max(0.);
+            if self.tea_warmth == 0. {
+                self.message = "The tea's warmth wore off".into();
+            }
+        }
         let temperature = self.felt_temperature();
         let freezing = temperature < FREEZING_CELSIUS;
         if freezing && !self.freezing {
