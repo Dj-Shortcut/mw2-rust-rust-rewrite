@@ -1,6 +1,6 @@
 # TODO — pc-survival met FPS en skaten
 
-Doel: een zelfstandige pc-game in Rust/Bevy, met survival en bouwen geïnspireerd
+Doel: een zelfstandige multiplayer-pc-game in Rust/Bevy, met survival en bouwen geïnspireerd
 door Rust, FPS-gunplay en operators geïnspireerd door MW2, en skateboarden
 geïnspireerd door Skate 3. Werelden, modellen, materialen, animaties en geluiden
 maken we zelf. Originele gamebestanden zijn geen vereiste voor het eindproduct.
@@ -14,6 +14,24 @@ We houden vier stadia apart: **code aanwezig**, **headless geverifieerd**,
 echte backend zonder venster uit. Ze bewijzen geen camerabeeld, bediening of
 geluid. `[x]` hieronder geldt uitsluitend voor de expliciet genoemde controle;
 de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd.
+
+## Eerstvolgende productmijlpaal: samen spelen
+
+Multiplayer is een kernvereiste. De huidige standalone sandbox en de grafische
+controles hieronder zijn lokaal; de bestaande upstream-netwerkmodus bewijst
+geen gedeelde survivalwereld met onze eigen content. Dit werk heeft voorrang
+op aanvullende lokale interacties. Ontwerp en eigenaarschap:
+[docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) / [#243](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/243).
+
+- [ ] Eén autoritatieve wereld zonder originele gamebestanden, met expliciet gescheiden gedeelde wereldstaat en spelerstaat.
+- [ ] Twee onafhankelijke verbonden clients, toegewezen speleridentiteiten, dezelfde terrein-/contentidentiteit en serverbevestigde beweging; join/leave zichtbaar bij beide.
+- [ ] Een echte gedeelde bouwactie met servergevalideerde kosten/eigendom, resultaten bij beide clients en atomische weigering; geen twee afzonderlijke Session-werelden.
+- [ ] Native presentatie/invoer en afzonderlijke inventories koppelen; verzamelen→craften→bouwen→vechten→skaten als verbonden route verifiëren.
+- [ ] Serverpersistentie, reconnect, latency/pakketverlies en twee-machine Windows/GPU-spel afzonderlijk verifiëren; tijd gaat door wanneer één client pauzeert.
+
+De eerdere offline-planningsschatting is geen multiplayer-opleverdatum. Eerst
+de architectuur en de eerste echte verbonden route controleren, dan opnieuw
+schatten. Bestaande lokale verificatie blijft geldig binnen haar eigen scope.
 
 ## Wat aantoonbaar aanwezig is
 
