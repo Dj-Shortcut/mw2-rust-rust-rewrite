@@ -5,6 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 pub const HIVE_REACH: f32 = 100.;
 pub const HIVE_HONEY: u32 = 5;
 pub const HIVE_SECONDS: f32 = 90.;
+pub const BEE_STING_DAMAGE: u32 = 5;
 const POSITION: [f32; 2] = [460., -220.];
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
