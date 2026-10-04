@@ -1099,7 +1099,7 @@ impl Session {
             cast.node,
             self.casts,
             cast.baited,
-            self.weather.is_raining(),
+            self.weather.is_raining() || self.clock.is_twilight(),
         );
         self.casts = self.casts.wrapping_add(1);
         let broke = self.inventory.wear_tool(Item::FishingRod) == Some(true);
