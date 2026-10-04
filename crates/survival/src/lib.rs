@@ -473,7 +473,8 @@ impl Session {
             self.weather.is_raining() || self.clock.is_dawn(),
             frost,
         )?;
-        self.rain_barrel
+        let barrel_full = self
+            .rain_barrel
             .advance(0.017, self.weather.is_raining() && !frost)?;
         let hive_full = self
             .beehive
@@ -523,6 +524,9 @@ impl Session {
         }
         if hive_full {
             self.message = "The beehive is full of honey".into();
+        }
+        if barrel_full {
+            self.message = "The rain barrel is full".into();
         }
         if new_request {
             let request = self.trader.trader_request();
@@ -576,6 +580,7 @@ impl Session {
             || ripened
             || trapped
             || hive_full
+            || barrel_full
             || new_request
             || drops.expiring
             || drops.lost

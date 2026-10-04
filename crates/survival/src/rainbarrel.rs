@@ -84,24 +84,25 @@ impl RainBarrel {
             <= BARREL_REACH
     }
 
-    pub(crate) fn advance(&mut self, dt_seconds: f32, collecting: bool) -> Result<(), String> {
+    pub(crate) fn advance(&mut self, dt_seconds: f32, collecting: bool) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Rain barrel time step must be finite and non-negative".into());
         }
         let state = &mut self.state;
         if state.water >= BARREL_WATER {
             state.remaining = BARREL_FILL_SECONDS;
-            return Ok(());
+            return Ok(false);
         }
         if !collecting {
-            return Ok(());
+            return Ok(false);
         }
         state.remaining -= dt_seconds;
-        if state.remaining <= 0. {
-            state.water += 1;
-            state.remaining = BARREL_FILL_SECONDS;
+        if state.remaining > 0. {
+            return Ok(false);
         }
-        Ok(())
+        state.water += 1;
+        state.remaining = BARREL_FILL_SECONDS;
+        Ok(state.water == BARREL_WATER)
     }
 
     pub(crate) fn take_water(&mut self) -> Result<u32, String> {
