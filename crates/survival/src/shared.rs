@@ -1,7 +1,8 @@
 use super::{
-    AuthoredWorld, EditorState, GatheringWorld, Harvest, Inventory, ResourceKind, ResourceNode,
-    SPAWN_POINTS, Terrain, actor_building_placement, actor_gathering_ray, advance_resources,
-    authored_content, hulls_overlap, new_authored_world, persistence, player_blocked,
+    AuthoredWorld, BuildingPlacementPreview, EditorState, GatheringWorld, Harvest, Inventory,
+    ResourceKind, ResourceNode, SPAWN_POINTS, Terrain, actor_building_placement,
+    actor_gathering_ray, advance_resources, authored_content, hulls_overlap, new_authored_world,
+    persistence, player_blocked,
 };
 use playerstate_iw4::{UserCmd, buttons};
 use rust_building::{Kind, MAX_INVENTORIES, Resources};
@@ -90,6 +91,63 @@ pub struct SharedSnapshot {
     pub owners: Vec<(ClientId, u32)>,
     pub recipient: ClientId,
     pub inventory: Inventory,
+}
+
+impl SharedSnapshot {
+    pub fn tree_target(&self, replica: &SimWorld) -> Result<Option<ResourceNode>, String> {
+        self.preview_owner(replica)?;
+        let gathering = GatheringWorld::from_nodes(self.terrain_seed, self.nodes.clone())?;
+        let (start, end, obstacle) = actor_gathering_ray(replica, self.recipient)?;
+        Ok(gathering
+            .target_from_ray(start, end, obstacle)?
+            .filter(|node| node.kind == ResourceKind::Tree)
+            .cloned())
+    }
+
+    pub fn foundation_preview(
+        &self,
+        replica: &SimWorld,
+    ) -> Result<BuildingPlacementPreview, String> {
+        let owner = self.preview_owner(replica)?;
+        Ok(actor_building_placement(replica, self.recipient, owner, Kind::Foundation, 0).0)
+    }
+
+    fn preview_owner(&self, replica: &SimWorld) -> Result<u32, String> {
+        if self.schema != 1 || self.terrain_seed != 731 || self.tick != self.sim.tick {
+            return Err("Unsupported shared snapshot for preview".into());
+        }
+        let mut owners = self
+            .owners
+            .iter()
+            .filter(|(client, _)| *client == self.recipient);
+        let owner = owners
+            .next()
+            .map(|(_, owner)| *owner)
+            .ok_or("Preview recipient is not an active owner")?;
+        if self.recipient.0 >= OWNER_BASE
+            || !(OWNER_BASE..OWNER_BASE + MAX_INVENTORIES as u32).contains(&owner)
+            || owners.next().is_some()
+        {
+            return Err("Invalid preview recipient ownership".into());
+        }
+        let mut players = self
+            .sim
+            .players
+            .iter()
+            .filter(|(client, _)| *client == self.recipient);
+        let expected = players
+            .next()
+            .map(|(_, player)| player)
+            .ok_or("Preview recipient has no confirmed player")?;
+        if players.next().is_some()
+            || replica.player(self.recipient) != Some(expected)
+            || replica.match_elapsed_ms() != self.sim.meta.match_elapsed_ms
+            || replica.buildings() != &self.sim.meta.world_objects.buildings
+        {
+            return Err("Preview snapshot and replica do not match".into());
+        }
+        Ok(owner)
+    }
 }
 
 struct Actor {

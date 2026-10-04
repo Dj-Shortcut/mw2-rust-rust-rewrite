@@ -31,9 +31,17 @@ staan in [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) en
 [issue #243](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/243).
 De gedeelde kern en een directe TCP-server/clientadapter zijn nu aanwezig.
 Eén echt serverproces en twee afzonderlijke clients doorlopen bewegen, eindig
-verzamelen en een gedeelde Wood foundation in 79 headless controles. Native
-host/join, volledige survival en internet-/persistentieflows blijven open. Zie
-[docs/DIRECT-MULTIPLAYER.md](docs/DIRECT-MULTIPLAYER.md) voor de exacte grenzen.
+verzamelen en een gedeelde Wood foundation in 79 headless controles.
+De native `join IP:PORT`-route is aanwezig voor een ongewapend gather/build-prototype.
+De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
+software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone
+executables doorlopen 24 beperkte toetsenbord/Mesa-venstercontroles. Daarnaast
+slagen 101 controles met twee echte Bevy-clients en een alleen-lezen observer:
+eindig verzamelen→fundering, gedeelde scene/colliders, pauze, fouten en opruiming.
+Bouwvlakken en Engelse UI zijn ook visueel nagekeken. Volledige survival en
+internet-/persistentieflows blijven onafgewerkt. Zie
+[docs/NATIVE-MULTIPLAYER.md](docs/NATIVE-MULTIPLAYER.md) voor de verbonden bediening en
+[docs/DIRECT-MULTIPLAYER.md](docs/DIRECT-MULTIPLAYER.md) voor de transportgrenzen.
 De eerdere tijdschatting voor een offline testversie dekt deze mijlpaal niet.
 
 ## Bijdragen
@@ -105,8 +113,17 @@ cargo run -p launcher --profile play --locked -- server --bind 127.0.0.1:28980
 ```
 
 Deze server gebruikt procedurele content en vereist geen originele gamefiles.
-De herbruikbare clientadapter is beschikbaar voor verdere frontendintegratie;
-de huidige `game`-opdracht verbindt nog niet met deze server. Stop met Ctrl+C.
+Verbind twee native ontwikkelclients vanuit afzonderlijke terminals:
+
+```bash
+cargo run -p launcher --profile play --locked -- join 127.0.0.1:28980
+```
+
+Join gebruikt de eigen modellen en ondersteunt ongewapend Trees verzamelen
+en Wood foundations plaatsen. `game` blijft offline. Esc pauzeert lokale
+bediening terwijl de gedeelde wereld doorgaat; F1 toont de verbonden bediening.
+De beperkte native verzamelen→fundering-route is op Linux/Mesa gecontroleerd.
+Stop de server met Ctrl+C.
 
 De launcher kiest standaard hetzelfde zelfstandige native startpad. De eigen
 content staat onder `assets/authored/` en wordt vanuit de repository gevonden.

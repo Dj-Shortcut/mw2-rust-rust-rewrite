@@ -26,6 +26,15 @@ fn main() {
             .unwrap_or_else(|error| diag::exit_launch_error(&error));
         return;
     }
+    if args.first().is_some_and(|arg| arg == "join") {
+        let address = match args.as_slice() {
+            [_, address] => address.parse(),
+            _ => diag::exit_launch_error("Usage: iw4l join IP:PORT"),
+        }
+        .unwrap_or_else(|_| diag::exit_launch_error("The server address must be IP:PORT"));
+        bootstrap::run_connected(address).unwrap_or_else(|error| diag::exit_launch_error(&error));
+        return;
+    }
     if args.is_empty() || args.first().is_some_and(|arg| arg == "game") {
         if args.len() > 1 {
             diag::exit_launch_error("The game command accepts no additional arguments");

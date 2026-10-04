@@ -15,6 +15,7 @@ use survival::{
 mod building_actions;
 mod campfires;
 mod clothing;
+mod connected;
 mod fishing;
 mod garden;
 mod inventory;
@@ -24,6 +25,7 @@ mod queued_crafting;
 mod research;
 mod tool_actions;
 mod water;
+pub use connected::run as run_connected;
 use inventory::{Action as InventoryAction, InventoryUi};
 
 #[derive(Resource)]
