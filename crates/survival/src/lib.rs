@@ -29,7 +29,7 @@ pub use airdrop::{
     Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, FIRST_DROP_SECONDS, FLARE_SECONDS,
     SupplyDrop,
 };
-pub use beehive::{Beehive, HIVE_HONEY, HIVE_REACH, HIVE_SECONDS, SavedHive};
+pub use beehive::{BEE_STING_DAMAGE, Beehive, HIVE_HONEY, HIVE_REACH, HIVE_SECONDS, SavedHive};
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use cooking::{
     CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COMFORT_SECONDS_PER_HP, COOK_SECONDS,
@@ -1440,11 +1440,22 @@ impl Session {
         }
         let mut hive = self.beehive.clone();
         let honey = hive.take_honey()?;
-        self.inventory
+        let mut inventory = self.inventory.clone();
+        inventory
             .add(Item::Honey, honey)
             .map_err(|_| "Not enough inventory space for the honey")?;
+        let stung = self.worn != Some(Item::HazmatSuit);
+        if stung {
+            self.world
+                .queue_environment_damage(LOCAL, BEE_STING_DAMAGE)?;
+            self.queued_damage += BEE_STING_DAMAGE;
+        }
+        self.inventory = inventory;
         self.beehive = hive;
         self.message = format!("Took {honey} honey from the beehive");
+        if stung {
+            self.message.push_str("; the bees stung you");
+        }
         Ok(())
     }
 
