@@ -487,6 +487,7 @@ impl Session {
         let new_request = self.trader.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
+        let was_bleeding = self.vitals.is_bleeding();
         if alive {
             self.vitals.wound(external);
         } else {
@@ -642,6 +643,13 @@ impl Session {
         if damage > 0 && self.world.player(LOCAL).is_some_and(|p| p.health > 0) {
             self.world.queue_environment_damage(LOCAL, damage)?;
             self.queued_damage += damage;
+        }
+        if self.vitals.is_bleeding() != was_bleeding {
+            self.message = if was_bleeding {
+                "The bleeding stopped".into()
+            } else {
+                "You are bleeding".into()
+            };
         }
         // Last, so no other message on the same tick hides the drop's location.
         if let Some(p) = self.airdrops.position().filter(|_| drops.landed) {
