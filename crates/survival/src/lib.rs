@@ -490,6 +490,7 @@ impl Session {
         let was_bleeding = self.vitals.is_bleeding();
         let was_fed = self.vitals.hunger() > 0.;
         let was_watered = self.vitals.thirst() > 0.;
+        let was_sick = self.vitals.radiation() > RADIATION_SICK;
         if alive {
             self.vitals.wound(external);
         } else {
@@ -651,6 +652,13 @@ impl Session {
                 "The bleeding stopped".into()
             } else {
                 "You are bleeding".into()
+            };
+        }
+        if (self.vitals.radiation() > RADIATION_SICK) != was_sick {
+            self.message = if was_sick {
+                "The radiation sickness passed".into()
+            } else {
+                "You have radiation sickness".into()
             };
         }
         if was_watered && self.vitals.thirst() == 0. {
