@@ -88,6 +88,8 @@ pub(crate) struct SavedSession {
     #[serde(default)]
     pub tea_warmth: f32,
     #[serde(default)]
+    pub wetness: f32,
+    #[serde(default)]
     pub fishing: Option<Cast>,
     #[serde(default)]
     pub casts: u32,
@@ -265,6 +267,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     beehive: SavedHive::default(),
                     trader_request: SavedRequest::default(),
                     tea_warmth: 0.,
+                    wetness: 0.,
                     fishing: None,
                     casts: 0,
                     gathering: old.gathering,

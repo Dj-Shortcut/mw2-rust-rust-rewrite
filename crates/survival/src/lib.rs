@@ -87,6 +87,8 @@ const PLAYER_MINS: [f32; 3] = [-15., -15., 0.];
 const PLAYER_MAXS: [f32; 3] = [15., 15., 70.];
 const LOW_VITAL: f32 = 20.;
 const TOOL_WARN_USES: u32 = 5;
+const WET_DRY_SECONDS: f32 = 180.;
+const WET_FIRE_DRY_SECONDS: f32 = 20.;
 
 #[derive(Clone, Debug)]
 pub struct PropPlacementPreview {
@@ -142,6 +144,7 @@ pub struct Session {
     warming: bool,
     irradiated: bool,
     tea_warmth: f32,
+    wetness: f32,
     comfort: f32,
     badly_hurt: bool,
     poisoned: bool,
@@ -434,6 +437,7 @@ impl Session {
             warming: false,
             irradiated: false,
             tea_warmth: 0.,
+            wetness: 0.,
             comfort: 0.,
             badly_hurt: false,
             poisoned: false,
@@ -506,6 +510,7 @@ impl Session {
             self.warming = false;
             self.irradiated = false;
             self.tea_warmth = 0.;
+            self.wetness = 0.;
             self.comfort = 0.;
             self.poisoned = false;
             self.fishing = None;
@@ -648,6 +653,16 @@ impl Session {
                 self.message = "The tea's warmth wore off".into();
             }
         }
+        self.wetness = if self.in_rain() {
+            1.
+        } else {
+            let seconds = if self.near_campfire() {
+                WET_FIRE_DRY_SECONDS
+            } else {
+                WET_DRY_SECONDS
+            };
+            (self.wetness - 0.017 / seconds).max(0.)
+        };
         let temperature = self.felt_temperature();
         let freezing = temperature < FREEZING_CELSIUS;
         if freezing && !self.freezing {
@@ -776,12 +791,20 @@ impl Session {
             (true, true) => RAIN_CAMPFIRE_WARMTH,
         };
         let tea = if self.tea_warmth > 0. { TEA_WARMTH } else { 0. };
-        let rain = if self.worn.is_some_and(Item::rain_proof) {
-            0.
-        } else {
+        let rain = if self.in_rain() {
             self.weather.chill()
+        } else {
+            RAIN_CHILL_CELSIUS * self.wetness
         };
         self.clock.temperature() - rain + self.worn.map_or(0., Item::warmth) + fire + tea
+    }
+
+    pub fn wetness(&self) -> f32 {
+        self.wetness
+    }
+
+    fn in_rain(&self) -> bool {
+        self.weather.is_raining() && !self.worn.is_some_and(Item::rain_proof)
     }
 
     pub fn comfortable(&self) -> bool {
@@ -1892,6 +1915,7 @@ impl Session {
             .map_err(|e| e.to_string())?;
         self.vitals = Vitals::default();
         self.poisoned = false;
+        self.wetness = 0.;
         self.queued_damage = 0;
         self.dismount();
         self.world.set_external_motion(LOCAL, false);
@@ -2202,6 +2226,7 @@ impl Session {
             beehive: self.beehive.saved(),
             trader_request: self.trader.saved(),
             tea_warmth: self.tea_warmth,
+            wetness: self.wetness,
             fishing: self.fishing,
             casts: self.casts,
             gathering: self.gathering.clone(),
@@ -2357,6 +2382,12 @@ impl Session {
         if !tea_ok {
             return Err("Saved tea warmth is out of range".into());
         }
+        let wet_ok = scene.wetness.is_finite()
+            && (0. ..=1.).contains(&scene.wetness)
+            && (player.alive || scene.wetness == 0.);
+        if !wet_ok {
+            return Err("Saved wetness is out of range".into());
+        }
         if !player.alive && !scene.crafting.jobs().is_empty() {
             return Err("A dead player cannot have queued crafting".into());
         }
@@ -2406,6 +2437,7 @@ impl Session {
         self.warming = false;
         self.irradiated = false;
         self.tea_warmth = scene.tea_warmth;
+        self.wetness = scene.wetness;
         self.comfort = 0.;
         self.badly_hurt = self
             .world
