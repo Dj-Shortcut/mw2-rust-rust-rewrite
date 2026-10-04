@@ -153,18 +153,19 @@ impl TradingPost {
         self.request.remaining
     }
 
-    pub(crate) fn advance(&mut self, dt_seconds: f32) -> Result<(), String> {
+    pub(crate) fn advance(&mut self, dt_seconds: f32) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Trader request time step must be finite and non-negative".into());
         }
         let request = &mut self.request;
         request.remaining -= dt_seconds;
-        if request.remaining <= 0. {
-            request.index = (request.index + 1) % TRADE_REQUESTS.len() as u32;
-            request.remaining = REQUEST_SECONDS;
-            request.fulfilled = false;
+        if request.remaining > 0. {
+            return Ok(false);
         }
-        Ok(())
+        request.index = (request.index + 1) % TRADE_REQUESTS.len() as u32;
+        request.remaining = REQUEST_SECONDS;
+        request.fulfilled = false;
+        Ok(true)
     }
 
     pub(crate) fn fulfill(&mut self, inventory: &mut Inventory) -> Result<TradeOffer, String> {
