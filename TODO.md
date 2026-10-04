@@ -33,6 +33,8 @@ De eerdere offline-planningsschatting is geen multiplayer-opleverdatum. Eerst
 de architectuur en de eerste echte verbonden route controleren, dan opnieuw
 schatten. Bestaande lokale verificatie blijft geldig binnen haar eigen scope.
 
+- [x] Eerste gedeelde authority-kern: `SharedSession` voor twee actors, 50 ms-klok en serverafgeleide Tree→Wood-foundationacties. 78 echte API-controles slagen met command-gestuurd lopen, exacte eindige voorraad/kosten, replay, snapshots/colliders en fresh-owner rejoin. Dit is headless binnen één proces; transport, native multiplayer, ongelijke private inventoryinhoud en persistentie blijven open. De bestaande lokale movement/gather/build/save-uitvoer en save-JSON blijven byte-identiek.
+
 ## Wat aantoonbaar aanwezig is
 
 | Onderdeel | Code aanwezig | Headless/codebewijs | Grafisch geverifieerd | Releasegereed |
