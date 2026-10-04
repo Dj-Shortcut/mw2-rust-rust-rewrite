@@ -625,6 +625,14 @@ impl Session {
         if healed > 0 {
             let _ = self.world.heal_player(LOCAL, healed);
         }
+        if hurt
+            && self
+                .world
+                .player(LOCAL)
+                .is_some_and(|p| p.health == p.max_health)
+        {
+            self.message = "You are fully healed".into();
+        }
         if self.tea_warmth > 0. {
             self.tea_warmth = (self.tea_warmth - 0.017).max(0.);
             if self.tea_warmth == 0. {
