@@ -29,6 +29,11 @@ autoritatieve server en twee verbonden clients, gevolgd door gedeeld bouwen,
 verzamelen, inventory, gevechten en skaten. Het ontwerp en de acceptatiecriteria
 staan in [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) en
 [issue #243](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/243).
+De gedeelde kern en een directe TCP-server/clientadapter zijn nu aanwezig.
+Eén echt serverproces en twee afzonderlijke clients doorlopen bewegen, eindig
+verzamelen en een gedeelde Wood foundation in 79 headless controles. Native
+host/join, volledige survival en internet-/persistentieflows blijven open. Zie
+[docs/DIRECT-MULTIPLAYER.md](docs/DIRECT-MULTIPLAYER.md) voor de exacte grenzen.
 De eerdere tijdschatting voor een offline testversie dekt deze mijlpaal niet.
 
 ## Bijdragen
@@ -92,6 +97,16 @@ Start de ontwikkelversie vanuit de repository:
 ```bash
 cargo run -p launcher --profile play --locked -- game
 ```
+
+Voor de headless ontwikkelserver (TCP; standaard alleen localhost):
+
+```bash
+cargo run -p launcher --profile play --locked -- server --bind 127.0.0.1:28980
+```
+
+Deze server gebruikt procedurele content en vereist geen originele gamefiles.
+De herbruikbare clientadapter is beschikbaar voor verdere frontendintegratie;
+de huidige `game`-opdracht verbindt nog niet met deze server. Stop met Ctrl+C.
 
 De launcher kiest standaard hetzelfde zelfstandige native startpad. De eigen
 content staat onder `assets/authored/` en wordt vanuit de repository gevonden.

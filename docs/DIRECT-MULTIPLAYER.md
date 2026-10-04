@@ -1,6 +1,6 @@
 # Direct authored-world multiplayer
 
-Design for #248; part of [MULTIPLAYER.md](MULTIPLAYER.md).
+Runtime for #248; part of [MULTIPLAYER.md](MULTIPLAYER.md).
 The current `game` command remains offline. This slice adds a headless server
 and reusable client adapter; graphical host/join is a later stage.
 
@@ -36,11 +36,12 @@ Use full baseline-zero snapshots and complete Frame metadata, including building
 and player lifecycle. Validate nodes, inventory and building data before apply.
 Rebuild client static collision from original terrain and validated live nodes.
 Only recipient carried inventory is sent; legacy building balances remain public.
+Full world-object sync is additionally limited to the inherited 65,535-byte section.
 
 ## Acceptance and limits
-Execute one actual server process plus two independent clients over sockets.
-Verify mutual movement, finite gather → actor credit → shared Wood foundation,
-consistent replicas, refusal/replay, disconnect/late join and malformed traffic.
+Linux headless: 79 checks pass using one shipping server and two independent
+TCP clients: movement, finite gather → shared Wood foundation, exact replicas,
+refusal/replay, depletion, fresh-owner late join and malformed-peer progress.
 Record commands/platform/source and distinguish this headless check from native
 rendering, two-machine Windows/GPU play and release readiness. Full crafting,
 combat, skating/editor, private populated inventories, persistence and latency/

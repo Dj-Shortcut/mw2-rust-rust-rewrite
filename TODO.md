@@ -35,6 +35,8 @@ schatten. Bestaande lokale verificatie blijft geldig binnen haar eigen scope.
 
 - [x] Eerste gedeelde authority-kern: `SharedSession` voor twee actors, 50 ms-klok en serverafgeleide Tree→Wood-foundationacties. 78 echte API-controles slagen met command-gestuurd lopen, exacte eindige voorraad/kosten, replay, snapshots/colliders en fresh-owner rejoin. Dit is headless binnen één proces; transport, native multiplayer, ongelijke private inventoryinhoud en persistentie blijven open. De bestaande lokale movement/gather/build/save-uitvoer en save-JSON blijven byte-identiek.
 
+- [x] Eerste direct verbonden route: dedicated `server --bind IP:PORT` en herbruikbare TCP-clientadapter zonder originele gamebestanden. 79 Linux-headless controles slagen met één echt serverproces en twee onafhankelijke clientprocessen: beweging, actor-owned eindig hout→gedeelde Wood foundation, gelijke snapshots/colliders, exact-once replay, depletion en fresh-owner late join; malformed peers blokkeren normale ticks niet. Dit is localhost/LAN-ontwikkeltransport. `game` blijft offline; native verbonden bediening, internet/authenticatie, volledige survival, populated private inventories en serverpersistentie blijven open.
+
 ## Wat aantoonbaar aanwezig is
 
 | Onderdeel | Code aanwezig | Headless/codebewijs | Grafisch geverifieerd | Releasegereed |

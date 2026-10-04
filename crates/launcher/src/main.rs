@@ -15,6 +15,17 @@ fn main() {
     });
     #[cfg_attr(not(windows), allow(unused_mut))]
     let mut args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "server") {
+        let bind = match args.as_slice() {
+            [_] => "127.0.0.1:28980".parse(),
+            [_, flag, address] if flag == "--bind" => address.parse(),
+            _ => diag::exit_launch_error("Usage: iw4l server [--bind IP:PORT]"),
+        }
+        .unwrap_or_else(|_| diag::exit_launch_error("The server bind address must be IP:PORT"));
+        bootstrap::standalone::run_server(bind)
+            .unwrap_or_else(|error| diag::exit_launch_error(&error));
+        return;
+    }
     if args.is_empty() || args.first().is_some_and(|arg| arg == "game") {
         if args.len() > 1 {
             diag::exit_launch_error("The game command accepts no additional arguments");

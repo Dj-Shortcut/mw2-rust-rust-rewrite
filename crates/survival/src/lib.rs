@@ -67,7 +67,7 @@ pub use radiation::{MAX_RADIATION, RADIATION_RADIUS, RADIATION_SICK};
 pub use rainbarrel::{BARREL_FILL_SECONDS, BARREL_REACH, BARREL_WATER, RainBarrel, SavedBarrel};
 pub use shared::{
     ActorHandle, SHARED_STEP_MS, SharedAction, SharedEffect, SharedReceipt, SharedRequest,
-    SharedSession, SharedSnapshot,
+    SharedSession, SharedSnapshot, shared_replica,
 };
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use stash::{STASH_REACH, Stash};
