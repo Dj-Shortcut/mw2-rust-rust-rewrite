@@ -641,6 +641,8 @@ impl Session {
         let irradiated = self.in_radiation_zone();
         if irradiated && !self.irradiated {
             self.message = "You entered a radiation zone".into();
+        } else if !irradiated && self.irradiated {
+            self.message = "You left the radiation zone".into();
         }
         self.irradiated = irradiated;
         let damage =
