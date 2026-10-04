@@ -6,6 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 pub const FIRST_DROP_SECONDS: f32 = 600.;
 pub const DROP_INTERVAL_SECONDS: f32 = 900.;
 pub const DROP_LIFETIME_SECONDS: f32 = 600.;
+pub const FLARE_SECONDS: f32 = 30.;
 const SITES: [[f32; 2]; 4] = [
     [-900., 1200.],
     [1100., -1100.],
@@ -132,6 +133,17 @@ impl Airdrops {
 
     pub fn active(&self) -> Option<SupplyDrop> {
         self.state.active
+    }
+
+    pub(crate) fn call_in(&mut self) -> Result<(), String> {
+        if self.state.active.is_some() {
+            return Err("A supply drop is already down".into());
+        }
+        if self.state.next_in <= FLARE_SECONDS {
+            return Err("A supply drop is already on its way".into());
+        }
+        self.state.next_in = FLARE_SECONDS;
+        Ok(())
     }
 
     pub fn position(&self) -> Option<[f32; 3]> {
