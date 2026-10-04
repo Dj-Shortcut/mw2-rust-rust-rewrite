@@ -1,6 +1,6 @@
 # Connected Cloth and Bandage crafting
 
-Unimplemented design for [#254](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/254), extending the native join route.
+Implemented development slice for [#254](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/254), extending the native join route.
 
 ## Player flow
 
@@ -16,7 +16,7 @@ Toggles cancel only unsent intents; a sent action is never automatically retried
 
 ## Authority and compatibility
 
-Add typed GatherCloth/CraftBandage requests, with no client cost/item/actor payload.
+Typed GatherCloth/CraftBandage requests carry no client cost/item/actor payload.
 The server derives the nearest visible target; only Tree/Hemp are supported.
 Stage node depletion and carried Cloth together; refusal commits neither.
 Craft on a candidate inventory: remove 4 Cloth, add 1 Bandage, then commit.
@@ -26,6 +26,7 @@ Append Item::Cloth and ResourceKind::Hemp; preserve old item tags and node IDs.
 Add two non-solid finite Hemp plants after the existing deterministic node layout.
 Older complete gathering saves gain these plants without changing saved old nodes.
 All new offline Bandage crafting reserves Cloth, including queue/cancel/refund.
+Death refunds fit available storage; excess reserved Cloth is discarded.
 Older already-paid queued Bandages retain their legacy payment/refund compatibility.
 The standalone envelope becomes version 2; imported protocol 95/schema 1 remain.
 Only the recipient's carried stacks are sent; building resource ledgers remain public.
@@ -33,13 +34,15 @@ Fresh admissions receive new ownership and empty inventory, without restoration.
 
 ## Verification and remaining scope
 
-Check exact finite Cloth → Bandage conservation, unchanged building resources,
-atomic full-slot/refusal cases, replay/conflicts, stale/dead/init actors and regrowth.
-Use two real transport clients with unequal positive recipient inventories.
-Exercise old gathering saves and paid queued-job completion/cancel/death refunds.
-Use two native windows for real keyboard gather/panel/craft, pending/refusals,
-focus/pause/failure/late join, continued other-client progress and natural cleanup.
-Review English UI at 720p; keep probes ignored and add no permanent tests.
+Linux checks pass: 8 catalog and 10 actual Session groups, 21 craft-helper,
+26 authority, 81 codec, 42 pure-panel and 138 Bevy software-input checks.
+One shipping server and two independent DirectClient processes pass 36 checks:
+A holds 6 Cloth/1 Bandage, B holds 2 Cloth/2 Bandages; 20 = 8 + 3 × 4.
+Old saves/paid jobs, finite stock, full-slot atomicity and replay are covered.
+Two actual-source native windows pass 98 keyboard/Mesa flow checks.
+Two unmodified shipping windows pass 32 bounded keyboard/Mesa smoke checks.
+English 720p panels/primitive Hemp are reviewed; no full24-slot GPU proof.
+All probes stay ignored; cargo test has 0 permanent test scenarios.
 Wood-for-Bandage trade is a later roadmap item, separate from Cloth crafting.
 Connected timed crafting, Bandage healing, trading, other recipes, combat/skating,
 private building balances and server persistence are outside this slice.

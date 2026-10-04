@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use survival::{SharedAction, SharedEffect};
 
 mod input;
+mod inventory;
 mod network;
 mod scene;
 
@@ -25,6 +26,7 @@ struct Controls {
     paused: bool,
     focused: bool,
     building: bool,
+    inventory: bool,
     help: bool,
     captured: bool,
     capture_frames: u8,
@@ -117,7 +119,7 @@ fn receive(mut connection: ResMut<Connection>, mut controls: ResMut<Controls>) {
         controls.recapture();
     }
     if update.status.connected() && !connection.status.connected() {
-        connection.message = "Connected. Gather trees to build.".into();
+        connection.message = "Connected. Gather trees to build or hemp for Cloth.".into();
     }
     if let network::NetworkStatus::Failed(error) = &update.status {
         connection.message = error.clone();
@@ -135,6 +137,7 @@ fn receive(mut connection: ResMut<Connection>, mut controls: ResMut<Controls>) {
         connection.message = match receipt.result {
             Ok(SharedEffect::Gathered(harvest)) => gather_feedback(harvest),
             Ok(SharedEffect::FoundationPlaced { .. }) => "Wood foundation placed".into(),
+            Ok(SharedEffect::BandageCrafted) => "Bandage crafted | Used 4 Cloth".into(),
             Err(error) => error,
         };
     }

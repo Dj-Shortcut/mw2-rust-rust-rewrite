@@ -17,7 +17,8 @@ No server saves or authenticated reconnect restoration are added.
 ## Transport and admission
 Use nonblocking std TCP with a 4-byte LE length and maximum 256 KiB body.
 Reject zero/oversized lengths before allocation, unknown magic/version/tags,
-trailing data and invalid bounded payloads. Preserve inherited protocol95 codecs.
+trailing data and invalid bounded payloads. Standalone envelope version is 2;
+preserve inherited protocol95 codecs. Both peers must use the same build.
 Allow two actors and two pending admissions; handshake/application deadline 5s.
 Bound input to one frame, service to four messages per peer/iteration, queued
 output to two frames, and writes to a 1s progress deadline. Slow peers cannot
@@ -31,7 +32,7 @@ Disconnect retires the actor; later joins get fresh building ownership.
 ## Commands and state
 One server clock advances SharedSession once per 50ms, at most four catch-up
 ticks per loop. Clients never run an offline Session or mutate authority state.
-One newest movement command and one typed gather/build request per actor/tick;
+One newest movement command and one typed gather/build/craft request per actor/tick;
 request IDs preserve cached outcomes and reject conflicting/expired requests.
 Use full baseline-zero snapshots and complete Frame metadata, including buildings
 and player lifecycle. Validate nodes, inventory and building data before apply.
@@ -44,6 +45,6 @@ Linux headless: 79 checks pass using one shipping server and two independent
 TCP clients: movement, finite gather → shared Wood foundation, exact replicas,
 refusal/replay, depletion, fresh-owner late join and malformed-peer progress.
 Record commands/platform/source and distinguish this headless check from native
-rendering, two-machine Windows/GPU play and release readiness. Full crafting,
-combat, skating/editor, private populated inventories, persistence and latency/
-loss verification remain open. No permanent test scenario is introduced.
+rendering, two-machine Windows/GPU play and release readiness. The subsequent
+[Cloth slice](CONNECTED-CRAFTING.md) verifies populated recipient inventories.
+Full crafting/combat/skating, persistence and latency/loss remain open.

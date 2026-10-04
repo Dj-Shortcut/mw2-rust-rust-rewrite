@@ -39,6 +39,8 @@ schatten. Bestaande lokale verificatie blijft geldig binnen haar eigen scope.
 
 - [x] Eerste native verbonden broncode en controles ([#251](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/251)): `join IP:PORT` koppelt Bevy-bediening en presentatie aan de echte directe client, met toegewezen camera, eigen remote operators, actuele nodes, gedeelde foundations, bevestigd Wood en Engelse pauze-/foutmeldingen. De geoptimaliseerde Linux-build slaagt; 61 shared-preview-, 70 software-invoer- en 46 echte worker/socketcontroles slagen afzonderlijk. Twee gewone executables doorlopen 24 beperkte toetsenbord/Mesa-venstercontroles voor zichtbare beweging, lokale pauze, disconnect en afsluiting. Daarnaast slagen 101 controles met twee echte Bevy-clients en een alleen-lezen observer voor eindig verzamelen→fundering, exact actor-owned kosten, gedeelde scene/colliders, depletion, pauze, late join, fouten en opruiming; bouwvlakken en Engelse UI zijn visueel nagekeken. Fysieke controllers, Windows/twee-machine-spel en releasegereedheid blijven open. [Bediening en grenzen](docs/NATIVE-MULTIPLAYER.md).
 
+- [x] Verbonden Cloth/crafting en eigen inventory ([#254](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/254)): twee eindige Hemp-planten geven elk 10 Cloth; één Bandage kost 4 Cloth, zonder Wood. Catalogus-/oude-savecontroles (8 groepen), echte offline Session-/queue-/cancel-/deathcontroles (10 groepen), helper (21), authority (26), codec (81), pure panelweergave (42), software-invoer (138) en twee echte TCP-clientprocessen (36) slagen. Speler A heeft 6 Cloth/1 Bandage en B 2 Cloth/2 Bandages; opnieuw verstuurde acties dupliceren niets. Twee echte native clients met een alleen-lezen observer doorlopen 98 toetsenbord/Mesa-controles voor verzamelen/craften, private inventory, pauze, weigeringen, late join en afsluiten. Twee gewone executables slagen voor 32 beperkte inventory-/bewegings-/pauze-/fout-/afsluitcontroles. Engelse 720p-panels en eigen Hemp-visuals zijn nagekeken; volledige 24-slot-GPU-weergave, Windows en fysieke controllers blijven open. Craftqueue/healing/handel in multiplayer blijven open; deathrefunds zijn capaciteitsbegrensd en fresh-owner joins herstellen geen oude inventory. [Bediening en grenzen](docs/CONNECTED-CRAFTING.md).
+
 ## Wat aantoonbaar aanwezig is
 
 | Onderdeel | Code aanwezig | Headless/codebewijs | Grafisch geverifieerd | Releasegereed |
@@ -274,6 +276,7 @@ De overdracht voor Claude staat in [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
 - [ ] Dieren en NPC's met navigatie, waarneming, gevechten en loot.
 - [ ] Wereldactiviteiten, airdrops, patrouilles en monument-events.
 - [ ] Veilige zones, handel, vending, economie en NPC-missies.
+- [ ] Hout tegen Bandages ruilen via spelers of vending, met serverbevestigde prijzen, voorraad en atomische overdracht; los van het 4-Cloth-craftrecept.
 - [ ] Map, kompas, markers, spawnregels en reproduceerbare world seeds.
 
 ## Eigen map en skateobjecteditor

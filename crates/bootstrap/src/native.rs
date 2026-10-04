@@ -399,6 +399,7 @@ fn setup(
         survival::ResourceKind::Metal,
         survival::ResourceKind::Berry,
         survival::ResourceKind::Water,
+        survival::ResourceKind::Hemp,
     ] {
         let visual = kind.visual();
         let material = materials.add(StandardMaterial {
@@ -1081,7 +1082,11 @@ fn supply_hint(session: &Session) -> Option<String> {
 fn gather_feedback(harvest: survival::Harvest) -> String {
     let mut message = format!(
         "{} +{} | {} remaining",
-        harvest.kind.name(),
+        if harvest.kind == survival::ResourceKind::Hemp {
+            "Cloth"
+        } else {
+            harvest.kind.name()
+        },
         harvest.amount,
         harvest.remaining
     );
@@ -1341,9 +1346,18 @@ fn update_inventory(
         content.push_str("RECIPES | blueprint status: Known / Locked\n");
         for (index, recipe) in Recipe::ALL.into_iter().enumerate() {
             let cost = recipe.cost();
+            let ingredients = recipe.carried_cost().map_or_else(
+                || {
+                    format!(
+                        "wood {} / stone {} / metal {}",
+                        cost.wood, cost.stone, cost.metal
+                    )
+                },
+                |(item, amount)| format!("{amount} {}", item.name()),
+            );
             let (item, amount) = recipe.output();
             content.push_str(&format!(
-                "{} {}: {} x{} [{}] | wood {} / stone {} / metal {}\n",
+                "{} {}: {} x{} [{}] | {}\n",
                 if index == controls.recipe { ">" } else { " " },
                 index + 1,
                 item.name(),
@@ -1353,9 +1367,7 @@ fn update_inventory(
                 } else {
                     "Locked"
                 },
-                cost.wood,
-                cost.stone,
-                cost.metal
+                ingredients
             ));
         }
         content.push_str(&format!(

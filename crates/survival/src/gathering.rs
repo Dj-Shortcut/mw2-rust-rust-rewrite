@@ -17,6 +17,7 @@ pub enum ResourceKind {
     Metal,
     Berry,
     Water,
+    Hemp,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -77,6 +78,7 @@ impl ResourceKind {
             Self::Metal => "Metal ore",
             Self::Berry => "Berries",
             Self::Water => "Water",
+            Self::Hemp => "Hemp plant",
         }
     }
 
@@ -86,6 +88,7 @@ impl ResourceKind {
             Self::Metal => 150,
             Self::Berry => 20,
             Self::Water => 300,
+            Self::Hemp => 10,
         }
     }
 
@@ -94,7 +97,7 @@ impl ResourceKind {
             Self::Tree | Self::Stone => 25,
             Self::Metal => 15,
             Self::Berry => 2,
-            Self::Water => 10,
+            Self::Water | Self::Hemp => 10,
         }
     }
 
@@ -102,7 +105,7 @@ impl ResourceKind {
         match self {
             Self::Tree => Some(Item::Hatchet),
             Self::Stone | Self::Metal => Some(Item::Pickaxe),
-            Self::Berry | Self::Water => None,
+            Self::Berry | Self::Water | Self::Hemp => None,
         }
     }
 
@@ -145,6 +148,16 @@ impl ResourceKind {
                 half_extents: [30., 30., 4.],
                 color: [0.13, 0.43, 0.66, 1.],
                 canopy: None,
+            },
+            Self::Hemp => ResourceVisual {
+                center: [0., 0., 22.],
+                half_extents: [19., 19., 22.],
+                color: [0.19, 0.39, 0.12, 1.],
+                canopy: Some(ResourceCanopy {
+                    center: [0., 0., 39.],
+                    radius: 12.,
+                    color: [0.72, 0.75, 0.57, 1.],
+                }),
             },
         }
     }
@@ -206,7 +219,7 @@ impl Harvest {
             ResourceKind::Tree => resources.wood = self.amount,
             ResourceKind::Stone => resources.stone = self.amount,
             ResourceKind::Metal => resources.metal = self.amount,
-            ResourceKind::Berry | ResourceKind::Water => {}
+            ResourceKind::Berry | ResourceKind::Water | ResourceKind::Hemp => {}
         }
         resources
     }
@@ -378,7 +391,17 @@ impl GatheringWorld {
 impl TryFrom<GatheringSave> for GatheringWorld {
     type Error = String;
 
-    fn try_from(save: GatheringSave) -> Result<Self, Self::Error> {
+    fn try_from(mut save: GatheringSave) -> Result<Self, Self::Error> {
+        if save.nodes.len() == 30 {
+            let terrain = Terrain::new(save.seed);
+            let canonical = Self::new(&terrain)?;
+            save.nodes.extend(
+                canonical
+                    .nodes()
+                    .filter(|node| node.id == 31 || node.id == 32)
+                    .cloned(),
+            );
+        }
         Self::from_nodes(save.seed, save.nodes)
     }
 }
@@ -423,6 +446,10 @@ fn initial_nodes(terrain: &Terrain) -> Result<BTreeMap<u32, ResourceNode>, Strin
             ));
         }
     }
+    layout.extend([
+        (ResourceKind::Hemp, [120., -160.]),
+        (ResourceKind::Hemp, [-450., 140.]),
+    ]);
     let mut nodes = BTreeMap::new();
     for (index, (kind, xy)) in layout.into_iter().enumerate() {
         let z = height_at(terrain, xy).ok_or("Resource node lies outside terrain mesh")?;

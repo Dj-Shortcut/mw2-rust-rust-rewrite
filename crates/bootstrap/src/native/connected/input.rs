@@ -4,7 +4,7 @@ use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use playerstate_iw4::{UserCmd, buttons};
-use survival::SharedAction;
+use survival::{ResourceKind, SharedAction};
 
 pub(super) fn sample(
     keys: Res<ButtonInput<KeyCode>>,
@@ -38,7 +38,7 @@ pub(super) fn sample(
     let Ok((window, mut cursor)) = windows.single_mut() else {
         controls.focused = false;
         controls.captured = false;
-        controls.capture_frames = 0;
+        controls.capture_frames = 2;
         return;
     };
     controls.focused = window.focused;
@@ -71,6 +71,7 @@ pub(super) fn sample(
         });
         controls.initialized = Some(client);
         controls.captured = false;
+        controls.capture_frames = 2;
     }
     let active = window.focused
         && !controls.paused
@@ -78,18 +79,19 @@ pub(super) fn sample(
         && controls.content_ready
         && controls.content_error.is_none()
         && assigned.is_some_and(|(_, player)| player.health > 0);
-    cursor.visible = !active;
-    cursor.grab_mode = if active {
+    let capture = active && !controls.inventory;
+    cursor.visible = !capture;
+    cursor.grab_mode = if capture {
         CursorGrabMode::Locked
     } else {
         CursorGrabMode::None
     };
-    if active && !controls.captured {
+    if capture && !controls.captured {
         controls.capture_frames = 2;
     }
-    controls.captured = active;
+    controls.captured = capture;
     if !active {
-        controls.capture_frames = 0;
+        controls.capture_frames = 2;
         return;
     }
     if controls.capture_frames > 0 {
@@ -99,6 +101,38 @@ pub(super) fn sample(
     let Some((_, player)) = assigned else {
         return;
     };
+    controls.command = UserCmd {
+        angles: [
+            packed_angle(controls.pitch - player.delta_angles[0]),
+            packed_angle(controls.yaw - player.delta_angles[1]),
+            packed_angle(player.viewangles[2] - player.delta_angles[2]),
+        ],
+        ..default()
+    };
+    if keys.just_pressed(KeyCode::KeyI) || pad_just_pressed(GamepadButton::DPadUp) {
+        controls.inventory = !controls.inventory;
+        controls.captured = !controls.inventory;
+        cursor.visible = controls.inventory;
+        cursor.grab_mode = if controls.inventory {
+            CursorGrabMode::None
+        } else {
+            CursorGrabMode::Locked
+        };
+        controls.capture_frames = u8::from(!controls.inventory);
+        // An inactive toggle cancels only unsent work in the network mailbox.
+        return;
+    }
+    if controls.inventory {
+        controls.active = true;
+        if keys.just_pressed(KeyCode::KeyC) || pad_just_pressed(GamepadButton::West) {
+            if connection.pending {
+                controls.notice = Some("The previous action is still pending".into());
+            } else {
+                controls.action = Some(SharedAction::CraftBandage);
+            }
+        }
+        return;
+    }
     let movement = pad.map_or(Vec2::ZERO, |pad| filtered_stick(pad.left_stick()));
     let look = pad.map_or(Vec2::ZERO, |pad| filtered_stick(pad.right_stick()));
     let mouse_delta = if motion.delta.is_finite() {
@@ -172,12 +206,27 @@ pub(super) fn sample(
     } else if gather || place {
         if connection.pending {
             controls.notice = Some("The previous action is still pending".into());
+        } else if gather {
+            let target = connection
+                .world
+                .as_ref()
+                .ok_or_else(|| "The shared world is unavailable".to_string())
+                .and_then(|world| world.snapshot.gather_target(&world.replica));
+            match target {
+                Ok(Some(node)) => {
+                    controls.action = match node.kind {
+                        ResourceKind::Tree => Some(SharedAction::GatherTree),
+                        ResourceKind::Hemp => Some(SharedAction::GatherCloth),
+                        _ => None,
+                    };
+                }
+                Ok(None) => {
+                    controls.notice = Some("Aim at a tree or hemp plant".into());
+                }
+                Err(error) => controls.notice = Some(error),
+            }
         } else {
-            controls.action = Some(if gather {
-                SharedAction::GatherTree
-            } else {
-                SharedAction::PlaceWoodFoundation
-            });
+            controls.action = Some(SharedAction::PlaceWoodFoundation);
         }
     }
 }
