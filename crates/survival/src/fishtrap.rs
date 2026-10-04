@@ -97,7 +97,7 @@ impl FishTrap {
     pub(crate) fn advance(
         &mut self,
         dt_seconds: f32,
-        raining: bool,
+        lively: bool,
         frost: bool,
     ) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
@@ -111,7 +111,7 @@ impl FishTrap {
         if frost {
             return Ok(false);
         }
-        state.remaining -= if raining {
+        state.remaining -= if lively {
             dt_seconds * RAIN_TRAP_SPEED
         } else {
             dt_seconds
