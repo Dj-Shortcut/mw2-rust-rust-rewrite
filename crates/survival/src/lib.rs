@@ -86,6 +86,7 @@ const SPAWN_POINTS: [[f32; 3]; 5] = [
 const PLAYER_MINS: [f32; 3] = [-15., -15., 0.];
 const PLAYER_MAXS: [f32; 3] = [15., 15., 70.];
 const LOW_VITAL: f32 = 20.;
+const TOOL_WARN_USES: u32 = 5;
 
 #[derive(Clone, Debug)]
 pub struct PropPlacementPreview {
@@ -936,6 +937,8 @@ impl Session {
             harvested.tool_broke = inventory.wear_tool(tool) == Some(true);
             if harvested.tool_broke {
                 self.message = format!("Your {} broke", tool.name().to_lowercase());
+            } else if almost_broken(&inventory, tool) {
+                self.message = format!("Your {} is almost broken", tool.name().to_lowercase());
             }
         }
         match harvested.kind {
@@ -1219,6 +1222,8 @@ impl Session {
         };
         if broke {
             message.push_str("; your fishing rod broke");
+        } else if almost_broken(&self.inventory, Item::FishingRod) {
+            message.push_str("; your fishing rod is almost broken");
         }
         self.message = message;
         Ok(())
@@ -2377,6 +2382,14 @@ impl Session {
         self.comfort = 0.;
         Ok(())
     }
+}
+
+fn almost_broken(inventory: &Inventory, tool: Item) -> bool {
+    inventory
+        .stacks()
+        .iter()
+        .find(|s| s.item == tool)
+        .is_some_and(|s| s.wear == MAX_TOOL_WEAR - TOOL_WARN_USES)
 }
 
 fn bag_inventory(
