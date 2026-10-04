@@ -1457,7 +1457,7 @@ impl Session {
         inventory
             .add(Item::Honey, honey)
             .map_err(|_| "Not enough inventory space for the honey")?;
-        let stung = self.worn != Some(Item::HazmatSuit);
+        let stung = self.worn != Some(Item::HazmatSuit) && !self.clock.is_night();
         if stung {
             self.world
                 .queue_environment_damage(LOCAL, BEE_STING_DAMAGE)?;
