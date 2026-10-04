@@ -1,7 +1,9 @@
 use crate::radiation::{
     RADIATION_DAMAGE_PER_SECOND, RADIATION_DECAY_PER_SECOND, RADIATION_PER_SECOND,
 };
-use crate::{COLD_CELSIUS, FREEZING_CELSIUS, MAX_RADIATION, RADIATION_SICK, TEA_SECONDS};
+use crate::{
+    COLD_CELSIUS, FREEZING_CELSIUS, HOT_CELSIUS, MAX_RADIATION, RADIATION_SICK, TEA_SECONDS,
+};
 use rust_building::Resources;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeSet;
@@ -756,6 +758,11 @@ impl Vitals {
         } else {
             0.02
         };
+        let thirst_rate = if temperature > HOT_CELSIUS {
+            0.08
+        } else {
+            0.04
+        };
         let freezing = if temperature < FREEZING_CELSIUS {
             dt * FREEZE_PER_SECOND
         } else {
@@ -774,9 +781,9 @@ impl Vitals {
             (self.radiation - dt * RADIATION_DECAY_PER_SECOND).max(0.)
         };
         let hungry_time = (dt - self.hunger / hunger_rate).max(0.);
-        let thirsty_time = (dt - self.thirst / 0.04).max(0.);
+        let thirsty_time = (dt - self.thirst / thirst_rate).max(0.);
         self.hunger = (self.hunger - dt * hunger_rate).max(0.);
-        self.thirst = (self.thirst - dt * 0.04).max(0.);
+        self.thirst = (self.thirst - dt * thirst_rate).max(0.);
         let bled = self.bleed.min(dt * BLEED_PER_SECOND);
         self.bleed -= bled;
         let poisoned = self.poison.min(dt * POISON_PER_SECOND);

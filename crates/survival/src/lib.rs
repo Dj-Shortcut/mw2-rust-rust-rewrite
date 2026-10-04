@@ -30,7 +30,7 @@ pub use airdrop::{
     FIRST_DROP_SECONDS, FLARE_SECONDS, SupplyDrop,
 };
 pub use beehive::{BEE_STING_DAMAGE, Beehive, HIVE_HONEY, HIVE_REACH, HIVE_SECONDS, SavedHive};
-pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
+pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, HOT_CELSIUS, WorldClock};
 pub use cooking::{
     CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COMFORT_SECONDS_PER_HP, COOK_SECONDS,
     COOK_WOOD, Campfire, Campfires, FireState, RAIN_CAMPFIRE_WARMTH, RAIN_COOK_SPEED, TEA_SECONDS,
@@ -805,6 +805,11 @@ impl Session {
 
     fn in_rain(&self) -> bool {
         self.weather.is_raining() && !self.worn.is_some_and(Item::rain_proof)
+    }
+
+    pub fn overheating(&self) -> bool {
+        self.world.player(LOCAL).is_some_and(|p| p.health > 0)
+            && self.felt_temperature() > HOT_CELSIUS
     }
 
     pub fn comfortable(&self) -> bool {

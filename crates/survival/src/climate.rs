@@ -2,6 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 pub const DAY_SECONDS: f64 = 1800.;
 pub const COLD_CELSIUS: f32 = 5.;
+pub const HOT_CELSIUS: f32 = 35.;
 pub const FREEZING_CELSIUS: f32 = 0.;
 const START_HOUR: f64 = 9.;
 const WARMEST_HOUR: f64 = 14.;
