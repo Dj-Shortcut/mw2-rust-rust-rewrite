@@ -127,7 +127,9 @@ L om te vissen. L haalt een actieve lijn weer binnen. Xbox D-pad Rechts gebruikt
 dezelfde visactie. Bij een kampvuur binnen bereik start G het bakken van één
 rauwe vis voor 5 hout; na 15 simulatieseconden verzamelt G de gebakken vis. Xbox D-pad Links gebruikt
 dezelfde kampvuuractie. Selecteer de gebakken vis in de inventory en gebruik I.
-Richt op bereikbaar materiaal voor de verzamelhint; F oogst. F5/F9 bewaren/laden
+Richt op bereikbaar materiaal voor de verzamelhint; F oogst. Bij vijf resterende
+slagen waarschuwt de native HUD één keer dat je bijl of pikhouweel bijna breekt;
+de brekende oogst behoudt zijn opbrengst en breekmelding. F5/F9 bewaren/laden
 de lokale sessie: scene, spelerpositie/kijkrichting, gezondheid, ammo en
 gemonteerde skatestaat. Lopen/skaten, kijkrichting en ammo na laden zijn native
 gecontroleerd. Dode saves herstellen ook positie, kijkrichting en snelheid;

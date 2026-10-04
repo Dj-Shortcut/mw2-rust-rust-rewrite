@@ -1076,6 +1076,10 @@ fn gather_feedback(harvest: survival::Harvest) -> String {
         && let Some(tool) = harvest.kind.tool()
     {
         message.push_str(&format!(" | {} broke", tool.name()));
+    } else if harvest.tool_almost_broken
+        && let Some(tool) = harvest.kind.tool()
+    {
+        message.push_str(&format!(" | {} almost broken", tool.name()));
     }
     message
 }
