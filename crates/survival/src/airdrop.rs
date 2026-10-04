@@ -6,6 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 pub const FIRST_DROP_SECONDS: f32 = 600.;
 pub const DROP_INTERVAL_SECONDS: f32 = 900.;
 pub const DROP_LIFETIME_SECONDS: f32 = 600.;
+pub const DROP_WARNING_SECONDS: f32 = 60.;
 pub const FLARE_SECONDS: f32 = 30.;
 const SITES: [[f32; 2]; 4] = [
     [-900., 1200.],
@@ -92,6 +93,7 @@ impl<'de> Deserialize<'de> for SavedAirdrops {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct DropEvents {
     pub landed: bool,
+    pub expiring: bool,
     pub lost: bool,
 }
 
@@ -171,7 +173,10 @@ impl Airdrops {
         }
         let mut events = DropEvents::default();
         if let Some(drop) = &mut self.state.active {
+            let before = drop.remaining;
             drop.remaining -= dt_seconds;
+            events.expiring =
+                before > DROP_WARNING_SECONDS && drop.remaining <= DROP_WARNING_SECONDS;
             if drop.remaining <= 0. {
                 self.state.active = None;
                 events.lost = true;
@@ -186,6 +191,7 @@ impl Airdrops {
             });
             self.state.next_in += DROP_INTERVAL_SECONDS;
             events.landed = true;
+            events.expiring = false;
             events.lost = false;
         }
         Ok(events)
