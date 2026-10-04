@@ -94,13 +94,21 @@ impl FishTrap {
             <= TRAP_REACH
     }
 
-    pub(crate) fn advance(&mut self, dt_seconds: f32, raining: bool) -> Result<bool, String> {
+    pub(crate) fn advance(
+        &mut self,
+        dt_seconds: f32,
+        raining: bool,
+        frost: bool,
+    ) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Fish trap time step must be finite and non-negative".into());
         }
         let state = &mut self.state;
         if state.bait == 0 || state.fish >= TRAP_FISH {
             state.remaining = TRAP_CATCH_SECONDS;
+            return Ok(false);
+        }
+        if frost {
             return Ok(false);
         }
         state.remaining -= if raining {
