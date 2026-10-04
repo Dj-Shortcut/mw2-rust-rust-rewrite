@@ -41,6 +41,10 @@ impl Weather {
         if self.raining { RAIN_CHILL_CELSIUS } else { 0. }
     }
 
+    pub fn forecast(&self, seed: u32) -> bool {
+        spell(seed, self.spells.wrapping_add(1)).0
+    }
+
     pub(crate) fn advance(&mut self, dt_seconds: f32, seed: u32) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Invalid weather time step".into());
@@ -50,15 +54,21 @@ impl Weather {
         while left >= self.remaining {
             left -= self.remaining;
             self.spells = self.spells.wrapping_add(1);
-            let mut state = (u64::from(seed) << 32) ^ u64::from(self.spells) ^ 0x5EA7_0000;
-            let roll = splitmix(&mut state);
-            self.raining = roll % 100 < RAIN_PERCENT;
-            let span = (MAX_SPELL_SECONDS - MIN_SPELL_SECONDS) as u64 + 1;
-            self.remaining = MIN_SPELL_SECONDS + ((roll >> 8) % span) as f32;
+            (self.raining, self.remaining) = spell(seed, self.spells);
         }
         self.remaining -= left;
         Ok(self.raining != before)
     }
+}
+
+fn spell(seed: u32, spells: u32) -> (bool, f32) {
+    let mut state = (u64::from(seed) << 32) ^ u64::from(spells) ^ 0x5EA7_0000;
+    let roll = splitmix(&mut state);
+    let span = (MAX_SPELL_SECONDS - MIN_SPELL_SECONDS) as u64 + 1;
+    (
+        roll % 100 < RAIN_PERCENT,
+        MIN_SPELL_SECONDS + ((roll >> 8) % span) as f32,
+    )
 }
 
 impl<'de> Deserialize<'de> for Weather {

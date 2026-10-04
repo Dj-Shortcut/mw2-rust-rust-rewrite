@@ -1478,6 +1478,22 @@ impl Session {
         Ok(())
     }
 
+    pub fn read_barometer(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if self.inventory.count(Item::Barometer) == 0 {
+            return Err("You have no barometer".into());
+        }
+        let minutes = (self.weather.remaining() / 60.).ceil().max(1.);
+        let next = self.weather.forecast(self.terrain.seed);
+        self.message = match (self.weather.is_raining(), next) {
+            (false, true) => format!("Barometer: rain in about {minutes} min"),
+            (false, false) => format!("Barometer: dry for at least {minutes} more min"),
+            (true, false) => format!("Barometer: the rain stops in about {minutes} min"),
+            (true, true) => format!("Barometer: rain for at least {minutes} more min"),
+        };
+        Ok(())
+    }
+
     pub fn make_fertilizer(&mut self) -> Result<(), String> {
         self.require_alive()?;
         if self.inventory.count(Item::Fish) == 0 {
