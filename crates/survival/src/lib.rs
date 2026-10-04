@@ -26,8 +26,8 @@ mod terrain;
 mod trading;
 mod weather;
 pub use airdrop::{
-    Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, FIRST_DROP_SECONDS, FLARE_SECONDS,
-    SupplyDrop,
+    Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, DROP_WARNING_SECONDS,
+    FIRST_DROP_SECONDS, FLARE_SECONDS, SupplyDrop,
 };
 pub use beehive::{BEE_STING_DAMAGE, Beehive, HIVE_HONEY, HIVE_REACH, HIVE_SECONDS, SavedHive};
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
@@ -509,6 +509,9 @@ impl Session {
         if trapped {
             self.message = "Your fish trap caught a fish".into();
         }
+        if drops.expiring {
+            self.message = "The supply drop will be gone in 1 min".into();
+        }
         if drops.lost {
             self.message = "The supply drop was lost".into();
         }
@@ -547,6 +550,7 @@ impl Session {
             || cooked
             || ripened
             || trapped
+            || drops.expiring
             || drops.lost
             || weather_changed
             || matches!(
