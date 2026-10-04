@@ -4,6 +4,7 @@ mod frame_owner;
 mod launch;
 mod native;
 mod plugins;
+pub mod standalone;
 
 pub use args::{AcceptanceLaunch, LaunchMode, parse_cli};
 pub use launch::launch;

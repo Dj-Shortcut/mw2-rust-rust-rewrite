@@ -10,7 +10,7 @@ The inherited run/import guides below document optional upstream modes.
 |---|---|---|
 | [`AUTONOMY.md`](AUTONOMY.md) | standing authorization, task ownership and verification | continuing work or coordinating agents |
 | [`MULTIPLAYER.md`](MULTIPLAYER.md) | standalone shared-world milestone, authority boundaries and two-client acceptance; design only | working on core multiplayer |
-| [`DIRECT-MULTIPLAYER.md`](DIRECT-MULTIPLAYER.md) | bounded direct TCP server/client design and connected verification scope | implementing standalone transport |
+| [`DIRECT-MULTIPLAYER.md`](DIRECT-MULTIPLAYER.md) | bounded direct TCP server/client runtime and connected verification scope | implementing standalone transport |
 | [`SHARED-AUTHORITY.md`](SHARED-AUTHORITY.md) | first actor-owned shared survival core and its verification boundaries | implementing the shared server world |
 | [`BUILDINGS.md`](BUILDINGS.md) | local host building, controller bindings, persistence and unfinished systems | using or changing construction |
 | [`CRAFTING.md`](CRAFTING.md) | native queue controls, payment/refund, pause and verification scope | using or changing queued crafting |

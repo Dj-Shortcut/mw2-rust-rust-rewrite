@@ -2,6 +2,7 @@ pub mod acked_baseline;
 pub mod archive;
 pub mod bootstrap;
 pub mod delta;
+pub mod direct_tcp;
 pub mod fragment;
 pub mod frame;
 pub mod loopback_live;

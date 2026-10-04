@@ -10,6 +10,24 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub const SHARED_STEP_MS: i32 = 50;
+
+pub fn shared_replica(nodes: Vec<ResourceNode>) -> Result<SimWorld, String> {
+    let terrain = Terrain::new(731);
+    let gathering = GatheringWorld::from_nodes(terrain.seed, nodes)?;
+    let mut world = SimWorld::new();
+    world.install_content(authored_content(
+        &terrain,
+        &EditorState::default(),
+        &gathering,
+    ));
+    world
+        .bootstrap(sim::MatchBootstrap {
+            seed: 1,
+            ..Default::default()
+        })
+        .map_err(str::to_owned)?;
+    Ok(world)
+}
 const MAX_ACTORS: usize = 2;
 const MAX_RECEIPTS: usize = 256;
 const OWNER_BASE: u32 = 64;
