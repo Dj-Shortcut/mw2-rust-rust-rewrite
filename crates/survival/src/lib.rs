@@ -478,7 +478,7 @@ impl Session {
         let trapped = self
             .fish_trap
             .advance(0.017, self.weather.is_raining(), frost)?;
-        self.trader.advance(0.017)?;
+        let new_request = self.trader.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         if alive {
@@ -508,6 +508,15 @@ impl Session {
         }
         if trapped {
             self.message = "Your fish trap caught a fish".into();
+        }
+        if new_request {
+            let request = self.trader.trader_request();
+            let ((paid, price), (item, quantity)) = (request.price, request.goods);
+            self.message = format!(
+                "The trader now wants {price} {} for {quantity} {}",
+                paid.name(),
+                item.name()
+            );
         }
         if drops.expiring {
             self.message = "The supply drop will be gone in 1 min".into();
@@ -550,6 +559,7 @@ impl Session {
             || cooked
             || ripened
             || trapped
+            || new_request
             || drops.expiring
             || drops.lost
             || weather_changed
