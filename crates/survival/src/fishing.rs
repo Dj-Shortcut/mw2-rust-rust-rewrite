@@ -5,6 +5,8 @@ pub const CAST_SECONDS: f32 = 6.;
 pub const FISHING_REACH: f32 = 300.;
 pub const CATCH_PERCENT: u64 = 60;
 pub const BAITED_CATCH_PERCENT: u64 = 90;
+pub const RAIN_CATCH_PERCENT: u64 = 80;
+pub const RAIN_BAITED_CATCH_PERCENT: u64 = 95;
 pub const BAIT_PER_FOOD: u32 = 4;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -38,12 +40,13 @@ impl<'de> Deserialize<'de> for Cast {
     }
 }
 
-pub(crate) fn bites(seed: u32, node: u32, casts: u32, baited: bool) -> bool {
+pub(crate) fn bites(seed: u32, node: u32, casts: u32, baited: bool, raining: bool) -> bool {
     let mut state = (u64::from(seed) << 32) ^ (u64::from(node) << 20) ^ u64::from(casts) ^ 0xF15F;
-    let percent = if baited {
-        BAITED_CATCH_PERCENT
-    } else {
-        CATCH_PERCENT
+    let percent = match (baited, raining) {
+        (false, false) => CATCH_PERCENT,
+        (true, false) => BAITED_CATCH_PERCENT,
+        (false, true) => RAIN_CATCH_PERCENT,
+        (true, true) => RAIN_BAITED_CATCH_PERCENT,
     };
     splitmix(&mut state) % 100 < percent
 }
