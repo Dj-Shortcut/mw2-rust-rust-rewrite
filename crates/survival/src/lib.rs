@@ -87,8 +87,6 @@ const PLAYER_MINS: [f32; 3] = [-15., -15., 0.];
 const PLAYER_MAXS: [f32; 3] = [15., 15., 70.];
 const LOW_VITAL: f32 = 20.;
 const TOOL_WARN_USES: u32 = 5;
-const WAYPOINT_REACHED: f32 = 200.;
-const WAYPOINT_LEFT: f32 = 400.;
 
 #[derive(Clone, Debug)]
 pub struct PropPlacementPreview {
@@ -146,7 +144,6 @@ pub struct Session {
     tea_warmth: f32,
     comfort: f32,
     badly_hurt: bool,
-    at_waypoint: bool,
     crates: LootCrates,
     campfires: Campfires,
     airdrops: Airdrops,
@@ -438,7 +435,6 @@ impl Session {
             tea_warmth: 0.,
             comfort: 0.,
             badly_hurt: false,
-            at_waypoint: false,
             crates,
             campfires,
             airdrops,
@@ -698,14 +694,6 @@ impl Session {
             self.message = "You are dehydrated".into();
         } else if was_fed && self.vitals.hunger() == 0. {
             self.message = "You are starving".into();
-        }
-        match self.waypoint_bearing().map(|(_, distance)| distance) {
-            Some(d) if d <= WAYPOINT_REACHED && !self.at_waypoint => {
-                self.at_waypoint = true;
-                self.message = "You reached your waypoint".into();
-            }
-            Some(d) if d <= WAYPOINT_LEFT => {}
-            _ => self.at_waypoint = false,
         }
         let (now, max_health) = self
             .world
@@ -1436,7 +1424,6 @@ impl Session {
 
     pub fn set_waypoint(&mut self, position: [f32; 2]) -> Result<(), String> {
         self.waypoint = Some(Waypoint::new(position)?);
-        self.at_waypoint = self.near_waypoint();
         self.message = "Waypoint set".into();
         Ok(())
     }
@@ -1445,11 +1432,6 @@ impl Session {
         self.waypoint.take().ok_or("No waypoint is set")?;
         self.message = "Waypoint cleared".into();
         Ok(())
-    }
-
-    fn near_waypoint(&self) -> bool {
-        self.waypoint_bearing()
-            .is_some_and(|(_, distance)| distance <= WAYPOINT_REACHED)
     }
 
     pub fn waypoint_bearing(&self) -> Option<(f32, f32)> {
@@ -2417,7 +2399,6 @@ impl Session {
             .world
             .player(LOCAL)
             .is_some_and(|p| p.health * 4 <= p.max_health);
-        self.at_waypoint = self.near_waypoint();
         Ok(())
     }
 }
