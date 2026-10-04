@@ -2,7 +2,7 @@
 
 ![Rust x MW2 x Skate 3 banner](assets/rust-mw2-skate-banner.png)
 
-We bouwen een zelfstandige **pc-survivalgame in Rust en Bevy**, met survival
+We bouwen een zelfstandige **multiplayer-pc-survivalgame in Rust en Bevy**, met survival
 en bases geïnspireerd door Rust, gunplay en operators geïnspireerd door MW2,
 en skateboarden geïnspireerd door Skate 3. De wereld en gamecontent maken we
 zelf: modellen, materialen, animaties en geluiden.
@@ -19,6 +19,17 @@ het onderscheid tussen aanwezige code, controles en speelbaarheid staan in
 product of releasebinary.** De repository dient als broncodeoverdracht en
 voortgangsoverzicht. Wij verifiëren de implementatie zelf voordat we een
 speelbare release leveren.
+
+## Eerstvolgende productmijlpaal: multiplayer
+
+De eerste productmijlpaal is samen spelen in één gedeelde wereld. De huidige
+standalone `game`-modus is een lokale ontwikkelsandbox; de bestaande controles
+daarvan bewijzen nog geen multiplayer-survival. We werken eerst aan één
+autoritatieve server en twee verbonden clients, gevolgd door gedeeld bouwen,
+verzamelen, inventory, gevechten en skaten. Het ontwerp en de acceptatiecriteria
+staan in [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) en
+[issue #243](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/243).
+De eerdere tijdschatting voor een offline testversie dekt deze mijlpaal niet.
 
 ## Bijdragen
 
