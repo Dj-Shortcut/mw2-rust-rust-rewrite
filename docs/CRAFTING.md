@@ -1,8 +1,8 @@
 # Standalone crafting queue
 
-Proposed native inventory flow for [#196](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/196).
-The Session queue already exists; these controls are not implemented yet.
-This design draft precedes implementation and verification.
+Native inventory flow for [#196](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/196).
+87 actual native-input/Session checks passed. Linux/Mesa keyboard flows and
+inventory layout were checked; this is development source, not a release.
 
 Open inventory with Tab and select one of nine recipes with 1–9 or PgUp/PgDn.
 Xbox LB/RB selects recipes. Known blueprints and sufficient materials are
@@ -42,9 +42,9 @@ Close inventory before F5/F9; normal simulation ticks can progress the queue
 before a save. Death clears jobs and refunds prepaid costs within resource
 storage limits before the existing carried-item loot drop. No save change.
 
-Acceptance: actual Session/native-input/panel checks, then Linux/Mesa keyboard
-flows at 1280×720 for enqueue, sequential completion, cancellation/refund,
-atomic errors, ready output waiting/freeing space, pending/conflicting inputs,
-pause/focus/death gates, old inventory actions and F5/F9 persistence.
-Check readable English normal/pending panels and nonempty world HUD. Physical
-controller, Windows/macOS gameplay and release readiness are separate scopes.
+Verified: actual Session/native-input/panel checks cover same-frame conflicts,
+focus/pause/death gates and software-pad legacy actions. Linux/Mesa keyboard
+flows at 1280×720 cover enqueue, sequential delivery, refund, atomic errors,
+ready output/freeing space, pending actions, pause, C and F5/F9. Original
+images check English normal/pending/dead panels and the nonempty world HUD.
+Physical controller, audio, other-OS gameplay and release remain unverified.

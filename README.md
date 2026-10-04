@@ -102,7 +102,12 @@ Save met F5 na de bewerking; F9 laadt de pose, sluit de editor en wist de
 undo/redo-geschiedenis. Zie [de parkeditorgids](docs/PARK-EDITOR.md) voor regels
 en geverifieerde grenzen.
 In de inventory kiezen 1–9 of PgUp/PgDn een recept; C craft en R onderzoekt de
-geselecteerde blauwdruk. O trekt de geselecteerde kleding aan, P trekt de
+geselecteerde blauwdruk. V voegt het recept toe aan de craftingwachtrij; F annuleert
+de eerste opdracht met volledige materiaalrefund als die in opslag past.
+De inventory pauzeert de wereld: sluit hem om de wachtrij verder te laten lopen.
+C / Xbox X blijft direct craften; Xbox-wachtrijbediening is nog niet gekoppeld.
+Zie [de craftinggids](docs/CRAFTING.md) voor regels en verificatiegrenzen.
+O trekt de geselecteerde kleding aan, P trekt de
 gedragen kleding uit en T repareert het geselecteerde gereedschap. N begint
 recycling van de gekozen hoeveelheid; Enter bevestigt en Backspace annuleert. Xbox Back onderzoekt een
 blauwdruk; Xbox Y/B bevestigen/annuleren een recyclingactie. Kledingbeheer en
