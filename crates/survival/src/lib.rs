@@ -33,7 +33,7 @@ pub use beehive::{BEE_STING_DAMAGE, Beehive, HIVE_HONEY, HIVE_REACH, HIVE_SECOND
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use cooking::{
     CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COMFORT_SECONDS_PER_HP, COOK_SECONDS,
-    COOK_WOOD, Campfire, Campfires, FireState, TEA_SECONDS, TEA_WARMTH,
+    COOK_WOOD, Campfire, Campfires, FireState, RAIN_COOK_SPEED, TEA_SECONDS, TEA_WARMTH,
 };
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{
@@ -463,7 +463,7 @@ impl Session {
         self.regrow_resources();
         self.clock.advance(0.017)?;
         let unlocked = self.crates.advance(0.017)?;
-        let cooked = self.campfires.advance(0.017)?;
+        let cooked = self.campfires.advance(0.017, self.weather.is_raining())?;
         let drops = self.airdrops.advance(0.017)?;
         // Before the weather step: a tick grows at the rain state it started with.
         let frost = self.clock.temperature() < FREEZING_CELSIUS;

@@ -4,6 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 pub const COOK_SECONDS: f32 = 15.;
 pub const COOK_WOOD: u32 = 5;
+pub const RAIN_COOK_SPEED: f32 = 0.5;
 pub const CAMPFIRE_REACH: f32 = 100.;
 pub const CAMPFIRE_WARMTH: f32 = 10.;
 pub const CAMPFIRE_WARMTH_RADIUS: f32 = 150.;
@@ -160,14 +161,19 @@ impl Campfires {
         }
     }
 
-    pub(crate) fn advance(&mut self, dt_seconds: f32) -> Result<bool, String> {
+    pub(crate) fn advance(&mut self, dt_seconds: f32, raining: bool) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Invalid cooking time step".into());
         }
+        let step = if raining {
+            dt_seconds * RAIN_COOK_SPEED
+        } else {
+            dt_seconds
+        };
         let mut cooked = false;
         for fire in &mut self.fires {
             if let FireState::Cooking { remaining } = fire.state {
-                let left = remaining - dt_seconds;
+                let left = remaining - step;
                 fire.state = if left <= 0. {
                     cooked = true;
                     FireState::Ready
