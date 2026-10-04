@@ -599,7 +599,8 @@ impl Session {
                 self.last_skate_event,
                 SkateEvent::Bailed | SkateEvent::Landed { .. }
             );
-        if warming && !self.warming && !event {
+        let warmed_up = warming && !self.warming;
+        if warmed_up && !event {
             self.message = "You warm up by the campfire".into();
         }
         self.warming = warming;
@@ -633,6 +634,8 @@ impl Session {
             } else {
                 "You are freezing".into()
             };
+        } else if !freezing && self.freezing && !warmed_up {
+            self.message = "You are no longer freezing".into();
         }
         self.freezing = freezing;
         let irradiated = self.in_radiation_zone();
