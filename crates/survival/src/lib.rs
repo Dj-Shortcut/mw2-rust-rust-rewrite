@@ -143,6 +143,7 @@ pub struct Session {
     irradiated: bool,
     tea_warmth: f32,
     comfort: f32,
+    badly_hurt: bool,
     crates: LootCrates,
     campfires: Campfires,
     airdrops: Airdrops,
@@ -433,6 +434,7 @@ impl Session {
             irradiated: false,
             tea_warmth: 0.,
             comfort: 0.,
+            badly_hurt: false,
             crates,
             campfires,
             airdrops,
@@ -692,6 +694,16 @@ impl Session {
             self.message = "You are dehydrated".into();
         } else if was_fed && self.vitals.hunger() == 0. {
             self.message = "You are starving".into();
+        }
+        let (now, max_health) = self
+            .world
+            .player(LOCAL)
+            .map_or((0, 0), |p| (p.health, p.max_health));
+        if now * 2 > max_health {
+            self.badly_hurt = false;
+        } else if now * 4 <= max_health && !self.badly_hurt {
+            self.badly_hurt = true;
+            self.message = "You are badly hurt".into();
         }
         // Last, so no other message on the same tick hides the drop's location.
         if let Some(p) = self.airdrops.position().filter(|_| drops.landed) {
@@ -2380,6 +2392,10 @@ impl Session {
         self.irradiated = false;
         self.tea_warmth = scene.tea_warmth;
         self.comfort = 0.;
+        self.badly_hurt = self
+            .world
+            .player(LOCAL)
+            .is_some_and(|p| p.health * 4 <= p.max_health);
         Ok(())
     }
 }
