@@ -33,7 +33,8 @@ pub use beehive::{BEE_STING_DAMAGE, Beehive, HIVE_HONEY, HIVE_REACH, HIVE_SECOND
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use cooking::{
     CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COMFORT_SECONDS_PER_HP, COOK_SECONDS,
-    COOK_WOOD, Campfire, Campfires, FireState, RAIN_COOK_SPEED, TEA_SECONDS, TEA_WARMTH,
+    COOK_WOOD, Campfire, Campfires, FireState, RAIN_CAMPFIRE_WARMTH, RAIN_COOK_SPEED, TEA_SECONDS,
+    TEA_WARMTH,
 };
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{
@@ -654,10 +655,10 @@ impl Session {
     }
 
     pub fn felt_temperature(&self) -> f32 {
-        let fire = if self.near_campfire() {
-            CAMPFIRE_WARMTH
-        } else {
-            0.
+        let fire = match (self.near_campfire(), self.weather.is_raining()) {
+            (false, _) => 0.,
+            (true, false) => CAMPFIRE_WARMTH,
+            (true, true) => RAIN_CAMPFIRE_WARMTH,
         };
         let tea = if self.tea_warmth > 0. { TEA_WARMTH } else { 0. };
         let rain = if self.worn.is_some_and(Item::rain_proof) {
