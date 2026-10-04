@@ -9,6 +9,7 @@
 //! [`SavedPlayer::v2_default`].
 
 use crate::airdrop::SavedAirdrops;
+use crate::beehive::SavedHive;
 use crate::cooking::SavedFires;
 use crate::crates::{SavedCrates, SavedLocked};
 use crate::farming::SavedGarden;
@@ -79,6 +80,8 @@ pub(crate) struct SavedSession {
     pub fish_trap: SavedTrap,
     #[serde(default)]
     pub rain_barrel: SavedBarrel,
+    #[serde(default)]
+    pub beehive: SavedHive,
     #[serde(default)]
     pub tea_warmth: f32,
     #[serde(default)]
@@ -256,6 +259,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     stash: Inventory::default(),
                     fish_trap: SavedTrap::default(),
                     rain_barrel: SavedBarrel::default(),
+                    beehive: SavedHive::default(),
                     tea_warmth: 0.,
                     fishing: None,
                     casts: 0,
