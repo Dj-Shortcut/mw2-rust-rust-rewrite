@@ -57,8 +57,8 @@ pub use gathering::{
     SIP_THIRST,
 };
 pub use inventory::{
-    BLEED_THRESHOLD, Blueprints, Inventory, Item, MAX_BLEED, MAX_REGEN, MAX_TOOL_WEAR, Recipe,
-    Stack, Vitals,
+    BLEED_THRESHOLD, Blueprints, Inventory, Item, MAX_BLEED, MAX_POISON, MAX_REGEN, MAX_TOOL_WEAR,
+    Recipe, Stack, Vitals,
 };
 pub use loot::{LOOT_REACH, LootBag, LootBags, MAX_LOOT_BAGS};
 pub use markers::{Marker, MarkerKind, Waypoint, bearing, compass_heading};
@@ -144,6 +144,7 @@ pub struct Session {
     tea_warmth: f32,
     comfort: f32,
     badly_hurt: bool,
+    poisoned: bool,
     crates: LootCrates,
     campfires: Campfires,
     airdrops: Airdrops,
@@ -435,6 +436,7 @@ impl Session {
             tea_warmth: 0.,
             comfort: 0.,
             badly_hurt: false,
+            poisoned: false,
             crates,
             campfires,
             airdrops,
@@ -505,6 +507,7 @@ impl Session {
             self.irradiated = false;
             self.tea_warmth = 0.;
             self.comfort = 0.;
+            self.poisoned = false;
             self.fishing = None;
             self.refund_crafting()?;
             self.drop_loot()?;
@@ -676,6 +679,14 @@ impl Session {
                 "The bleeding stopped".into()
             } else {
                 "You are bleeding".into()
+            };
+        }
+        if self.vitals.is_poisoned() != self.poisoned {
+            self.poisoned = self.vitals.is_poisoned();
+            self.message = if self.poisoned {
+                "You have food poisoning".into()
+            } else {
+                "The food poisoning passed".into()
             };
         }
         if (self.vitals.radiation() > RADIATION_SICK) != was_sick {
@@ -2399,6 +2410,7 @@ impl Session {
             .world
             .player(LOCAL)
             .is_some_and(|p| p.health * 4 <= p.max_health);
+        self.poisoned = self.vitals.is_poisoned();
         Ok(())
     }
 }
