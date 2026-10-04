@@ -10,7 +10,7 @@ pub struct TradeOffer {
     pub goods: (Item, u32),
 }
 
-pub const TRADE_OFFERS: [TradeOffer; 5] = [
+pub const TRADE_OFFERS: [TradeOffer; 6] = [
     TradeOffer {
         price: (Item::Fish, 3),
         goods: (Item::Bandage, 2),
@@ -30,6 +30,10 @@ pub const TRADE_OFFERS: [TradeOffer; 5] = [
     TradeOffer {
         price: (Item::Fish, 5),
         goods: (Item::Raincoat, 1),
+    },
+    TradeOffer {
+        price: (Item::CookedFish, 3),
+        goods: (Item::SignalFlare, 1),
     },
 ];
 

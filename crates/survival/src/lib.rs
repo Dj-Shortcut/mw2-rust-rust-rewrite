@@ -25,7 +25,8 @@ mod terrain;
 mod trading;
 mod weather;
 pub use airdrop::{
-    Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, FIRST_DROP_SECONDS, SupplyDrop,
+    Airdrops, DROP_INTERVAL_SECONDS, DROP_LIFETIME_SECONDS, FIRST_DROP_SECONDS, FLARE_SECONDS,
+    SupplyDrop,
 };
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, WorldClock};
 pub use cooking::{
@@ -1536,6 +1537,17 @@ impl Session {
             .map_err(|_| "Not enough inventory space for the tea")?;
         self.inventory = inventory;
         self.message = "Brewed berry tea".into();
+        Ok(())
+    }
+
+    pub fn fire_flare(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        if self.inventory.count(Item::SignalFlare) == 0 {
+            return Err("You have no signal flare".into());
+        }
+        self.airdrops.call_in()?;
+        self.inventory.take(Item::SignalFlare, 1)?;
+        self.message = "Fired a signal flare: a supply drop is on its way".into();
         Ok(())
     }
 
