@@ -1,8 +1,9 @@
 # Direct authored-world multiplayer
 
 Runtime for #248; part of [MULTIPLAYER.md](MULTIPLAYER.md).
-The current `game` command remains offline. This slice adds a headless server
-and reusable client adapter; graphical host/join is a later stage.
+The `game` command remains offline. This slice provides a headless server
+and reusable client adapter; [native join](NATIVE-MULTIPLAYER.md) now exists,
+with its bounded Linux keyboard/Mesa flow now verified.
 
 ## Runtime and launch
 `cargo run -p launcher --profile play --locked -- server --bind 127.0.0.1:28980`
