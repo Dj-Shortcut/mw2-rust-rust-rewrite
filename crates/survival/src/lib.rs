@@ -46,6 +46,7 @@ pub use farming::{
 };
 pub use fishing::{
     BAIT_PER_FOOD, BAITED_CATCH_PERCENT, CAST_SECONDS, CATCH_PERCENT, Cast, FISHING_REACH,
+    RAIN_BAITED_CATCH_PERCENT, RAIN_CATCH_PERCENT,
 };
 pub use fishtrap::{FishTrap, SavedTrap, TRAP_BAIT, TRAP_CATCH_SECONDS, TRAP_FISH, TRAP_REACH};
 pub use gathering::{
@@ -1086,7 +1087,13 @@ impl Session {
             return Ok(());
         }
         self.fishing = None;
-        let caught = fishing::bites(self.terrain.seed, cast.node, self.casts, cast.baited);
+        let caught = fishing::bites(
+            self.terrain.seed,
+            cast.node,
+            self.casts,
+            cast.baited,
+            self.weather.is_raining(),
+        );
         self.casts = self.casts.wrapping_add(1);
         let broke = self.inventory.wear_tool(Item::FishingRod) == Some(true);
         let mut message = if !caught {
