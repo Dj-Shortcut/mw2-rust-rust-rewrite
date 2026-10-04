@@ -1,9 +1,9 @@
 # Standalone park editor
 
 This guide describes the authored standalone PC session (`launcher game`).
-Existing placement/removal and undo/redo are implemented. Existing-prop controls
-below are proposed in [#178](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/178)
-and are not yet implemented or graphically verified.
+Placement/removal, existing-prop move/rotation and undo/redo are implemented
+([#178](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/178)).
+Keyboard flows were verified in a Linux/Mesa native window at 1280×720.
 
 Enter E mode while alive and on foot. Aim at a prop within the existing editor
 reach; nearer solid geometry can block the target. A move places that prop on
@@ -37,8 +37,9 @@ Successful edits are undoable and clear redo. Saves preserve poses and IDs;
 loading clears edit history and exits editor mode. Save on a separate frame
 after editing: the frame's queued save precedes object actions.
 
-Acceptance: actual native-input/Session checks cover deduplication, conflicting
-requests, mode/focus/death gates, consumed chords and atomic rejection. A real
-native window must demonstrate keyboard move/rotate, collision refresh,
-undo/redo, save/load and readable English help/feedback. Software gamepad
-events do not establish physical controller verification or release readiness.
+Verification: 61 actual native-input/Session checks passed, covering conflicting
+requests, deduplication, mode/focus/death gates, chords and atomic rejection.
+Native keyboard Ramp/Rail movement, Ramp rotation, Rail rotation without a move
+destination, undo/redo, save/load and readable English help/errors passed.
+Installed collision/rail records were checked headlessly. Physical controller,
+audible sound, Windows/macOS gameplay and release readiness remain unverified.

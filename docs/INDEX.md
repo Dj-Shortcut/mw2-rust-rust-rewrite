@@ -10,7 +10,7 @@ The inherited run/import guides below document optional upstream modes.
 |---|---|---|
 | [`AUTONOMY.md`](AUTONOMY.md) | standing authorization, task ownership and verification | continuing work or coordinating agents |
 | [`BUILDINGS.md`](BUILDINGS.md) | local host building, controller bindings, persistence and unfinished systems | using or changing construction |
-| [`PARK-EDITOR.md`](PARK-EDITOR.md) | standalone prop placement, proposed native move/rotate controls and verification criteria | using or changing the authored park editor |
+| [`PARK-EDITOR.md`](PARK-EDITOR.md) | standalone prop placement, native move/rotate controls and verification limits | using or changing the authored park editor |
 | [`RUST-MAPS.md`](RUST-MAPS.md) | bounded Rust.World SDK-v9 map reader; inspection limits and missing runtime installation | inspecting Rust map formats |
 | [`SKATE.md`](SKATE.md) | Skate 3 mode: what you need, where `default.xex` comes from, setup, controls, how it works, building a release | playing or changing the skate mode |
 | [`PERFORMANCE.md`](PERFORMANCE.md) | the frame-time work in this fork: before/after numbers and every change | "why is it faster", profiling |

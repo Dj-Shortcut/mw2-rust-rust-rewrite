@@ -93,6 +93,14 @@ kosten en fouten. De melding "Place cost" hoort bij het plaatsingsvoorbeeld;
 er is geen afzonderlijke reparatie-/upgradetargetpreview of kostenpreview
 en geen sloopbediening.
 Na een geslaagde F9-load is de bouwmodus uit; druk opnieuw B voor bouwacties.
+In de E-objecteditor verplaatst M het object onder het vizier naar het eerste
+achterliggende oppervlak op dezelfde kijklijn; dat oppervlak moet omhoog wijzen.
+Komma/punt draaien het bestaande object per 15 graden. Xbox Y verplaatst;
+houd LT vast en druk LB/RB om het object te draaien. Q/R en LB/RB zonder LT
+draaien het plaatsingsvoorbeeld. Ctrl-Z/Y maakt objectwijzigingen ongedaan/opnieuw.
+Save met F5 na de bewerking; F9 laadt de pose, sluit de editor en wist de
+undo/redo-geschiedenis. Zie [de parkeditorgids](docs/PARK-EDITOR.md) voor regels
+en geverifieerde grenzen.
 In de inventory kiezen 1–9 of PgUp/PgDn een recept; C craft en R onderzoekt de
 geselecteerde blauwdruk. O trekt de geselecteerde kleding aan, P trekt de
 gedragen kleding uit en T repareert het geselecteerde gereedschap. N begint

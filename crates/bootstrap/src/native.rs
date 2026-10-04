@@ -18,6 +18,7 @@ mod clothing;
 mod fishing;
 mod inventory;
 mod loot;
+mod object_actions;
 mod research;
 mod tool_actions;
 use inventory::{Action as InventoryAction, InventoryUi};
@@ -58,6 +59,7 @@ enum WorldAction {
     Campfire,
     PlaceProp(PropKind, f32),
     RemoveProp,
+    EditProp(object_actions::Action),
     Undo,
     Redo,
     PlaceBuilding(Kind, u8),
@@ -775,10 +777,11 @@ fn input(
         controls.axis ^= 1;
     }
     if controls.editor {
-        if keys.just_pressed(KeyCode::KeyQ) || rotate_left {
+        let object_rotation = pad_pressed(GamepadButton::LeftTrigger2);
+        if keys.just_pressed(KeyCode::KeyQ) || (rotate_left && !object_rotation) {
             controls.prop_yaw = (controls.prop_yaw - 15.).rem_euclid(360.);
         }
-        if keys.just_pressed(KeyCode::KeyR) || rotate_right {
+        if keys.just_pressed(KeyCode::KeyR) || (rotate_right && !object_rotation) {
             controls.prop_yaw = (controls.prop_yaw + 15.).rem_euclid(360.);
         }
         let control = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
@@ -795,6 +798,31 @@ fn input(
         }
         if mouse.just_pressed(MouseButton::Right) || pad_just_pressed(GamepadButton::West) {
             controls.queue(WorldAction::RemoveProp);
+        }
+    }
+    if can_edit(&controls, &game.0) {
+        let object_rotation = pad_pressed(GamepadButton::LeftTrigger2) && !skate_chord;
+        let mut requests = [
+            (
+                keys.just_pressed(KeyCode::KeyM)
+                    || (pad_just_pressed(GamepadButton::North) && !skate_chord),
+                object_actions::Action::Move,
+            ),
+            (
+                keys.just_pressed(KeyCode::Comma) || (object_rotation && rotate_left),
+                object_actions::Action::Rotate(-15.),
+            ),
+            (
+                keys.just_pressed(KeyCode::Period) || (object_rotation && rotate_right),
+                object_actions::Action::Rotate(15.),
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(pressed, action)| pressed.then_some(action));
+        if let Some(action) = requests.next()
+            && requests.next().is_none()
+        {
+            controls.queue(WorldAction::EditProp(action));
         }
     }
     if controls.building
@@ -969,6 +997,17 @@ fn can_maintain(controls: &Controls, session: &Session) -> bool {
         && controls.error.is_none()
         && controls.building
         && !controls.editor
+        && session.skate.is_none()
+        && session.world.player(LOCAL).is_some_and(|p| p.health > 0)
+}
+
+fn can_edit(controls: &Controls, session: &Session) -> bool {
+    controls.focused
+        && !controls.paused
+        && !controls.inventory_open
+        && controls.error.is_none()
+        && controls.editor
+        && !controls.building
         && session.skate.is_none()
         && session.world.player(LOCAL).is_some_and(|p| p.health > 0)
 }
@@ -1473,6 +1512,9 @@ fn advance(
         {
             continue;
         }
+        if matches!(&action, WorldAction::EditProp(_)) && !can_edit(&controls, &game.0) {
+            continue;
+        }
         let loading = matches!(&action, WorldAction::Load);
         let result = match action {
             WorldAction::Gather => game.0.gather_from_view().map(|harvest| {
@@ -1502,6 +1544,8 @@ fn advance(
                 .0
                 .remove_prop_from_view()
                 .map(|()| "Object removed".into()),
+            WorldAction::EditProp(action) => object_actions::apply(&mut game.0, action)
+                .inspect(|_| sound(&mut commands, &sounds.ui)),
             WorldAction::Undo => game.0.undo_props().map(|()| "Object change undone".into()),
             WorldAction::Redo => game.0.redo_props().map(|()| "Object change redone".into()),
             WorldAction::PlaceBuilding(kind, axis) => game
@@ -1953,7 +1997,7 @@ fn update_hud(
     } else if game.0.skate.is_some() {
         "W push | A/D steer | S brake | Space ollie | Q/E spin | R flip | V dismount\nGrind: align with a rail, then ollie onto it to catch automatically.\nLand safely to bank pending points; bails lose them"
     } else if controls.editor {
-        "1-6 object | Q/R rotate | LMB place | RMB remove | Ctrl-Z/Y undo/redo"
+        "1-6 object | Q/R preview rotate | LMB place | RMB remove | E close\nAim at object: M move to surface | ,/. rotate 15 deg | Ctrl-Z/Y undo/redo"
     } else if controls.building {
         "1-4 building piece | R rotate | LMB place | RMB door | B close\nAim at your building: T repair | Z upgrade Stone | X upgrade Metal"
     } else {
@@ -1967,7 +2011,7 @@ fn update_hud(
         } else if controls.building {
             "Xbox build: LS move / RS look | RT place | X door | A jump\nD-pad Left/Right piece | Up upgrade Stone / Down upgrade Metal\nY repair | LB/RB rotate | Back mode | Start pause\n"
         } else if controls.editor {
-            "Xbox: LS move / RS look | RT place | A jump\nLS click sprint | B crouch | X door/remove | Y gather/loot/crate\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
+            "Xbox editor: LS move / RS look | RT place | X remove | Y move\nD-pad select | LB/RB preview rotate | LT + LB/RB object rotate\nBack mode | LB/RB + Y skate | Start pause\n"
         } else {
             "Xbox: LS move / RS look | RT shoot/place | LT ADS | A jump\nLS click sprint | B crouch | X reload/door/remove | Y gather/loot/crate\nD-pad Right cast/reel | D-pad Left cook/take fish\nBack mode | D-pad select/inventory | LB/RB rotate | LB/RB + Y skate | Start pause\n"
         }
