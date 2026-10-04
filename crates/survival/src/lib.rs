@@ -85,6 +85,7 @@ const SPAWN_POINTS: [[f32; 3]; 5] = [
 ];
 const PLAYER_MINS: [f32; 3] = [-15., -15., 0.];
 const PLAYER_MAXS: [f32; 3] = [15., 15., 70.];
+const LOW_VITAL: f32 = 20.;
 
 #[derive(Clone, Debug)]
 pub struct PropPlacementPreview {
@@ -490,6 +491,8 @@ impl Session {
         let was_bleeding = self.vitals.is_bleeding();
         let was_fed = self.vitals.hunger() > 0.;
         let was_watered = self.vitals.thirst() > 0.;
+        let was_well_fed = self.vitals.hunger() > LOW_VITAL;
+        let was_well_watered = self.vitals.thirst() > LOW_VITAL;
         let was_sick = self.vitals.radiation() > RADIATION_SICK;
         if alive {
             self.vitals.wound(external);
@@ -678,6 +681,11 @@ impl Session {
             } else {
                 "You have radiation sickness".into()
             };
+        }
+        if was_well_watered && self.vitals.thirst() <= LOW_VITAL {
+            self.message = "You are getting thirsty".into();
+        } else if was_well_fed && self.vitals.hunger() <= LOW_VITAL {
+            self.message = "You are getting hungry".into();
         }
         if was_watered && self.vitals.thirst() == 0. {
             self.message = "You are dehydrated".into();
