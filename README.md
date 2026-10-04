@@ -66,7 +66,8 @@ docs. De Engelstalige [CONTRIBUTING.md](CONTRIBUTING.md) beschrijft de werkwijze
 - Zelfstandige sessie met eigen ingebedde gamescripts, een klein eigen eiland,
   first-person bewegen, schieten, schade, dood en respawn.
 - Inventory met 24 slots, eindige startvoorraad, bandage-/munitierecepten,
-  voedsel/water en honger/dorst; 30 eindige oogstbare materiaal-/voedselnodes.
+  voedsel/water en honger/dorst; 32 eindige oogstnodes, inclusief twee Hemp-planten
+  voor Cloth.
 - Eigen ramps, quarterpipes, rails, trappen, platforms en funboxes, met plaatsing,
   rotatie, verwijderen, undo/redo en gevalideerde sessie-opslag. Groen/rode previews
   tonen plaatsingsregels; bouwpreviews tonen de werkelijke materiaalkosten.
