@@ -459,6 +459,7 @@ impl Session {
         let health = self.world.player(LOCAL).map_or(0, |p| p.health);
         authority_step(&mut self.world, self.tick, cmd)?;
         let after = self.world.player(LOCAL).map_or(0, |p| p.health);
+        let max_health = self.world.player(LOCAL).map_or(0, |p| p.max_health);
         let external = u32::try_from(health - after)
             .unwrap_or(0)
             .saturating_sub(self.queued_damage);
@@ -692,6 +693,9 @@ impl Session {
             self.message = "You are dehydrated".into();
         } else if was_fed && self.vitals.hunger() == 0. {
             self.message = "You are starving".into();
+        }
+        if health * 4 > max_health && after * 4 <= max_health {
+            self.message = "You are badly hurt".into();
         }
         // Last, so no other message on the same tick hides the drop's location.
         if let Some(p) = self.airdrops.position().filter(|_| drops.landed) {
