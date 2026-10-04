@@ -1018,6 +1018,7 @@ impl Session {
             .filter(|n| n.kind == ResourceKind::Water)
             .ok_or("Aim at water within reach")?
             .id;
+        self.require_open_water()?;
         let baited = self.inventory.take(Item::Bait, 1).is_ok();
         self.fishing = Some(Cast {
             node,
@@ -1038,6 +1039,7 @@ impl Session {
         self.gather_target_from_view()?
             .filter(|n| n.kind == ResourceKind::Water)
             .ok_or("Aim at water within reach")?;
+        self.require_open_water()?;
         if self.vitals.thirst() >= 100. {
             return Err("You are not thirsty".into());
         }
@@ -1046,6 +1048,13 @@ impl Session {
             ..Default::default()
         })?;
         self.message = "You drink some water".into();
+        Ok(())
+    }
+
+    fn require_open_water(&self) -> Result<(), String> {
+        if self.clock.temperature() < FREEZING_CELSIUS {
+            return Err("The water is frozen".into());
+        }
         Ok(())
     }
 
