@@ -3,7 +3,7 @@ use bevy::mesh::MeshBuilder;
 use bevy::prelude::*;
 use std::collections::BTreeMap;
 use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, TAU};
-use survival::{COOK_WOOD, FireState, Session};
+use survival::{COOK_WOOD, FireState, RAIN_COOK_SPEED, Session};
 
 #[derive(Clone, Copy, PartialEq)]
 enum FireVisualState {
@@ -250,10 +250,20 @@ pub(super) fn hint(session: &Session) -> Option<String> {
             "Campfire {} | G / Xbox D-pad Left cook 1 raw fish + {COOK_WOOD} wood",
             fire.id()
         ),
-        FireState::Cooking { remaining } => format!(
-            "Campfire {} | Cooking: {remaining:.1} s | Collect when ready",
-            fire.id()
-        ),
+        FireState::Cooking { remaining } => {
+            if session.weather().is_raining() {
+                format!(
+                    "Campfire {} | Cooking: {:.1} s (rain) | Collect when ready",
+                    fire.id(),
+                    remaining / RAIN_COOK_SPEED
+                )
+            } else {
+                format!(
+                    "Campfire {} | Cooking: {remaining:.1} s | Collect when ready",
+                    fire.id()
+                )
+            }
+        }
         FireState::Ready => format!(
             "Campfire {} | READY | G / Xbox D-pad Left take cooked fish",
             fire.id()
