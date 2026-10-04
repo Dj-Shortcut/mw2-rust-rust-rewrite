@@ -488,6 +488,8 @@ impl Session {
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;
         let was_bleeding = self.vitals.is_bleeding();
+        let was_fed = self.vitals.hunger() > 0.;
+        let was_watered = self.vitals.thirst() > 0.;
         if alive {
             self.vitals.wound(external);
         } else {
@@ -650,6 +652,11 @@ impl Session {
             } else {
                 "You are bleeding".into()
             };
+        }
+        if was_watered && self.vitals.thirst() == 0. {
+            self.message = "You are dehydrated".into();
+        } else if was_fed && self.vitals.hunger() == 0. {
+            self.message = "You are starving".into();
         }
         // Last, so no other message on the same tick hides the drop's location.
         if let Some(p) = self.airdrops.position().filter(|_| drops.landed) {
