@@ -82,24 +82,25 @@ impl Beehive {
             <= HIVE_REACH
     }
 
-    pub(crate) fn advance(&mut self, dt_seconds: f32, resting: bool) -> Result<(), String> {
+    pub(crate) fn advance(&mut self, dt_seconds: f32, resting: bool) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Beehive time step must be finite and non-negative".into());
         }
         let state = &mut self.state;
         if state.honey >= HIVE_HONEY {
             state.remaining = HIVE_SECONDS;
-            return Ok(());
+            return Ok(false);
         }
         if resting {
-            return Ok(());
+            return Ok(false);
         }
         state.remaining -= dt_seconds;
-        if state.remaining <= 0. {
-            state.honey += 1;
-            state.remaining = HIVE_SECONDS;
+        if state.remaining > 0. {
+            return Ok(false);
         }
-        Ok(())
+        state.honey += 1;
+        state.remaining = HIVE_SECONDS;
+        Ok(state.honey == HIVE_HONEY)
     }
 
     pub(crate) fn take_honey(&mut self) -> Result<u32, String> {
