@@ -53,6 +53,7 @@ enum WorldAction {
     Gather,
     PickUpLoot,
     OpenCrate,
+    OpenSupplyDrop,
     Fishing,
     Campfire,
     PlaceProp(PropKind, f32),
@@ -977,6 +978,8 @@ fn interaction_action(session: &Session) -> WorldAction {
         WorldAction::PickUpLoot
     } else if session.crate_in_reach().is_some() {
         WorldAction::OpenCrate
+    } else if session.supply_drop_in_reach() {
+        WorldAction::OpenSupplyDrop
     } else {
         WorldAction::Gather
     }
@@ -1000,6 +1003,13 @@ fn crate_hint(session: &Session) -> Option<String> {
     ))
 }
 
+fn supply_hint(session: &Session) -> Option<String> {
+    if !session.supply_drop_in_reach() {
+        return None;
+    }
+    Some("Supply drop | F / Xbox Y to open".into())
+}
+
 fn gather_feedback(harvest: survival::Harvest) -> String {
     let mut message = format!(
         "{} +{} | {} remaining",
@@ -1017,6 +1027,11 @@ fn gather_feedback(harvest: survival::Harvest) -> String {
 
 fn open_crate(session: &mut Session) -> Result<String, String> {
     session.open_crate()?;
+    Ok(session.message.clone())
+}
+
+fn open_supply_drop(session: &mut Session) -> Result<String, String> {
+    session.open_supply_drop()?;
     Ok(session.message.clone())
 }
 
@@ -1447,6 +1462,7 @@ fn advance(
             WorldAction::Gather
                 | WorldAction::PickUpLoot
                 | WorldAction::OpenCrate
+                | WorldAction::OpenSupplyDrop
                 | WorldAction::Fishing
                 | WorldAction::Campfire
         ) && !can_interact(&controls, &game.0)
@@ -1467,6 +1483,9 @@ fn advance(
                 sound(&mut commands, &sounds.ui);
             }),
             WorldAction::OpenCrate => open_crate(&mut game.0).inspect(|_| {
+                sound(&mut commands, &sounds.ui);
+            }),
+            WorldAction::OpenSupplyDrop => open_supply_drop(&mut game.0).inspect(|_| {
                 sound(&mut commands, &sounds.ui);
             }),
             WorldAction::Fishing => fishing::toggle(&mut game.0).inspect(|_| {
@@ -1988,6 +2007,8 @@ fn update_hud(
             if let Some(hint) = loot_hint(&game.0) {
                 content.push_str(&format!("\n{hint}"));
             } else if let Some(hint) = crate_hint(&game.0) {
+                content.push_str(&format!("\n{hint}"));
+            } else if let Some(hint) = supply_hint(&game.0) {
                 content.push_str(&format!("\n{hint}"));
             } else if let Ok(Some(node)) = game.0.gather_target_from_view() {
                 content.push_str(&format!(
