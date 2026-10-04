@@ -122,6 +122,14 @@ F / Xbox Y verzamelt maximaal 10 Water per oogst uit eindige voorraad; K of
 inventory I / Xbox A gebruikt één Water voor +35 dorst. De bestaande inventory
 O/P-kledingbediening blijft behouden. Zie [de watergids](docs/WATER.md) voor
 bereik, fouten, tijdsverloop en verificatiegrenzen.
+In loopmodus plant of oogst T het dichtstbijzijnde bessenbed binnen 100 wereldunits
+(3D), zonder te richten. Xbox: houd LB vast en druk RB; vasthouden herhaalt niet.
+Planten kost één bessenzaad en één Water; rijpe bessen leveren vijf Food en twee
+zaden samen. F / Xbox Y verzamelt bessen/zaden en Water; J of inventory I gebruikt
+Food. De drie vaste bedden hebben eigen Empty/Growing/Ripe-visuals en Engelse hints.
+Groei duurt 600 simulatieseconden, 1,5× bij regen of dageraad; vorst pauzeert groei.
+Inventory, pauze en focusverlies stoppen de wereld. Zie [de tuingids](docs/GARDENING.md)
+voor bereik, fouten, opslag en verificatiegrenzen.
 Craft een hengel via recept 7; richt in loopmodus op bereikbaar water en druk
 L om te vissen. L haalt een actieve lijn weer binnen. Xbox D-pad Rechts gebruikt
 dezelfde visactie. Bij een kampvuur binnen bereik start G het bakken van één
@@ -168,6 +176,12 @@ gebruiken, gedeeltelijk gevulde/volle/bevroren tonnen legen, atomische fouten,
 bouwmodeblokkering en F5/F9 met relevante sessiestaat uitgevoerd.
 Editor-/pauze-/inventorygates en F1 met craftingwachtrij op 1280×720 zijn gecontroleerd;
 [de watergids](docs/WATER.md) beschrijft de afgebakende controle en open onderdelen.
+De native bessenbedden gebruiken de bestaande Session-regels. De echte API-route
+verzamelen/planten/groeien/oogsten/eten/herplanten en klimaat-/foutgevallen slagen,
+evenals 76 echte keyboard-/softwarepad-invoer-/dispatchcontroles. F/Y-volgorde is
+gecontroleerd; nieuw materiaal verzamelen én planten in hetzelfde frame niet.
+11 echte scene-/cache-/hierarchiestadia controleren materiaalhergebruik en volledige opruiming; 268 keyboard/Mesa-controles slagen: planten, echt laatste rijpen, oogsten/eten/herplanten, F5/F9, drie atomische weigeringen, context-/doodgates en Engelse F1/queue-/vorstweergave op 1280x720. Zie [de tuingids](docs/GARDENING.md).
+Fysieke controllerhardware, hoorbare audio, Windows/macOS-gameplay en release blijven open.
 De broncodecontrole gebruikt synthetische controllerinvoer; grafische controles
 gebruiken toetsenbord/muis. Dit is geen hardwareprestatiemeting.
 Niet alle native flows zijn geverifieerd; hoorbaar geluid, Xbox-controllerhardware
