@@ -1891,6 +1891,7 @@ impl Session {
             )
             .map_err(|e| e.to_string())?;
         self.vitals = Vitals::default();
+        self.poisoned = false;
         self.queued_damage = 0;
         self.dismount();
         self.world.set_external_motion(LOCAL, false);
