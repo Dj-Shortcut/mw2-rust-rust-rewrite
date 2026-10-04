@@ -48,7 +48,9 @@ pub use fishing::{
     BAIT_PER_FOOD, BAITED_CATCH_PERCENT, CAST_SECONDS, CATCH_PERCENT, Cast, FISHING_REACH,
     RAIN_BAITED_CATCH_PERCENT, RAIN_CATCH_PERCENT,
 };
-pub use fishtrap::{FishTrap, SavedTrap, TRAP_BAIT, TRAP_CATCH_SECONDS, TRAP_FISH, TRAP_REACH};
+pub use fishtrap::{
+    FishTrap, RAIN_TRAP_SPEED, SavedTrap, TRAP_BAIT, TRAP_CATCH_SECONDS, TRAP_FISH, TRAP_REACH,
+};
 pub use gathering::{
     GatheringWorld, Harvest, REGROW_RETRY_SECONDS, REGROW_SECONDS, ResourceKind, ResourceNode,
     SIP_THIRST,
@@ -467,7 +469,7 @@ impl Session {
         let ripened = self.garden.advance(0.017, self.weather.is_raining())?;
         self.rain_barrel.advance(0.017, self.weather.is_raining())?;
         self.beehive.advance(0.017, self.weather.is_raining())?;
-        let trapped = self.fish_trap.advance(0.017)?;
+        let trapped = self.fish_trap.advance(0.017, self.weather.is_raining())?;
         self.trader.advance(0.017)?;
         let weather_changed = self.weather.advance(0.017, self.terrain.seed)?;
         let alive = after > 0;

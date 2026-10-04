@@ -6,6 +6,7 @@ pub const TRAP_REACH: f32 = 100.;
 pub const TRAP_BAIT: u32 = 5;
 pub const TRAP_FISH: u32 = 5;
 pub const TRAP_CATCH_SECONDS: f32 = 120.;
+pub const RAIN_TRAP_SPEED: f32 = 1.5;
 const POSITION: [f32; 2] = [-320., -100.];
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -93,7 +94,7 @@ impl FishTrap {
             <= TRAP_REACH
     }
 
-    pub(crate) fn advance(&mut self, dt_seconds: f32) -> Result<bool, String> {
+    pub(crate) fn advance(&mut self, dt_seconds: f32, raining: bool) -> Result<bool, String> {
         if !dt_seconds.is_finite() || dt_seconds < 0. {
             return Err("Fish trap time step must be finite and non-negative".into());
         }
@@ -102,7 +103,11 @@ impl FishTrap {
             state.remaining = TRAP_CATCH_SECONDS;
             return Ok(false);
         }
-        state.remaining -= dt_seconds;
+        state.remaining -= if raining {
+            dt_seconds * RAIN_TRAP_SPEED
+        } else {
+            dt_seconds
+        };
         if state.remaining > 0. {
             return Ok(false);
         }
