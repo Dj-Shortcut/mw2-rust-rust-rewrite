@@ -46,10 +46,11 @@ pub enum Item {
     SignalFlare,
     Honey,
     Barometer,
+    Cloth,
 }
 
 impl Item {
-    pub const ALL: [Self; 22] = [
+    pub const ALL: [Self; 23] = [
         Self::Bandage,
         Self::Ammo,
         Self::Food,
@@ -72,6 +73,7 @@ impl Item {
         Self::SignalFlare,
         Self::Honey,
         Self::Barometer,
+        Self::Cloth,
     ];
 
     pub fn name(self) -> &'static str {
@@ -98,6 +100,7 @@ impl Item {
             Self::SignalFlare => "Signal flare",
             Self::Honey => "Honey",
             Self::Barometer => "Barometer",
+            Self::Cloth => "Cloth",
         }
     }
 
@@ -136,6 +139,7 @@ impl Item {
             | Self::FishStew
             | Self::Honey => 10,
             Self::Ammo => 60,
+            Self::Cloth => 1000,
             Self::Food | Self::BerrySeeds | Self::Bait | Self::Fertilizer => 20,
             Self::Syringe | Self::SignalFlare => 5,
             Self::Hatchet
@@ -191,10 +195,7 @@ impl Recipe {
 
     pub fn cost(self) -> Resources {
         match self {
-            Self::Bandage => Resources {
-                wood: 20,
-                ..Default::default()
-            },
+            Self::Bandage => Resources::default(),
             Self::Ammo => Resources {
                 metal: 15,
                 stone: 10,
@@ -233,7 +234,17 @@ impl Recipe {
         }
     }
 
+    pub fn carried_cost(self) -> Option<(Item, u32)> {
+        match self {
+            Self::Bandage => Some((Item::Cloth, 4)),
+            _ => None,
+        }
+    }
+
     pub fn recycle_yield(item: Item, quantity: u32) -> Result<Resources, String> {
+        if item == Item::Bandage {
+            return Err("Cloth Bandage recycling is not available".into());
+        }
         let recipe = Self::ALL
             .into_iter()
             .find(|r| r.output().0 == item)
@@ -470,9 +481,20 @@ impl Inventory {
         if !available.covers(cost) {
             return Err("Not enough crafting resources".into());
         }
+        let mut inventory = self.clone();
+        inventory.reserve_craft_inputs(recipe)?;
         let (item, quantity) = recipe.output();
-        self.add(item, quantity)?;
+        inventory.add(item, quantity)?;
+        *self = inventory;
         Ok(cost)
+    }
+
+    pub(crate) fn reserve_craft_inputs(&mut self, recipe: Recipe) -> Result<(), String> {
+        if let Some((item, quantity)) = recipe.carried_cost() {
+            self.take(item, quantity)
+                .map_err(|_| format!("Not enough {} to craft", item.name()))?;
+        }
+        Ok(())
     }
 
     pub fn use_item(&mut self, item: Item, quantity: u32) -> Result<Effects, String> {
@@ -541,7 +563,8 @@ impl Inventory {
             | Item::Barometer
             | Item::BerrySeeds
             | Item::Bait
-            | Item::Fertilizer => {
+            | Item::Fertilizer
+            | Item::Cloth => {
                 return Err("That item cannot be used".into());
             }
         };

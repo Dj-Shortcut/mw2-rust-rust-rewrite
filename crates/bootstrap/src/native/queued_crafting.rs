@@ -19,11 +19,12 @@ pub(super) fn apply(session: &mut Session, action: Action) -> Result<String, Str
             .queue_craft(recipe)
             .map(|()| format!("Queued {}", recipe.name())),
         Action::CancelFirst => {
-            let name = session
-                .crafting_queue()
-                .first()
-                .map_or("crafting job", |job| job.recipe.name());
+            let job = session.crafting_queue().first().copied();
+            let name = job.map_or("crafting job", |job| job.recipe.name());
             let refund = session.cancel_craft(0)?;
+            if let Some(cloth) = job.map(|job| job.cloth_refund()).filter(|&cloth| cloth > 0) {
+                return Ok(format!("Cancelled {name} | Refunded: {cloth} Cloth"));
+            }
             Ok(format!(
                 "Cancelled {name} | Refunded: {} wood, {} stone, {} metal",
                 refund.wood, refund.stone, refund.metal

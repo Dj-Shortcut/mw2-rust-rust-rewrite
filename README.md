@@ -32,7 +32,10 @@ staan in [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) en
 De gedeelde kern en een directe TCP-server/clientadapter zijn nu aanwezig.
 Eén echt serverproces en twee afzonderlijke clients doorlopen bewegen, eindig
 verzamelen en een gedeelde Wood foundation in 79 headless controles.
-De native `join IP:PORT`-route is aanwezig voor een ongewapend gather/build-prototype.
+De native `join IP:PORT`-route is aanwezig voor een ongewapend gather/build-prototype,
+met Hemp→Cloth→Bandage en een eigen bevestigde inventory. Bandages kosten 4 Cloth;
+hout blijft bouwmateriaal. De verbonden flow en oude offline saves worden
+afzonderlijk gecontroleerd. Zie [Cloth en crafting](docs/CONNECTED-CRAFTING.md).
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
 software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone
 executables doorlopen 24 beperkte toetsenbord/Mesa-venstercontroles. Daarnaast
@@ -63,7 +66,8 @@ docs. De Engelstalige [CONTRIBUTING.md](CONTRIBUTING.md) beschrijft de werkwijze
 - Zelfstandige sessie met eigen ingebedde gamescripts, een klein eigen eiland,
   first-person bewegen, schieten, schade, dood en respawn.
 - Inventory met 24 slots, eindige startvoorraad, bandage-/munitierecepten,
-  voedsel/water en honger/dorst; 30 eindige oogstbare materiaal-/voedselnodes.
+  voedsel/water en honger/dorst; 32 eindige oogstnodes, inclusief twee Hemp-planten
+  voor Cloth.
 - Eigen ramps, quarterpipes, rails, trappen, platforms en funboxes, met plaatsing,
   rotatie, verwijderen, undo/redo en gevalideerde sessie-opslag. Groen/rode previews
   tonen plaatsingsregels; bouwpreviews tonen de werkelijke materiaalkosten.
@@ -119,8 +123,9 @@ Verbind twee native ontwikkelclients vanuit afzonderlijke terminals:
 cargo run -p launcher --profile play --locked -- join 127.0.0.1:28980
 ```
 
-Join gebruikt de eigen modellen en ondersteunt ongewapend Trees verzamelen
-en Wood foundations plaatsen. `game` blijft offline. Esc pauzeert lokale
+Join gebruikt de eigen modellen: F verzamelt Tree/Hemp, I opent je inventory
+en C maakt daar één Bandage voor 4 Cloth. B en Left click plaatsen een Wood
+foundation. `game` blijft offline. Esc pauzeert lokale
 bediening terwijl de gedeelde wereld doorgaat; F1 toont de verbonden bediening.
 De beperkte native verzamelen→fundering-route is op Linux/Mesa gecontroleerd.
 Stop de server met Ctrl+C.

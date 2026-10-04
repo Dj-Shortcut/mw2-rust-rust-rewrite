@@ -920,18 +920,27 @@ impl Session {
         self.require_blueprint(recipe)?;
         let mut crafting = self.crafting.clone();
         crafting.push(recipe)?;
+        let mut inventory = self.inventory.clone();
+        inventory.reserve_craft_inputs(recipe)?;
         self.world
             .buildings_mut()
             .consume(LOCAL.0, recipe.cost())
             .map_err(|_| "Not enough crafting resources".to_string())?;
         self.crafting = crafting;
+        self.inventory = inventory;
         Ok(())
     }
 
     pub fn cancel_craft(&mut self, index: usize) -> Result<Resources, String> {
         self.require_alive()?;
         let mut crafting = self.crafting.clone();
-        let refund = crafting.cancel(index)?.cost();
+        let job = crafting.cancel(index)?;
+        let refund = job.resource_refund();
+        let mut inventory = self.inventory.clone();
+        let cloth = job.cloth_refund();
+        if cloth > 0 {
+            inventory.add(Item::Cloth, cloth)?;
+        }
         let mut balance = self.world.buildings().inventory(LOCAL.0);
         balance.add(refund);
         if [balance.wood, balance.stone, balance.metal]
@@ -945,16 +954,18 @@ impl Session {
             .grant(LOCAL.0, refund)
             .map_err(|e| e.to_string())?;
         self.crafting = crafting;
+        self.inventory = inventory;
         Ok(refund)
     }
 
     fn refund_crafting(&mut self) -> Result<(), String> {
-        let mut refund = self.crafting.clear();
+        let (mut refund, cloth) = self.crafting.clear();
         let balance = self.world.buildings().inventory(LOCAL.0);
         let room = |have: u32| persistence::MAX_RESOURCE_BALANCE.saturating_sub(have);
         refund.wood = refund.wood.min(room(balance.wood));
         refund.stone = refund.stone.min(room(balance.stone));
         refund.metal = refund.metal.min(room(balance.metal));
+        self.inventory.add_up_to(Item::Cloth, cloth);
         self.world
             .buildings_mut()
             .grant(LOCAL.0, refund)
@@ -989,6 +1000,7 @@ impl Session {
                 inventory.add_up_to(Item::BerrySeeds, 1);
             }
             ResourceKind::Water => inventory.add(Item::Water, harvested.amount)?,
+            ResourceKind::Hemp => inventory.add(Item::Cloth, harvested.amount)?,
             _ => {}
         }
         self.world

@@ -10,6 +10,8 @@ use sim::{ClientId, SimWorld, Tick, TickInput};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+mod crafting;
+
 pub const SHARED_STEP_MS: i32 = 50;
 
 pub fn shared_replica(nodes: Vec<ResourceNode>) -> Result<SimWorld, String> {
@@ -58,6 +60,8 @@ impl ActorHandle {
 pub enum SharedAction {
     GatherTree,
     PlaceWoodFoundation,
+    GatherCloth,
+    CraftBandage,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -71,6 +75,7 @@ pub struct SharedRequest {
 pub enum SharedEffect {
     Gathered(Harvest),
     FoundationPlaced { id: u32 },
+    BandageCrafted,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -95,12 +100,18 @@ pub struct SharedSnapshot {
 
 impl SharedSnapshot {
     pub fn tree_target(&self, replica: &SimWorld) -> Result<Option<ResourceNode>, String> {
+        Ok(self
+            .gather_target(replica)?
+            .filter(|node| node.kind == ResourceKind::Tree))
+    }
+
+    pub fn gather_target(&self, replica: &SimWorld) -> Result<Option<ResourceNode>, String> {
         self.preview_owner(replica)?;
         let gathering = GatheringWorld::from_nodes(self.terrain_seed, self.nodes.clone())?;
         let (start, end, obstacle) = actor_gathering_ray(replica, self.recipient)?;
         Ok(gathering
             .target_from_ray(start, end, obstacle)?
-            .filter(|node| node.kind == ResourceKind::Tree)
+            .filter(|node| matches!(node.kind, ResourceKind::Tree | ResourceKind::Hemp))
             .cloned())
     }
 
@@ -469,6 +480,15 @@ impl SharedSession {
         }
         match action {
             SharedAction::GatherTree => self.gather_tree(actor).map(SharedEffect::Gathered),
+            SharedAction::GatherCloth => self.gather_cloth(actor).map(SharedEffect::Gathered),
+            SharedAction::CraftBandage => {
+                let inventory = crafting::craft_bandage(&self.actor(actor)?.inventory)?;
+                self.actors
+                    .get_mut(&actor.client)
+                    .expect("preflight validated the actor")
+                    .inventory = inventory;
+                Ok(SharedEffect::BandageCrafted)
+            }
             SharedAction::PlaceWoodFoundation => {
                 let (preview, candidate) = actor_building_placement(
                     &self.world,
@@ -525,6 +545,27 @@ impl SharedSession {
             self.world
                 .install_content(authored_content(&self.terrain, &self.editor, &gathering));
         }
+        self.gathering = gathering;
+        Ok(harvest)
+    }
+
+    fn gather_cloth(&mut self, actor: ActorHandle) -> Result<Harvest, String> {
+        let (start, end, obstacle) = actor_gathering_ray(&self.world, actor.client)?;
+        let target = self
+            .gathering
+            .target_from_ray(start, end, obstacle)?
+            .ok_or("Aim at a Hemp plant within reach")?;
+        if target.kind != ResourceKind::Hemp {
+            return Err("Aim at a Hemp plant to gather Cloth".into());
+        }
+        let mut gathering = self.gathering.clone();
+        let mut inventory = self.actor(actor)?.inventory.clone();
+        let harvest = gathering.harvest_from_ray(start, end, obstacle, |_| false)?;
+        inventory.add(super::Item::Cloth, harvest.amount)?;
+        self.actors
+            .get_mut(&actor.client)
+            .expect("preflight validated the actor")
+            .inventory = inventory;
         self.gathering = gathering;
         Ok(harvest)
     }

@@ -1,5 +1,5 @@
 use super::super::{point, surface_mesh};
-use super::{Connection, Controls, network};
+use super::{Connection, Controls, inventory, network};
 use bevy::asset::{LoadState, RecursiveDependencyLoadState};
 use bevy::prelude::*;
 use rust_building::{Grade, Piece};
@@ -66,6 +66,7 @@ pub(super) fn setup(
         ResourceKind::Metal,
         ResourceKind::Berry,
         ResourceKind::Water,
+        ResourceKind::Hemp,
     ] {
         let visual = kind.visual();
         let material = |color: [f32; 4]| StandardMaterial {
@@ -270,7 +271,7 @@ pub(super) fn present(
         }
     }
     for mut node in &mut reticles {
-        node.display = if controls.active {
+        node.display = if controls.active && !controls.inventory {
             Display::Flex
         } else {
             Display::None
@@ -457,7 +458,7 @@ fn interaction(
     let Some(world) = &connection.world else {
         return (None, String::new());
     };
-    if !controls.active {
+    if !controls.active || controls.inventory {
         return (None, String::new());
     }
     if controls.building {
@@ -477,14 +478,22 @@ fn interaction(
             Err(error) => (None, error),
         }
     } else {
-        match world.snapshot.tree_target(&world.replica) {
-            Ok(Some(tree)) => (
-                None,
-                format!(
-                    "Tree: {} Wood remaining | F / Controller Y to gather",
-                    tree.remaining
-                ),
-            ),
+        match world.snapshot.gather_target(&world.replica) {
+            Ok(Some(node)) => {
+                let resource = match node.kind {
+                    ResourceKind::Tree => "Wood",
+                    ResourceKind::Hemp => "Cloth",
+                    _ => return (None, String::new()),
+                };
+                (
+                    None,
+                    format!(
+                        "{}: {} {resource} remaining | F / Controller Y to gather",
+                        node.kind.name(),
+                        node.remaining
+                    ),
+                )
+            }
             Ok(None) => (None, String::new()),
             Err(error) => (None, error),
         }
@@ -569,7 +578,7 @@ fn status(connection: &Connection, controls: &Controls, model_status: &str, hint
             let wood = world.replica.buildings().inventory(owner).wood;
             content.push_str(&format!("\nWood: {wood} | Foundation cost: 200 Wood"));
         }
-        if controls.building {
+        if controls.building && !controls.inventory {
             content.push_str("\nWOOD FOUNDATION | B / Controller Back to close");
         }
     }
@@ -582,19 +591,40 @@ fn status(connection: &Connection, controls: &Controls, model_status: &str, hint
     } else if !controls.focused {
         content.push_str("\nFocus this window to control your player.");
     }
-    if connection.pending {
-        content.push_str("\nAction pending...");
-    }
-    if !hint.is_empty() {
-        content.push_str(&format!("\n{hint}"));
-    }
-    if !connection.message.is_empty() {
-        content.push_str(&format!("\n{}", connection.message));
-    }
-    if controls.help {
-        content.push_str("\nWASD move | Mouse look | Shift sprint | Space jump | Ctrl crouch\nF gather Tree | B foundation mode | Left click place\nEsc pause | F1 hide help\nController: LS move | RS look | LS click sprint | A jump | B crouch\nY gather Tree | Back foundation mode | RT place | Start pause");
+    if controls.inventory {
+        if let Some(world) = &connection.world {
+            content.push_str(&format!(
+                "\n{}",
+                inventory::panel(world, connection.pending, &connection.message)
+            ));
+        } else {
+            content.push_str("\nInventory is not available yet.");
+            if !connection.message.is_empty() {
+                content.push_str(&format!("\n{}", connection.message));
+            }
+        }
+        if controls.help {
+            content.push_str("\nCrafting needs 4 Cloth and room for the output.\nEsc / Controller Start pauses your input; the world keeps running.\nF1 hide help");
+        } else {
+            content.push_str("\nEsc pause | F1 help");
+        }
     } else {
-        content.push_str("\nF gather Tree | B foundation mode | Esc pause | F1 help");
+        if connection.pending {
+            content.push_str("\nAction pending...");
+        }
+        if !hint.is_empty() {
+            content.push_str(&format!("\n{hint}"));
+        }
+        if !connection.message.is_empty() {
+            content.push_str(&format!("\n{}", connection.message));
+        }
+        if controls.help {
+            content.push_str("\nWASD move | Mouse look | Shift sprint | Space jump | Ctrl crouch\nF gather Tree/Hemp | I inventory | B foundation mode | Left click place\nEsc pause | F1 hide help\nController: LS move | RS look | LS click sprint | A jump | B crouch\nY gather Tree/Hemp | Up inventory | Back foundation mode | RT place | Start pause");
+        } else {
+            content.push_str(
+                "\nF gather Tree/Hemp | I inventory | B foundation mode | Esc pause | F1 help",
+            );
+        }
     }
     content
 }

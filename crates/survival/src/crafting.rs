@@ -4,11 +4,62 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 pub const MAX_CRAFT_JOBS: usize = 8;
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CraftJob {
     pub recipe: Recipe,
     pub remaining: f32,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub cloth_reserved: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+impl CraftJob {
+    pub fn resource_refund(self) -> Resources {
+        if self.recipe == Recipe::Bandage && !self.cloth_reserved {
+            Resources {
+                wood: 20,
+                ..Default::default()
+            }
+        } else {
+            self.recipe.cost()
+        }
+    }
+
+    pub fn cloth_refund(self) -> u32 {
+        if self.recipe == Recipe::Bandage && self.cloth_reserved {
+            4
+        } else {
+            0
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CraftJob {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Saved {
+            recipe: Recipe,
+            remaining: f32,
+            #[serde(default)]
+            cloth_reserved: bool,
+        }
+        let saved = Saved::deserialize(deserializer)?;
+        if saved.cloth_reserved && saved.recipe != Recipe::Bandage {
+            return Err(serde::de::Error::custom(
+                "Only Bandage crafting jobs reserve Cloth",
+            ));
+        }
+        Ok(Self {
+            recipe: saved.recipe,
+            remaining: saved.remaining,
+            cloth_reserved: saved.cloth_reserved,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
@@ -29,23 +80,26 @@ impl CraftQueue {
         self.jobs.push(CraftJob {
             recipe,
             remaining: recipe.craft_seconds(),
+            cloth_reserved: recipe == Recipe::Bandage,
         });
         Ok(())
     }
 
-    pub(crate) fn cancel(&mut self, index: usize) -> Result<Recipe, String> {
+    pub(crate) fn cancel(&mut self, index: usize) -> Result<CraftJob, String> {
         if index >= self.jobs.len() {
             return Err("No crafting job at that position".into());
         }
-        Ok(self.jobs.remove(index).recipe)
+        Ok(self.jobs.remove(index))
     }
 
-    pub(crate) fn clear(&mut self) -> Resources {
+    pub(crate) fn clear(&mut self) -> (Resources, u32) {
         let mut refund = Resources::default();
+        let mut cloth = 0;
         for job in self.jobs.drain(..) {
-            refund.add(job.recipe.cost());
+            refund.add(job.resource_refund());
+            cloth += job.cloth_refund();
         }
-        refund
+        (refund, cloth)
     }
 
     pub(crate) fn advance(

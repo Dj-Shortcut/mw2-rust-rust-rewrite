@@ -12,7 +12,7 @@ use survival::{
 
 pub const MAX_BODY_BYTES: usize = 256 * 1024;
 const MAGIC: u32 = 0x3150_4D53;
-const VERSION: u16 = 1;
+const VERSION: u16 = 2;
 const TERRAIN_SEED: u32 = 731;
 const MAX_CLIENTS: usize = 64;
 const MAX_OWNERS: usize = 2;
@@ -796,6 +796,8 @@ fn put_action(out: &mut WireWriter, action: Option<ActionRequest>) {
             out.put_u8(match value.action {
                 SharedAction::GatherTree => 1,
                 SharedAction::PlaceWoodFoundation => 2,
+                SharedAction::GatherCloth => 3,
+                SharedAction::CraftBandage => 4,
             });
             out.put_u32(value.request_id);
         }
@@ -807,6 +809,8 @@ fn read_action(input: &mut Reader<'_>) -> Result<Option<ActionRequest>, String> 
         0 => return Ok(None),
         1 => SharedAction::GatherTree,
         2 => SharedAction::PlaceWoodFoundation,
+        3 => SharedAction::GatherCloth,
+        4 => SharedAction::CraftBandage,
         _ => return Err("Unknown standalone action tag".into()),
     };
     let request_id = input.u32()?;
@@ -829,9 +833,9 @@ fn validate_receipts(state: &SharedSnapshot, receipts: &[SharedReceipt]) -> Resu
         }
         match &receipt.result {
             Ok(SharedEffect::Gathered(harvest)) => {
-                if harvest.kind != ResourceKind::Tree
+                if !matches!(harvest.kind, ResourceKind::Tree | ResourceKind::Hemp)
                     || harvest.amount == 0
-                    || harvest.amount > 25
+                    || harvest.amount > harvest.kind.harvest_amount()
                     || harvest.remaining > harvest.kind.capacity()
                     || harvest.tool_broke
                     || harvest.tool_almost_broken
@@ -840,7 +844,7 @@ fn validate_receipts(state: &SharedSnapshot, receipts: &[SharedReceipt]) -> Resu
                         .iter()
                         .any(|node| node.id == harvest.node_id && node.kind == harvest.kind)
                 {
-                    return Err("Invalid tree harvest receipt".into());
+                    return Err("Invalid shared harvest receipt".into());
                 }
             }
             Ok(SharedEffect::FoundationPlaced { id }) => {
@@ -865,6 +869,7 @@ fn validate_receipts(state: &SharedSnapshot, receipts: &[SharedReceipt]) -> Resu
                     return Err("Invalid foundation receipt".into());
                 }
             }
+            Ok(SharedEffect::BandageCrafted) => {}
             Err(error) if error.len() > MAX_STRING => {
                 return Err("Action refusal exceeds the string limit".into());
             }
@@ -894,6 +899,7 @@ fn put_receipts(out: &mut WireWriter, receipts: &[SharedReceipt]) -> Result<(), 
                 out.put_u8(2);
                 out.put_u32(*id);
             }
+            Ok(SharedEffect::BandageCrafted) => out.put_u8(4),
             Err(error) => {
                 out.put_u8(3);
                 put_string(out, error)?;
@@ -921,6 +927,7 @@ fn read_receipts(input: &mut Reader<'_>) -> Result<Vec<SharedReceipt>, String> {
             })),
             2 => Ok(SharedEffect::FoundationPlaced { id: input.u32()? }),
             3 => Err(input.string()?),
+            4 => Ok(SharedEffect::BandageCrafted),
             _ => return Err("Unknown standalone receipt result".into()),
         };
         receipts.push(SharedReceipt {
@@ -940,6 +947,7 @@ fn kind_tag(kind: ResourceKind) -> u8 {
         ResourceKind::Metal => 3,
         ResourceKind::Berry => 4,
         ResourceKind::Water => 5,
+        ResourceKind::Hemp => 6,
     }
 }
 
@@ -950,6 +958,7 @@ fn read_kind(tag: u8) -> Result<ResourceKind, String> {
         3 => Ok(ResourceKind::Metal),
         4 => Ok(ResourceKind::Berry),
         5 => Ok(ResourceKind::Water),
+        6 => Ok(ResourceKind::Hemp),
         _ => Err("Unknown resource kind".into()),
     }
 }
