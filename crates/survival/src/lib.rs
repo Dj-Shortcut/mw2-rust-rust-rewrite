@@ -1614,7 +1614,14 @@ impl Session {
             .map_err(|_| format!("You need {COOK_WOOD} wood to cook"))?;
         self.campfires = campfires;
         self.inventory = inventory;
-        self.message = format!("Cooking raw fish: {COOK_SECONDS:.0} s");
+        self.message = if self.weather.is_raining() {
+            format!(
+                "Cooking raw fish: {:.0} s in the rain",
+                COOK_SECONDS / RAIN_COOK_SPEED
+            )
+        } else {
+            format!("Cooking raw fish: {COOK_SECONDS:.0} s")
+        };
         Ok(())
     }
 
