@@ -5,7 +5,10 @@ Copyright 2026 vladtrc
 IW4L was originally developed by vladtrc.
 https://github.com/vladtrc/iw4L
 
-IW4L is licensed under the Apache License, Version 2.0; see LICENSE.
+IW4L is licensed under the Apache License, Version 2.0; see LICENSE. IW4L was
+built from scratch in Rust using reverse-engineering research into MW2/IW4
+formats and behaviour. This repository does not claim that the research was
+authored by this project.
 
 2010 Rust Rewrite Mashup is a fork of IW4L by chasmlol that adds Skate 3's
 skating and a Minecraft world to it.
@@ -39,11 +42,18 @@ Third-party source code
 
 This repository carries the public IW4L and 2010 Rust Rewrite Mashup sources.
 Its Cargo dependencies remain under their respective licences. It also carries
-the following public engine sources in-tree as inherited from that mashup:
+the following public engine sources in-tree as inherited from that mashup. The
+project's Apache-2.0 licence applies to its own code only; it does not relicense
+the inherited material below:
 
 skate/ — engine crates from SK8-ENGINE/skate-3-rust-engine, revision cb79689,
   and the inherited skating integration/data converter.
   https://github.com/SK8-ENGINE/skate-3-rust-engine
+  The upstream project describes its code as based on Skate 3 reverse-
+  engineering research and states that its original code is GPL-3.0-only.
+  Preserve that licence for this inherited tree; the top-level Apache-2.0
+  declaration does not relicense it. Some inherited comments/constants refer
+  to Xbox 360 TU3 executable addresses and values learned from the executable.
   The legacy converter reads an external Skate 3 installation. No proprietary
   Skate 3 executable, model, texture, animation or sound data is bundled.
 
@@ -53,6 +63,25 @@ third_party/minecraftoss/ — five crates of MinecraftOSS, a Rust Minecraft
   dispenser rules). No Minecraft code, JARs, textures or sounds are included:
   the inherited optional Minecraft mode downloads Minecraft's files from
   Mojang on first run. It is not the standalone survival game's content path.
+  The vendored snapshot contains no licence file or licence declaration. Its
+  licence has not been independently established; do not treat it as
+  Apache-2.0 or redistribute it as release content until MinecraftOSS confirms
+  the applicable licence.
+
+Bundled inherited/generated data with open provenance:
+
+crates/fx_iw4/data/fx_random_table.bin
+  This is byte-for-byte identical to the file in upstream IW4L and was
+  inherited from there. Neither repository currently records whether it was
+  authored, generated from public research, or copied from a game. Its origin
+  and redistribution permission remain to be confirmed with the IW4L author.
+
+crates/assets/data/minecraft/*-26.3.json.gz
+  These four compressed catalogs are exported by MinecraftOSS's harness for
+  the pinned Minecraft 26.3 data. They are not the Mojang client JAR or asset
+  objects. The launcher separately downloads Mojang's 26.3 files on first run.
+  Their exact licence and redistribution permission follow the unresolved
+  MinecraftOSS provenance above.
 
 --------------------------------------------------------------------------------
 References consulted during development
@@ -103,7 +132,11 @@ Game content
 
 The standalone PC game is being built with newly authored content and public
 engine code, inspired by survival, military FPS and skateboard games. Its
-intended content path requires no original game installation. Procedural
+default launcher path uses assets/authored and requires no original game
+installation. Optional inherited modes differ: IW4L/MW2 import reads a user's
+MW2 install; the Skate converter reads an extracted Skate 3 Xbox 360
+default.xex with its data folder; the Minecraft mode downloads Minecraft 26.3
+files from Mojang and uses the inherited MinecraftOSS catalogs. Procedural
 building materials are authored in this repository's WGSL renderer.
 
 No proprietary Call of Duty, Rust, Skate or Minecraft game assets are bundled.
