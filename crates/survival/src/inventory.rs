@@ -15,6 +15,9 @@ const BLEED_PER_SECOND: f64 = 1.;
 const FREEZE_PER_SECOND: f64 = 0.05;
 pub const MAX_REGEN: f32 = 40.;
 const REGEN_PER_SECOND: f64 = 2.;
+pub const MAX_POISON: f32 = 30.;
+const POISON_PER_SECOND: f64 = 0.5;
+const RAW_FISH_POISON: f32 = 6.;
 pub const MAX_TOOL_WEAR: u32 = 50;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -497,6 +500,7 @@ impl Inventory {
             },
             Item::Fish => Effects {
                 hunger: 20.,
+                poison: RAW_FISH_POISON,
                 ..Default::default()
             },
             Item::CookedFish => Effects {
@@ -638,6 +642,7 @@ pub struct Effects {
     pub regen: f32,
     pub radiation: f32,
     pub warmth_seconds: f32,
+    pub poison: f32,
     pub stop_bleeding: bool,
 }
 
@@ -649,6 +654,7 @@ pub struct Vitals {
     bleed: f64,
     regen: f64,
     radiation: f64,
+    poison: f64,
 }
 
 impl Default for Vitals {
@@ -660,6 +666,7 @@ impl Default for Vitals {
             bleed: 0.,
             regen: 0.,
             radiation: 0.,
+            poison: 0.,
         }
     }
 }
@@ -687,6 +694,14 @@ impl Vitals {
 
     pub fn radiation(&self) -> f32 {
         self.radiation as f32
+    }
+
+    pub fn poison(&self) -> f32 {
+        self.poison as f32
+    }
+
+    pub fn is_poisoned(&self) -> bool {
+        self.poison > 0.
     }
 
     pub fn regenerate(&mut self, dt_seconds: f32) -> Result<u32, String> {
@@ -764,8 +779,15 @@ impl Vitals {
         self.thirst = (self.thirst - dt * 0.04).max(0.);
         let bled = self.bleed.min(dt * BLEED_PER_SECOND);
         self.bleed -= bled;
-        let damage =
-            self.damage_fraction + hungry_time + thirsty_time * 2. + bled + freezing + sickness;
+        let poisoned = self.poison.min(dt * POISON_PER_SECOND);
+        self.poison -= poisoned;
+        let damage = self.damage_fraction
+            + hungry_time
+            + thirsty_time * 2.
+            + bled
+            + poisoned
+            + freezing
+            + sickness;
         let whole = damage.floor();
         self.damage_fraction = damage - whole;
         Ok(whole as u32)
@@ -780,6 +802,8 @@ impl Vitals {
             || !(0. ..=MAX_REGEN).contains(&effects.regen)
             || !effects.radiation.is_finite()
             || !(0. ..=MAX_RADIATION).contains(&effects.radiation)
+            || !effects.poison.is_finite()
+            || !(0. ..=MAX_POISON).contains(&effects.poison)
         {
             return Err("Invalid consumable vital effects".into());
         }
@@ -787,6 +811,7 @@ impl Vitals {
         self.thirst = (self.thirst + f64::from(effects.thirst)).min(100.);
         self.regen = (self.regen + f64::from(effects.regen)).min(f64::from(MAX_REGEN));
         self.radiation = (self.radiation - f64::from(effects.radiation)).max(0.);
+        self.poison = (self.poison + f64::from(effects.poison)).min(f64::from(MAX_POISON));
         if effects.stop_bleeding {
             self.bleed = 0.;
         }
@@ -808,6 +833,8 @@ impl<'de> Deserialize<'de> for Vitals {
             regen: f64,
             #[serde(default)]
             radiation: f64,
+            #[serde(default)]
+            poison: f64,
         }
         let saved = Saved::deserialize(deserializer)?;
         if !saved.hunger.is_finite()
@@ -819,6 +846,7 @@ impl<'de> Deserialize<'de> for Vitals {
             || !(0. ..=f64::from(MAX_BLEED)).contains(&saved.bleed)
             || !(0. ..=f64::from(MAX_REGEN)).contains(&saved.regen)
             || !(0. ..=f64::from(MAX_RADIATION)).contains(&saved.radiation)
+            || !(0. ..=f64::from(MAX_POISON)).contains(&saved.poison)
         {
             return Err(serde::de::Error::custom("Invalid survival vitals"));
         }
@@ -829,6 +857,7 @@ impl<'de> Deserialize<'de> for Vitals {
             bleed: saved.bleed,
             regen: saved.regen,
             radiation: saved.radiation,
+            poison: saved.poison,
         })
     }
 }
