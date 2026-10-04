@@ -520,7 +520,13 @@ impl Session {
             self.message = "Your berries are ripe".into();
         }
         if trapped {
-            self.message = "Your fish trap caught a fish".into();
+            self.message = if self.fish_trap.fish() >= TRAP_FISH {
+                "Your fish trap caught a fish and is full".into()
+            } else if self.fish_trap.bait() == 0 {
+                "Your fish trap caught a fish and is out of bait".into()
+            } else {
+                "Your fish trap caught a fish".into()
+            };
         }
         if hive_full {
             self.message = "The beehive is full of honey".into();
