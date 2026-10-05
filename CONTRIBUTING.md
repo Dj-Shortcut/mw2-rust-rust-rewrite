@@ -1,11 +1,12 @@
 # Contributing
 
-Welcome! We are building a standalone PC game in Rust and Bevy: survival and
-building inspired by Rust, gunplay inspired by MW2, and skating and a park
-editor inspired by Skate 3. Volunteers can help with documentation, focused
-gameplay improvements, original art and audio, and reproducible bug reports.
-The game is still in development; [TODO.md](TODO.md) records what exists,
-what has been verified, and what remains unfinished.
+Welcome! Current work is a small server mod for the existing Rust PC game:
+permission-controlled weapon loadouts and configurable firearm PvP damage.
+Read [the mod plan](docs/RUST-SERVER-MOD.md) and [TODO.md](TODO.md) before
+contributing. The standalone Rust/Bevy game is parked; its source and historical
+verification remain available. Coordinate documentation, setup and focused mod
+work through issues and PRs. [Server preparation](mods/rust/server/README.md) has
+bounded source checks; no mod plugin or playable release is ready yet.
 
 ## Documentation first
 
@@ -40,12 +41,12 @@ files or public API changes in the issue. Use your own branch or worktree;
 do not push to another contributor's branch. Keep unrelated fixes and broad
 formatting changes out of your PR.
 
-Useful contributions include small documented bug fixes, English UI and
-control improvements, bounded survival/building/skate features from the
-roadmap, and original models or sound cues. Describe the specific behavior
-you intend to deliver rather than claiming an entire roadmap category.
+Useful contributions include documented mod/setup bug fixes, English command
+feedback, bounded loadout/damage improvements and reproducible server reports.
+Standalone gameplay/art work is parked. Describe the specific behavior you
+intend to deliver rather than claiming an entire roadmap category.
 
-## Build and run the standalone game
+## Build and run the parked standalone game
 
 Install Rust through rustup and the system dependencies in
 [docs/BUILD.md](docs/BUILD.md). Fork the repository on GitHub, then replace

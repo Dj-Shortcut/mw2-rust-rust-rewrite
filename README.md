@@ -1,5 +1,29 @@
 # PC survival / FPS / Skate
 
+## Current direction: a small mod for existing Rust
+
+De eigenaar heeft de zelfstandige Rust/Bevy-rewrite op 5 oktober 2026
+**geparkeerd**. We werken nu aan een kleine servermod voor **Rust op Steam/pc**:
+configureerbare wapenloadouts en kogel-schade tussen spelers, met permissies.
+Rust zelf levert de wereld, survival, bouwen en de bestaande TC-regels.
+Deze mod heeft een Rust-pc-server met Oxide nodig; een Xbox/Nitrado-console-
+server is een ander product. Alle spelerstekst blijft Engels.
+
+**Status: servervoorbereidingsbroncode met beperkte PowerShell/Linux-controles;
+nog geen geïmplementeerde of op een echte server geverifieerde plugin.** De eerste
+stap is een echte Windows-testserver op een toegestane host. Shadow Gaming mag
+geen server hosten. Er wordt geen bestaande wereld gewist, geen publieke
+poort ingericht en geen extra server gehuurd. Zie [het modplan](docs/RUST-SERVER-MOD.md),
+[TODO.md](TODO.md) en [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266).
+Een gewone serverplugin levert geen MW2-characters/animaties of Skate-physics.
+[Servervoorbereiding en verificatiegrenzen](mods/rust/server/README.md).
+
+Onderstaande rewritebroncode, controles en handleidingen blijven bewaard als
+historisch werk. De rewrite-roadmap en bijbehorende automatische loop zijn
+gepauzeerd; ze vormen geen mod-opleverplan of actuele releaseclaim.
+
+## Parked standalone rewrite
+
 ![Rust x MW2 x Skate 3 banner](assets/rust-mw2-skate-banner.png)
 
 We bouwen een zelfstandige **multiplayer-pc-survivalgame in Rust en Bevy**, met survival
@@ -20,7 +44,7 @@ product of releasebinary.** De repository dient als broncodeoverdracht en
 voortgangsoverzicht. Wij verifiëren de implementatie zelf voordat we een
 speelbare release leveren.
 
-## Eerstvolgende productmijlpaal: multiplayer
+## Geparkeerde rewrite-mijlpaal: multiplayer
 
 De eerste productmijlpaal is samen spelen in één gedeelde wereld. De huidige
 standalone `game`-modus is een lokale ontwikkelsandbox; de bestaande controles
