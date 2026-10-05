@@ -3,12 +3,14 @@
 Short files (each ≤50 lines) on what lives where and how to poke the live
 game. Keep them this short: nobody opens a long file twice.
 
-Current standalone survival/FPS/skate goals and verified status: [../TODO.md](../TODO.md).
+Current work: [RUST-SERVER-MOD.md](RUST-SERVER-MOD.md); standalone rewrite paused.
+Historical standalone goals and verified status: [../TODO.md](../TODO.md).
 The inherited run/import guides below document optional upstream modes.
 
 | file | about | when to read |
 |---|---|---|
 | [`AUTONOMY.md`](AUTONOMY.md) | standing authorization, task ownership and verification | continuing work or coordinating agents |
+| [`RUST-SERVER-MOD.md`](RUST-SERVER-MOD.md) | existing-Rust mod direction, Windows server setup design and acceptance | preparing or contributing to the small server mod |
 | [`MULTIPLAYER.md`](MULTIPLAYER.md) | standalone shared-world milestone, authority boundaries and two-client acceptance; design only | working on core multiplayer |
 | [`DIRECT-MULTIPLAYER.md`](DIRECT-MULTIPLAYER.md) | bounded direct TCP server/client runtime and connected verification scope | implementing standalone transport |
 | [`NATIVE-MULTIPLAYER.md`](NATIVE-MULTIPLAYER.md) | Bevy join controls, connected input/presentation and verification limits | using or changing the native multiplayer client |

@@ -1,10 +1,12 @@
 # Standing project authorization
 
-The owner authorizes autonomous implementation, debugging and meaningful
-verification of the standalone PC game in Rust and Bevy: Rust-inspired survival
-and building, MW2-inspired gunplay and characters, and Skate 3-inspired skating
-and editing. Use original authored assets and open-source code; retain attribution
-and licence requirements. All player-facing game text must remain English.
+On 5 October 2026 the owner parked the standalone Rust/Bevy rewrite and its
+automatic loop. Active scope is the small existing-Rust PC server mod in
+[RUST-SERVER-MOD.md](RUST-SERVER-MOD.md) / issue #266; do not resume paused rewrite
+issues without a new owner direction. The owner authorizes its implementation,
+debugging and verification. Use open-source code and original authored content;
+retain licences. Keep installed game/server files outside GitHub. All
+player-facing text must remain English. Preserve the historical rewrite work.
 
 Continue from `TODO.md` and open tasks without repeating content confirmations.
 The authorization includes project GitHub issues and coordination comments,

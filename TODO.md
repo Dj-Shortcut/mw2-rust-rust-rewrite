@@ -1,5 +1,25 @@
 # TODO — pc-survival met FPS en skaten
 
+## Actief: kleine mod voor bestaande Rust-pc-game
+
+De eigenaar parkeerde de zelfstandige rewrite op 5 oktober 2026.
+[Issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266) en
+[het modplan](docs/RUST-SERVER-MOD.md) bepalen nu het werk. Geen nieuwe
+rewrite-implementatie of automatische rewrite-loop starten.
+
+- [ ] Windows-servervoorbereiding: officiële SteamCMD/Oxide-downloads buiten de repository, nieuwe installatiemap, geweigerde overschrijvingen en controleerbare startargumenten.
+- [ ] Echte Rust-server starten, passende Oxide-versie en listeners controleren; standaardclient verbinden. Hosting/RAM en bestuurbare servertoegang moeten daarvoor beschikbaar zijn.
+- [ ] Self-only configureerbare wapenloadouts: permissie, valide levende speler, cooldown, volledige capaciteitscontrole en behoud van bestaande inventory.
+- [ ] Configureerbare PvP-kogelschade: standaardfactor 1, aparte permissie; geen verandering aan NPC's, andere schadesoorten, gebouwen, raids of TC's.
+- [ ] Plugin met echte serverreferenties compileren en laden; de volledige flow en weigeringen zelf op een echte Rust/Oxide-server controleren, inclusief twee clients voor PvP.
+- [ ] Pas daarna een geverifieerde mod-demo met installatie-, start- en verwijderinstructies leveren. Carbon, MW2-assets en skate-physics vallen buiten deze eerste mod.
+
+**Modstatus: ontwerp/servervoorbereiding, geen werkende plugin of release.**
+De controller werkt volgens de eigenaar voldoende voor een demo via Shadow
+en Steam Input; dat is geen door ons uitgevoerde hardwarecontrole.
+
+## Geparkeerde rewrite: historische voortgang
+
 Doel: een zelfstandige multiplayer-pc-game in Rust/Bevy, met survival en bouwen geïnspireerd
 door Rust, FPS-gunplay en operators geïnspireerd door MW2, en skateboarden
 geïnspireerd door Skate 3. Werelden, modellen, materialen, animaties en geluiden
@@ -15,7 +35,7 @@ echte backend zonder venster uit. Ze bewijzen geen camerabeeld, bediening of
 geluid. `[x]` hieronder geldt uitsluitend voor de expliciet genoemde controle;
 de productroadmap blijft open totdat de volledige gebruikersflow is geverifieerd.
 
-## Eerstvolgende productmijlpaal: samen spelen
+## Geparkeerde rewrite-mijlpaal: samen spelen
 
 Multiplayer is een kernvereiste. De huidige standalone sandbox en de grafische
 controles hieronder zijn lokaal; de bestaande upstream-netwerkmodus bewijst
