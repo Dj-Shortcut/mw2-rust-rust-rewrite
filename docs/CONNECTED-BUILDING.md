@@ -10,16 +10,14 @@ B / Controller Back opens or closes building mode; Foundation is selected initia
 Left / Controller Left selects Foundation; Right / Controller Right selects Wall.
 Q / Controller LB rotates the selected Wall between X-axis and Y-axis.
 With Foundation selected, rotation asks to select Wall and changes nothing.
-Kind/axis selection is local; ghosts, Wood and costs use the confirmed shared world.
-Last notice mixes local feedback and receipts.
+Local kind/axis; ghosts/Wood/costs use confirmed shared world; Last notice mixes feedback/receipts.
 Left click / Controller RT requests placement once on a fresh edge.
 Mode/selection/rotation edges consume the frame without gathering or placing.
 Distinct simultaneous building-control intents refuse without changing selection.
 Equivalent keyboard/controller intent is deduplicated; held controls never repeat.
 Pending work blocks selection/rotation/mode changes and another submitted action.
 Inventory/trading, focus/pause/content/death/admission/error gates stay intact.
-World movement/look keep their bindings; inventory remains neutral with a free cursor.
-Client ghosts are advisory; only a confirmed server result creates the wall.
+Movement/look unchanged; inventory neutral/free cursor; ghosts advisory, server confirms placement.
 
 ## Authority and compatibility
 
@@ -40,11 +38,13 @@ Offline building/saves stay separate; Wood ledgers public, carried stacks/trades
 
 Current trace correction:32813 exact field/float-bit/ID comparisons pass, including4096 pieces.
 Far queries allocate0; one local wall query2 vs8534 exhaustive requests in labelled fixtures.
-Metadata remains linear; no timing/index claim. Full new build/connected flows are pending.
+Linear metadata/no timing claim. Full optimized Linux build, authority62/2582 and TCP70/71 pass.
+Fresh observer acceptance remains open:69 checks passed before cost OCR/capture-deadline failure.
+Original pixels show100 Wood; that failed run stays failed. Shipping49/six cost reviews pass.
+Shipping interface evidence is separate from authority/economy/collision proof.
 Earlier source: authority62/2582, codec392/input585/mailbox664/panel30; not new acceptance.
 Earlier TCP70/71, observer115/118 plus two label reviewers per axis, ordinary49 plus six costs.
 Earlier five720p fixtures fit visible ink/lines; whitespace separate, stock1000000/24slots synthetic.
-Original strict OCR/raw-width failures remain preserved; no permanent tests or new assets.
-Final-head CI/review and guarded integration remain gates; observer/shipping/layout scopes separate.
+Strict failures preserved; no new tests/assets; final CI/review/guarded integration remain gates.
 Floors/doors, demolition/upgrades/repair, TC/decay and server persistence stay open.
 Physical controllers, Windows/internet gameplay and release readiness remain unproved.

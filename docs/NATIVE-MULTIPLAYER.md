@@ -1,6 +1,6 @@
 # Native connected PC client
 
-Walls are present; new broad-phase correction needs fresh connected-flow verification.
+Walls are present; current full build and TCP flows pass, graphical acceptance remains open.
 
 ## Start and content
 Host: `cargo run -p launcher --profile play --locked -- server --bind 127.0.0.1:28980`.
@@ -10,8 +10,7 @@ Join uses repository-authored assets; no original game files or imported-data se
 The no-argument/`game` route remains the offline development sandbox.
 
 ## Authority and networking
-A worker owns DirectClient and polls independently of rendering and local pause.
-The bounded mailbox retains the latest complete validated snapshot/replica pair;
+DirectClient worker polls apart from rendering/pause; mailbox retains latest validated pair;
 ordered receipts never drop (capacity 256). No client authority ticks run.
 Movement sends once per newly observed server tick, without catch-up bursts.
 One typed action remains pending until its receipt; no automatic retries/local grants.
@@ -22,8 +21,7 @@ Fresh admissions receive new ownership; saved/reconnect restoration is absent.
 
 ## View and controls
 Assigned camera shows authored peers, live nodes and confirmed Foundation/Wall pieces.
-Departed players/depleted nodes disappear.
-Read-only Tree/Hemp hints and Foundation/Wall ghosts use confirmed shared rules.
+Departed/depleted entities disappear; Tree/Hemp hints and building ghosts use confirmed rules.
 WASD/mouse move/look; Shift sprint, Space jump, Ctrl crouch.
 F gathers Tree/Hemp; B / Back toggles build mode; Left click / RT submits placement.
 Build: Left / Controller Left selects Foundation200; Right / Controller Right selects Wall100.
@@ -45,6 +43,8 @@ Earlier gather/build: 61 preview,70 software-input,46 actual worker/socket check
 its24 shipping/101 observer-window checks are historical. Cloth/trade guides have their own scope.
 `cargo test` succeeds with 0 permanent tests; these are ignored behavior probes.
 The Cloth slice verifies unequal carried inventories, finite stock, costs and replay.
-Earlier walls: TCP70/71, observer115/118, ordinary49/six cost reviews, five720p fixtures; reruns pending.
+Current wall source: optimized Linux build, authority62/2582 writebacks and real TCP70/71 pass.
+Observer acceptance remains open after69 checks and a retained cost OCR/capture-deadline failure.
+Current shipping49/six original-cost reviews pass; earlier observer115/118/five720p fixtures historical.
 See [direct TCP limits](DIRECT-MULTIPLAYER.md). No proof of Windows gameplay,
 physical controllers/audio, two physical machines, internet hosting or release readiness.

@@ -48,7 +48,11 @@ De nieuwste tracecorrectie slaagt voor 32813 exacte botsings-/stuk-ID-vergelijki
 In een gelabelde wereld met 4096 stukken gebruikt een verre trace geen buffers;
 de lokale muurtrace gebruikt twee allocaties tegenover 8534 in de oude trace.
 Dit is geen timingmeting; de metadata wordt nog lineair doorlopen.
-De volledige nieuwe build en verbonden flows worden opnieuw gecontroleerd.
+De volledige geoptimaliseerde Linux-build slaagt; authority62, 2582 command-terugschrijvingen
+en beide echte TCP-flows (70/71) slagen op deze bronversie. Nieuwe vensteracceptatie
+is nog open: een strikte OCR-run stopte na69 controles door fout gelezen kosten.
+De nieuwe gewone executable slaagt voor49 beperkte venstercontroles plus zes
+rechtstreeks nagekeken originele kostenbeelden; dit bewijst geen servereconomy.
 Eerdere TCP/native/ordinary/720p-resultaten horen bij de vorige bronversie.
 Integratie blijft pending. Zie [bediening en grenzen](docs/CONNECTED-BUILDING.md).
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
