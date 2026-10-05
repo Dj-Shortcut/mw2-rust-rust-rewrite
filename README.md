@@ -46,8 +46,9 @@ met stukselectie en twee richtingen. De actuele reviewcorrecties vermijden een
 kopie van alle bouwwerken per speler en tonen gemengde meldingen als “Last notice”.
 De geoptimaliseerde Linux-build slaagt; actuele controles: authority 62 met 2582
 command-terugschrijvingen, codec 392, software-invoer 585, mailbox 664 en panel 30.
-De eerdere versie doorliep TCP 70/71 en native keyboard/Mesa 110/113 controles;
-de nieuwste versie krijgt eigen TCP/native/ordinary/layout-runs en CI/review.
+De actuele versie doorliep TCP 70/71 en native keyboard/Mesa 115/118 controles.
+De gewone clientflow heeft 49 controles en zes originele kostenbeelden; vijf
+gelabelde 720p-fixtures passen. Exact-head CI/review blijven vereist.
 Integratie blijft pending. Zie [bediening en grenzen](docs/CONNECTED-BUILDING.md).
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
 software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone

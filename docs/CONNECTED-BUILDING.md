@@ -41,10 +41,10 @@ Offline building/saves stay separate; Wood ledgers public, carried stacks/trades
 Current source: authority62 and2582 live command writebacks; codec392/input585 pass.
 Mailbox664 and panel30 pass; current optimized Linux build and scoped fmt pass.
 Mismatch/private capacity or identity fixtures are labelled, not normal play.
-Earlier source TCP70/71 and native keyboard/Mesa110/113 are historical results.
-Current-source TCP/native/ordinary/layout acceptance and exact-head CI/review are pending.
-Earlier720p fixtures fit visible glyphs/ink/occupied lines; hanging whitespace is excluded.
+Current TCP70/71 and native keyboard/Mesa115/118 pass; exact labels reviewed by two people per axis.
+Ordinary shipping49 passes with six separate original-cost reviews; CI/review remain gates.
+Five current720p fixtures fit visible ink/lines; hanging whitespace is measured separately.
 Original strict OCR/raw-full-width failures remain preserved, never relabelled PASS.
-Read-only native observer evidence remains separate from shipping/layout fixtures.
+Observer, shipping and layout evidence are separate; layout stock1000000/24slots is a fixture.
 Floors/doors, demolition/upgrades/repair, TC/decay and server persistence stay open.
 Physical controllers, Windows/internet gameplay and release readiness remain unproved.
