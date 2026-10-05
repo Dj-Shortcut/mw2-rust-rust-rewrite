@@ -44,11 +44,12 @@ Zie [handel en verificatiegrenzen](docs/CONNECTED-TRADING.md).
 Verbonden Wood-muren zijn aanwezig: Foundation kost 200 Wood en Wall 100,
 met stukselectie en twee richtingen. De actuele reviewcorrecties vermijden een
 kopie van alle bouwwerken per speler en tonen gemengde meldingen als “Last notice”.
-De geoptimaliseerde Linux-build slaagt; actuele controles: authority 62 met 2582
-command-terugschrijvingen, codec 392, software-invoer 585, mailbox 664 en panel 30.
-De actuele versie doorliep TCP 70/71 en native keyboard/Mesa 115/118 controles.
-De gewone clientflow heeft 49 controles en zes originele kostenbeelden; vijf
-gelabelde 720p-fixtures passen. Exact-head CI/review blijven vereist.
+De nieuwste tracecorrectie slaagt voor 32813 exacte botsings-/stuk-ID-vergelijkingen.
+In een gelabelde wereld met 4096 stukken gebruikt een verre trace geen buffers;
+de lokale muurtrace gebruikt twee allocaties tegenover 8534 in de oude trace.
+Dit is geen timingmeting; de metadata wordt nog lineair doorlopen.
+De volledige nieuwe build en verbonden flows worden opnieuw gecontroleerd.
+Eerdere TCP/native/ordinary/720p-resultaten horen bij de vorige bronversie.
 Integratie blijft pending. Zie [bediening en grenzen](docs/CONNECTED-BUILDING.md).
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
 software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone

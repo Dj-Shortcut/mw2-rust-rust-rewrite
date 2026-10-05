@@ -526,10 +526,48 @@ impl BuildingWorld {
             endpos: end,
             ..Default::default()
         };
+        if mask & 1 == 0 {
+            return (best, None);
+        }
+        let sweep = if start
+            .iter()
+            .chain(end.iter())
+            .chain(mins.iter())
+            .chain(maxs.iter())
+            .all(|v| v.is_finite())
+            && (0..3).all(|k| mins[k] <= maxs[k])
+        {
+            let offset: [f32; 3] = std::array::from_fn(|k| (mins[k] + maxs[k]) * 0.5);
+            let size: [f32; 3] = std::array::from_fn(|k| maxs[k] - offset[k]);
+            let radius = if size[0] <= size[2] { size[0] } else { size[2] };
+            let radii = [radius, radius, radius + (size[2] - radius)];
+            let a: [f32; 3] = std::array::from_fn(|k| start[k] + offset[k]);
+            let b: [f32; 3] = std::array::from_fn(|k| end[k] + offset[k]);
+            a.iter()
+                .chain(b.iter())
+                .chain(radii.iter())
+                .all(|v| v.is_finite())
+                .then_some((a, b, radii))
+        } else {
+            None
+        };
         let mut closest = None;
         let mut solid = None;
         let flags = [0u32; 6];
         for piece in self.pieces.values() {
+            if let Some((a, b, radii)) = sweep {
+                let (lo, hi) = self.trace_outer_bounds(piece);
+                if lo.iter().chain(hi.iter()).all(|v| v.is_finite())
+                    && (0..3).any(|k| {
+                        let front = hi[k] + radii[k];
+                        let back = -lo[k] + radii[k];
+                        (a[k] - front > 0.125 && b[k] - front > 0.125)
+                            || (-a[k] - back > 0.125 && -b[k] - back > 0.125)
+                    })
+                {
+                    continue;
+                }
+            }
             let planes: Vec<[[f32; 4]; 6]> = self
                 .bounds(piece)
                 .into_iter()
@@ -570,6 +608,27 @@ impl BuildingWorld {
             best.allsolid = allsolid;
         }
         (best, solid.or(closest))
+    }
+    fn trace_outer_bounds(&self, p: &Piece) -> ([f32; 3], [f32; 3]) {
+        let s = p.socket;
+        let base = [
+            self.anchor[0] + s.x as f32 * CELL,
+            self.anchor[1] + s.y as f32 * CELL,
+            self.anchor[2] + s.level as f32 * WALL_HEIGHT,
+        ];
+        let (mut lo, mut hi) = match p.kind {
+            Kind::Foundation => ([0., 0., -12.], [CELL, CELL, 0.]),
+            Kind::Floor => ([0., 0., -8.], [CELL, CELL, 0.]),
+            Kind::Wall | Kind::Doorway => ([0., -4., 0.], [CELL, 4., WALL_HEIGHT]),
+        };
+        if !deck(p.kind) && s.axis == 1 {
+            lo.swap(0, 1);
+            hi.swap(0, 1);
+        }
+        (
+            std::array::from_fn(|k| base[k] + lo[k]),
+            std::array::from_fn(|k| base[k] + hi[k]),
+        )
     }
     pub fn validate(&self) -> Result<(), BuildError> {
         if self.schema != 1

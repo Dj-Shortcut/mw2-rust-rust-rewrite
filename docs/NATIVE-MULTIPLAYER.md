@@ -1,6 +1,6 @@
 # Native connected PC client
 
-Current walls pass bounded native/shipping/layout flows; exact-head CI/review gates remain.
+Walls are present; new broad-phase correction needs fresh connected-flow verification.
 
 ## Start and content
 Host: `cargo run -p launcher --profile play --locked -- server --bind 127.0.0.1:28980`.
@@ -36,7 +36,7 @@ Y gather, Back build mode, RT place, Start local pause.
 Focus loss, pause, admission and failure neutralize movement and new actions.
 Original operator loading gates input; load failure closes the connection with an error.
 HUD confirms Wood, selected Foundation200/Wall100 cost, orientation and pending/refusals.
-[Cloth](CONNECTED-CRAFTING.md)/[trading](CONNECTED-TRADING.md) are verified; [walls](CONNECTED-BUILDING.md) have bounded window proof.
+[Cloth](CONNECTED-CRAFTING.md)/[trading](CONNECTED-TRADING.md) are verified; [walls](CONNECTED-BUILDING.md) retain earlier-source window proof.
 Combat, timed crafting/healing, skating/editor, upgrades/doors and save/load
 remain outside this route; no offline Session is created as fallback.
 
@@ -45,6 +45,6 @@ Earlier gather/build: 61 preview,70 software-input,46 actual worker/socket check
 its24 shipping/101 observer-window checks are historical. Cloth/trade guides have their own scope.
 `cargo test` succeeds with 0 permanent tests; these are ignored behavior probes.
 The Cloth slice verifies unequal carried inventories, finite stock, costs and replay.
-Current walls: TCP70/71, observer115/118, ordinary49 plus six cost reviews; five720p fixtures fit.
+Earlier walls: TCP70/71, observer115/118, ordinary49/six cost reviews, five720p fixtures; reruns pending.
 See [direct TCP limits](DIRECT-MULTIPLAYER.md). No proof of Windows gameplay,
 physical controllers/audio, two physical machines, internet hosting or release readiness.
