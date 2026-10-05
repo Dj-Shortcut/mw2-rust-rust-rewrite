@@ -1,6 +1,6 @@
 # Connected Wood building
 
-Implemented [#259](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/259) development source; latest review fixes await full acceptance.
+Implemented [#259](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/259) development source; bounded flows verified, final integration pending.
 The existing connected Foundation costs 200 Wood; this slice adds a 100-Wood Wall.
 
 ## Player flow and controls
@@ -39,12 +39,10 @@ Offline building/saves stay separate; Wood ledgers public, carried stacks/trades
 Current trace correction:32813 exact field/float-bit/ID comparisons pass, including4096 pieces.
 Far queries allocate0; one local wall query2 vs8534 exhaustive requests in labelled fixtures.
 Linear metadata/no timing claim. Full optimized Linux build, authority62/2582 and TCP70/71 pass.
-Fresh observer acceptance remains open:69 checks passed before cost OCR/capture-deadline failure.
-Original pixels show100 Wood; that failed run stays failed. Shipping49/six cost reviews pass.
-Shipping interface evidence is separate from authority/economy/collision proof.
-Earlier source: authority62/2582, codec392/input585/mailbox664/panel30; not new acceptance.
-Earlier TCP70/71, observer115/118 plus two label reviewers per axis, ordinary49 plus six costs.
-Earlier five720p fixtures fit visible ink/lines; whitespace separate, stock1000000/24slots synthetic.
+Current observer115/118 pass with dual original-label reviews and all eight cost-image reviews.
+Current shipping49/six original-cost reviews pass; scopes remain separate from authority/collision.
+Earlier codec392/input585/mailbox664/panel30 retain their unchanged-module proof scope.
+Earlier five720p layouts fit visible ink/lines; stock1000000/24slots were synthetic fixtures.
 Strict failures preserved; no new tests/assets; final CI/review/guarded integration remain gates.
 Floors/doors, demolition/upgrades/repair, TC/decay and server persistence stay open.
 Physical controllers, Windows/internet gameplay and release readiness remain unproved.
