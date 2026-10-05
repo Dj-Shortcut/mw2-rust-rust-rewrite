@@ -43,6 +43,8 @@ schatten. Bestaande lokale verificatie blijft geldig binnen haar eigen scope.
 
 - [x] Vrijwillige verbonden spelersruil ([#257](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/257)): één Bandage voor 25 Wood, expliciet accepteren binnen bereik/zicht, atomische serveroverdracht zonder escrow, annuleren/weigeren en 30 s verval. Twee echte TCP-processen slagen voor 55 controles; verkoper eindigt met 25 Wood/1 Bandage/2 Cloth, koper met 0 Wood/1 Bandage/0 Cloth. Twee echte native Bevy-vensters met alleen-lezen observer slagen voor 115 keyboard/Mesa-controles; twee gewone executables voor 38 afzonderlijke beperkte venstercontroles. Actuele broncodecontroles: authority 32, codec 304, invoer 316, mailbox 429 en panel 72; aanvullende helperfixtures controleren 15 settlement- en 8 lifecycle/tracegevallen. Alle vijf expliciete volledige 24-slot-renderfixtures passen op 1280×720, inclusief lange fouten. Replay dupliceert niets; verse eigenaars erven niets. Fysieke controllers, Windows/internet, persistente servers en releasegereedheid blijven open. [Bediening en grenzen](docs/CONNECTED-TRADING.md).
 
+- [ ] Verbonden Wood-muren ([#259](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/259)): één muur kost 100 Wood en steunt op een bestaande foundation van 200 Wood; native stukselectie, twee richtingen, bevestigde preview en gedeelde collision. Documentatie-eerstontwerp staat klaar; implementatie en echte twee-client/native verificatie blijven open. [Ontwerp en grenzen](docs/CONNECTED-BUILDING.md).
+
 ## Wat aantoonbaar aanwezig is
 
 | Onderdeel | Code aanwezig | Headless/codebewijs | Grafisch geverifieerd | Releasegereed |
