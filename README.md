@@ -36,6 +36,9 @@ De native `join IP:PORT`-route is aanwezig voor een ongewapend gather/build-prot
 met Hemp→Cloth→Bandage en een eigen bevestigde inventory. Bandages kosten 4 Cloth;
 hout blijft bouwmateriaal. De verbonden flow en oude offline saves worden
 afzonderlijk gecontroleerd. Zie [Cloth en crafting](docs/CONNECTED-CRAFTING.md).
+De volgende geplande stap is vrijwillige handel tussen spelers: één Bandage
+voor 25 hout, met expliciete acceptatie en een atomische serveroverdracht.
+Dit is nog niet geïmplementeerd; zie [het handelsontwerp](docs/CONNECTED-TRADING.md).
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
 software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone
 executables doorlopen 24 beperkte toetsenbord/Mesa-venstercontroles. Daarnaast

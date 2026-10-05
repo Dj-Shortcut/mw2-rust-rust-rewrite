@@ -5,7 +5,7 @@ door Rust, FPS-gunplay en operators geïnspireerd door MW2, en skateboarden
 geïnspireerd door Skate 3. Werelden, modellen, materialen, animaties en geluiden
 maken we zelf. Originele gamebestanden zijn geen vereiste voor het eindproduct.
 
-**Status op 4 oktober 2026: onafgewerkte ontwikkelbroncode. Geen afgewerkt
+**Status op 5 oktober 2026: onafgewerkte ontwikkelbroncode. Geen afgewerkt
 speelbaar product en geen releasebinary.** De repository bevat de implementatie
 en dient als broncodeoverdracht, met onderstaande verificatiegrenzen.
 
@@ -276,7 +276,7 @@ De overdracht voor Claude staat in [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md).
 - [ ] Dieren en NPC's met navigatie, waarneming, gevechten en loot.
 - [ ] Wereldactiviteiten, airdrops, patrouilles en monument-events.
 - [ ] Veilige zones, handel, vending, economie en NPC-missies.
-- [ ] Hout tegen Bandages ruilen via spelers of vending, met serverbevestigde prijzen, voorraad en atomische overdracht; los van het 4-Cloth-craftrecept.
+- [ ] Hout tegen Bandages ruilen via spelers of vending, met serverbevestigde prijzen, voorraad en atomische overdracht; los van het 4-Cloth-craftrecept. Eerste geplande spelersruil: één Bandage voor 25 hout, met expliciete acceptatie ([#257](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/257), [ontwerp](docs/CONNECTED-TRADING.md)); implementatie en verificatie blijven open.
 - [ ] Map, kompas, markers, spawnregels en reproduceerbare world seeds.
 
 ## Eigen map en skateobjecteditor
