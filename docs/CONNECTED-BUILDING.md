@@ -1,6 +1,6 @@
 # Connected Wood building
 
-Implemented [#259](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/259) development source; bounded flows verified, final integration pending.
+Implemented [#259](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/259) development source; bounded flows verified and integrated via [#261](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/261).
 The existing connected Foundation costs 200 Wood; this slice adds a 100-Wood Wall.
 
 ## Player flow and controls
@@ -43,6 +43,6 @@ Current observer115/118 pass with dual original-label reviews and all eight cost
 Current shipping49/six original-cost reviews pass; scopes remain separate from authority/collision.
 Earlier codec392/input585/mailbox664/panel30 retain their unchanged-module proof scope.
 Earlier five720p layouts fit visible ink/lines; stock1000000/24slots were synthetic fixtures.
-Strict failures preserved; no new tests/assets; final CI/review/guarded integration remain gates.
-Floors/doors, demolition/upgrades/repair, TC/decay and server persistence stay open.
+Strict failures preserved; all 11 final-head CI checks passed before reviewed, guarded integration.
+[Floor design](CONNECTED-FLOORS.md) is not implemented; doors, upgrades/repair, TC/decay and persistence stay open.
 Physical controllers, Windows/internet gameplay and release readiness remain unproved.

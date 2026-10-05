@@ -15,6 +15,7 @@ The inherited run/import guides below document optional upstream modes.
 | [`CONNECTED-CRAFTING.md`](CONNECTED-CRAFTING.md) | Cloth gathering, actor-owned Bandage crafting, private inventory and verification limits | extending connected survival |
 | [`CONNECTED-TRADING.md`](CONNECTED-TRADING.md) | fixed Wood-for-Bandage player trading, controls and verified scope | extending the connected economy |
 | [`CONNECTED-BUILDING.md`](CONNECTED-BUILDING.md) | connected Wood walls, controls, verified bounded flows and integration limits | extending shared construction |
+| [`CONNECTED-FLOORS.md`](CONNECTED-FLOORS.md) | planned connected overhead Wood Floor rules, controls and acceptance; design only | planning shared construction |
 | [`SHARED-AUTHORITY.md`](SHARED-AUTHORITY.md) | first actor-owned shared survival core and its verification boundaries | implementing the shared server world |
 | [`BUILDINGS.md`](BUILDINGS.md) | local host building, controller bindings, persistence and unfinished systems | using or changing construction |
 | [`CRAFTING.md`](CRAFTING.md) | native queue controls, payment/refund, pause and verification scope | using or changing queued crafting |

@@ -55,7 +55,8 @@ kostenbeelden; de gewone executable slaagt voor49 beperkte venstercontroles plus
 zes originele kostenreviews. Dit is Linux/Mesa/localhost-bewijs, geen hardwaretest.
 Eerdere codec/invoer/mailbox/panel- en vijf720p-fixtures behouden hun eigen bron-/fixturescope.
 Strikte mislukte OCR/breedteruns blijven bewaard; ze zijn niet alsnog goedgekeurd.
-Integratie blijft pending. Zie [bediening en grenzen](docs/CONNECTED-BUILDING.md).
+Gemerged via [#261](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/261), na 11 groene CI-controles en review. Zie [bediening en grenzen](docs/CONNECTED-BUILDING.md).
+De volgende verbonden bouwstap heeft een [Floor-ontwerp](docs/CONNECTED-FLOORS.md); de Floor-route is nog niet geïmplementeerd.
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
 software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone
 executables doorlopen 24 beperkte toetsenbord/Mesa-venstercontroles. Daarnaast
