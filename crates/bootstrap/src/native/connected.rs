@@ -26,6 +26,8 @@ struct Controls {
     paused: bool,
     focused: bool,
     building: bool,
+    building_wall: bool,
+    wall_axis: u8,
     inventory: bool,
     help: bool,
     captured: bool,
@@ -137,6 +139,7 @@ fn receive(mut connection: ResMut<Connection>, mut controls: ResMut<Controls>) {
         connection.message = match receipt.result {
             Ok(SharedEffect::Gathered(harvest)) => gather_feedback(harvest),
             Ok(SharedEffect::FoundationPlaced { .. }) => "Wood foundation placed".into(),
+            Ok(SharedEffect::WallPlaced { .. }) => "Wood wall placed".into(),
             Ok(SharedEffect::BandageCrafted) => "Bandage crafted | Used 4 Cloth".into(),
             Ok(SharedEffect::TradeOffered { offer_id }) => {
                 format!("Trade offer #{offer_id} posted")

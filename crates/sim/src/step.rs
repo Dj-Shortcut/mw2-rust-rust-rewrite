@@ -294,7 +294,9 @@ fn run_players_system(ecs: &mut World) {
             // A local external controller publishes the complete player position.
             // Keep command acknowledgement moving without also applying PMove.
             if world.external_motion.contains(id) {
-                if let Some(ps) = world.player_mut(*id) { ps.command_time = cmd.server_time; }
+                if let Some(ps) = world.player_mut(*id) {
+                    ps.command_time = cmd.server_time;
+                }
                 continue;
             }
             let old_buttons = world
@@ -371,6 +373,7 @@ fn run_players_system(ecs: &mut World) {
                 .collect();
             let bodies = alive_body_clips(&world);
             let glass_damage = world.world_objects().glass_damage_pairs();
+            let buildings = world.buildings().clone();
             let backend = ClipBackend {
                 brushes: &brushes,
                 bsp: &bsp,
@@ -381,6 +384,7 @@ fn run_players_system(ecs: &mut World) {
                 cmodels: &cmodel_models,
                 linked_brushes: &linked_brushes,
                 model_brushes: &model_brushes,
+                buildings: &buildings,
             };
             let script = world.player_anim_script();
             let mantle = world.xanims();
@@ -1821,11 +1825,12 @@ struct ClipBackend<'a> {
     cmodels: &'a [clipmap_iw4::ClipCmodel],
     linked_brushes: &'a [LinkedBrushCollisionBrush],
     model_brushes: &'a [SimBrush],
+    buildings: &'a rust_building::BuildingWorld,
 }
 
 impl CollisionBackend for ClipBackend<'_> {
     fn trace(&self, input: GroundTraceInput) -> Trace {
-        let world_hit = clip_trace(
+        let mut world_hit = clip_trace(
             self.brushes,
             self.bsp,
             self.mesh,
@@ -1843,6 +1848,20 @@ impl CollisionBackend for ClipBackend<'_> {
                 crate::world_objects::glass_piece_is_solid(damage)
             },
         );
+        let built = self.buildings.trace(
+            input.start,
+            input.end,
+            input.mins,
+            input.maxs,
+            input.tracemask,
+        );
+        let startsolid = world_hit.startsolid | built.startsolid;
+        let allsolid = world_hit.allsolid | built.allsolid;
+        if built.fraction < world_hit.fraction || built.allsolid != 0 {
+            world_hit = built;
+        }
+        world_hit.startsolid = startsolid;
+        world_hit.allsolid = allsolid;
         let with_bmodels = clip_move_to_bmodels(
             world_hit,
             self.cmodels,
@@ -1961,6 +1980,7 @@ pub(crate) fn script_slide(
         cmodels: &content.clip_cmodels().models,
         linked_brushes: &linked_brushes,
         model_brushes: &model_brushes,
+        buildings: frame.buildings(),
     };
     slide.advance(origin, &backend, mask)
 }
@@ -2004,6 +2024,7 @@ pub(crate) fn script_mantle(
         cmodels: &content.clip_cmodels().models,
         linked_brushes: &linked_brushes,
         model_brushes: &model_brushes,
+        buildings: world.buildings(),
     };
     let forward = math_iw4::angle_vectors(ps.viewangles).0;
     let mantle = world.xanims();

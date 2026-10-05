@@ -28,7 +28,7 @@ Older complete gathering saves gain these plants without changing saved old node
 All new offline Bandage crafting reserves Cloth, including queue/cancel/refund.
 Death refunds fit available storage; excess reserved Cloth is discarded.
 Older already-paid queued Bandages retain their legacy payment/refund compatibility.
-Current standalone envelope is 3 after trading; imported protocol 95/schema 1 stay.
+Current standalone envelope is 4 after Wood walls; imported protocol 95/schema 1 stay.
 Only the recipient's carried stacks are sent; building resource ledgers remain public.
 Fresh admissions receive new ownership and empty inventory, without restoration.
 

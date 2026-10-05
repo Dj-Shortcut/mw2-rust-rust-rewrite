@@ -2,7 +2,7 @@ use super::super::{point, surface_mesh};
 use super::{Connection, Controls, inventory, network};
 use bevy::asset::{LoadState, RecursiveDependencyLoadState};
 use bevy::prelude::*;
-use rust_building::{Grade, Piece};
+use rust_building::{Grade, Kind, Piece};
 use sim::{ClientId, Tick};
 use std::collections::{BTreeMap, BTreeSet};
 use survival::{ResourceKind, ResourceNode, Terrain, UNITS_TO_METERS};
@@ -467,12 +467,21 @@ fn interaction(
         return (None, String::new());
     }
     if controls.building {
-        match world.snapshot.foundation_preview(&world.replica) {
+        let preview = if controls.building_wall {
+            world
+                .snapshot
+                .wall_preview(&world.replica, controls.wall_axis)
+        } else {
+            world.snapshot.foundation_preview(&world.replica)
+        };
+        match preview {
             Ok(preview) => {
                 let valid = preview.valid();
                 let hint = preview.error.unwrap_or_else(|| {
                     if connection.pending {
                         "Waiting for the shared world...".into()
+                    } else if controls.building_wall {
+                        "Place wall: Left click / Controller RT".into()
                     } else {
                         "Place foundation: Left click / Controller RT".into()
                     }
@@ -581,10 +590,28 @@ fn status(connection: &Connection, controls: &Controls, model_status: &str, hint
             .map(|(_, owner)| *owner);
         if let Some(owner) = owner {
             let wood = world.replica.buildings().inventory(owner).wood;
-            content.push_str(&format!("\nWood: {wood} | Foundation cost: 200 Wood"));
+            if controls.building && controls.building_wall && !controls.inventory {
+                let cost = Grade::Wood.cost(Kind::Wall).wood;
+                content.push_str(&format!("\nWood: {wood} | Wall cost: {cost} Wood"));
+            } else {
+                content.push_str(&format!("\nWood: {wood} | Foundation cost: 200 Wood"));
+            }
         }
         if controls.building && !controls.inventory {
-            content.push_str("\nWOOD FOUNDATION | B / Controller Back to close");
+            if controls.building_wall {
+                let orientation = match controls.wall_axis {
+                    0 => "X-axis",
+                    1 => "Y-axis",
+                    _ => "invalid",
+                };
+                content.push_str(&format!(
+                    "\nWOOD WALL | Orientation: {orientation} | B / Controller Back to close\nQ / Controller LB rotate Wall"
+                ));
+            } else {
+                content.push_str("\nWOOD FOUNDATION | B / Controller Back to close");
+            }
+            content
+                .push_str("\nLeft / Controller Left: Foundation | Right / Controller Right: Wall");
         }
     }
     if !controls.content_ready {
@@ -620,13 +647,17 @@ fn status(connection: &Connection, controls: &Controls, model_status: &str, hint
             content.push_str(&format!("\n{hint}"));
         }
         if !connection.message.is_empty() {
-            content.push_str(&format!("\n{}", connection.message));
+            if controls.building {
+                content.push_str(&format!("\nLast own action: {}", connection.message));
+            } else {
+                content.push_str(&format!("\n{}", connection.message));
+            }
         }
         if controls.help {
-            content.push_str("\nWASD move | Mouse look | Shift sprint | Space jump | Ctrl crouch\nF gather Tree/Hemp | I inventory | B foundation mode | Left click place\nEsc pause | F1 hide help\nController: LS move | RS look | LS click sprint | A jump | B crouch\nY gather Tree/Hemp | Up inventory | Back foundation mode | RT place | Start pause");
+            content.push_str("\nWASD move | Mouse look | Shift sprint | Space jump | Ctrl crouch\nF gather Tree/Hemp | I inventory | B building mode\nBuild: Left Foundation | Right Wall | Q rotate Wall | Left click place\nEsc pause | F1 hide help\nController: LS move | RS look | LS click sprint | A jump | B crouch\nY gather Tree/Hemp | Up inventory | Back building mode | Start pause\nBuild: Left Foundation | Right Wall | LB rotate Wall | RT place");
         } else {
             content.push_str(
-                "\nF gather Tree/Hemp | I inventory | B foundation mode | Esc pause | F1 help",
+                "\nF gather Tree/Hemp | I inventory | B building mode | Esc pause | F1 help",
             );
         }
     }

@@ -13,7 +13,7 @@ use survival::{
 
 pub const MAX_BODY_BYTES: usize = 256 * 1024;
 const MAGIC: u32 = 0x3150_4D53;
-const VERSION: u16 = 3;
+const VERSION: u16 = 4;
 const TERRAIN_SEED: u32 = 731;
 const MAX_CLIENTS: usize = 64;
 const MAX_OWNERS: usize = 2;
@@ -207,6 +207,9 @@ fn validate_input(packet: &ClientPacket, action: Option<ActionRequest>) -> Resul
             SharedAction::AcceptTrade { offer_id: 0 } | SharedAction::CloseTrade { offer_id: 0 }
         ) {
             return Err("Trade offer ID must be nonzero".into());
+        }
+        if matches!(value.action, SharedAction::PlaceWoodWall { axis } if axis > 1) {
+            return Err("Wall axis must be 0 or 1".into());
         }
     }
     Ok(())
@@ -930,12 +933,15 @@ fn put_action(out: &mut WireWriter, action: Option<ActionRequest>) {
                 SharedAction::OfferBandage => 5,
                 SharedAction::AcceptTrade { .. } => 6,
                 SharedAction::CloseTrade { .. } => 7,
+                SharedAction::PlaceWoodWall { .. } => 8,
             });
             out.put_u32(value.request_id);
             if let SharedAction::AcceptTrade { offer_id } | SharedAction::CloseTrade { offer_id } =
                 value.action
             {
                 out.put_u64(offer_id);
+            } else if let SharedAction::PlaceWoodWall { axis } = value.action {
+                out.put_u8(axis);
             }
         }
     }
@@ -946,7 +952,7 @@ fn read_action(input: &mut Reader<'_>) -> Result<Option<ActionRequest>, String> 
     if tag == 0 {
         return Ok(None);
     }
-    if !(1..=7).contains(&tag) {
+    if !(1..=8).contains(&tag) {
         return Err("Unknown standalone action tag".into());
     }
     let request_id = input.u32()?;
@@ -969,6 +975,13 @@ fn read_action(input: &mut Reader<'_>) -> Result<Option<ActionRequest>, String> 
             } else {
                 SharedAction::CloseTrade { offer_id }
             }
+        }
+        8 => {
+            let axis = input.u8()?;
+            if axis > 1 {
+                return Err("Wall axis must be 0 or 1".into());
+            }
+            SharedAction::PlaceWoodWall { axis }
         }
         _ => return Err("Unknown standalone action tag".into()),
     };
@@ -1031,6 +1044,28 @@ fn validate_receipts(state: &SharedSnapshot, receipts: &[SharedReceipt]) -> Resu
                     return Err("Invalid foundation receipt".into());
                 }
             }
+            Ok(SharedEffect::WallPlaced { id }) => {
+                let owner = state
+                    .owners
+                    .iter()
+                    .find(|(client, _)| *client == state.recipient)
+                    .map(|(_, owner)| *owner);
+                if *id == 0
+                    || !state
+                        .sim
+                        .meta
+                        .world_objects
+                        .buildings
+                        .pieces()
+                        .any(|piece| {
+                            piece.id == *id
+                                && Some(piece.owner) == owner
+                                && piece.kind == rust_building::Kind::Wall
+                        })
+                {
+                    return Err("Invalid wall receipt".into());
+                }
+            }
             Ok(SharedEffect::BandageCrafted) => {}
             Ok(
                 SharedEffect::TradeOffered { offer_id }
@@ -1069,6 +1104,10 @@ fn put_receipts(out: &mut WireWriter, receipts: &[SharedReceipt]) -> Result<(), 
             }
             Ok(SharedEffect::FoundationPlaced { id }) => {
                 out.put_u8(2);
+                out.put_u32(*id);
+            }
+            Ok(SharedEffect::WallPlaced { id }) => {
+                out.put_u8(8);
                 out.put_u32(*id);
             }
             Ok(SharedEffect::BandageCrafted) => out.put_u8(4),
@@ -1121,6 +1160,7 @@ fn read_receipts(input: &mut Reader<'_>) -> Result<Vec<SharedReceipt>, String> {
             7 => Ok(SharedEffect::TradeClosed {
                 offer_id: input.u64()?,
             }),
+            8 => Ok(SharedEffect::WallPlaced { id: input.u32()? }),
             _ => return Err("Unknown standalone receipt result".into()),
         };
         receipts.push(SharedReceipt {

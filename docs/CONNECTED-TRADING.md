@@ -38,9 +38,9 @@ Fresh admission inherits no old inventory/offer/outcome.
 
 ## Integration and verification
 
-All peers require standalone envelope 3; imported protocol 95/snapshot schema 1 stay.
+All peers require standalone envelope 4; imported protocol 95/snapshot schema 1 stay.
 Server trades/inventories are not saved; offline NPC Fish trades/saves stay separate.
-Actual-source checks: public authority 32, codec 304, panel 72, input 316, mailbox 429; settlement 15/private lifecycle 8 use explicit fixtures.
+Trading-milestone source checks (historical): public authority 32, codec 304, panel 72, input 316, mailbox 429; settlement 15/private lifecycle 8 use explicit fixtures.
 Real server plus two independent TCP processes: 55 checks pass; seller has 25 Wood/1 Bandage/2 Cloth, buyer 0 Wood/1 Bandage/0 Cloth.
 Two native Bevy windows with read-only observer: 115 flow checks pass; 38 ordinary shipping-window smoke checks pass separately.
 Labelled full-24-slot 1280x720 render fixtures: all 5 cases pass, including 512-character refusal and disconnect text.
