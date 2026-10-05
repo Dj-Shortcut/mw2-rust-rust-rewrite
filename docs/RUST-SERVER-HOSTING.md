@@ -30,9 +30,10 @@ Host Havoc declined the required startup flag in the owner's support exchange.
 - We can stop/start the server, read logs and use an authenticated server console.
 - We can install matching Oxide and our C# plugin, edit its config and permissions,
   reload/remove it and retain the installed Rust build/Oxide version evidence.
-- The remote Shadow client has a reviewed network route to the game/query ports.
-  The current loopback launcher does not provide that route; review host-specific
-  bindings and access rules before changing them. No public RCON is required.
+- The remote Shadow client has a reviewed route to the game port for F1 direct join.
+  Query access is only needed for separately required discovery, not this direct join.
+  The loopback launcher provides no remote route; review host-specific bindings
+  and access rules before changes. No public RCON is required.
 - Existing installations/worlds are preserved; game files and credentials stay
   outside the repository. Access secrets are never put in issue/PR comments.
 
@@ -40,8 +41,8 @@ Host Havoc declined the required startup flag in the owner's support exchange.
 
 Record actual startup completion, `oxide.version`, game/query/RCON/Rust+
 listeners and a successful join from the owner's intended client. Verify save
-and restart on that host. This proves setup only: the loadout/damage plugin is
-still absent. Its later acceptance includes permissions/cooldown, inventory
+and restart on that host. This proves setup only; plugin acceptance still
+requires permissions/cooldown, inventory
 failure/recovery, two-client PvP, unchanged excluded targets and reload/removal.
 Local source checks and historical Linux PowerShell probes cannot replace these
 real-host results. Ignored cloud evidence is not transferred by a Git checkout.
