@@ -2,7 +2,7 @@
 
 Active direction since 5 October 2026: [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266).
 The standalone Rust/Bevy rewrite and its automatic loop are parked.
-This is design/server preparation; no plugin or playable mod is verified yet.
+Setup sources and bounded Linux PowerShell checks exist; no playable mod is verified.
 
 ## Player flow and boundaries
 
@@ -20,8 +20,8 @@ All commands, configuration feedback and player messages must be English.
 
 ## First setup milestone
 
-Prepare Windows PowerShell scripts under `mods/rust/server/` after publishing
-this design. Install official SteamCMD app 258550, then matching official Oxide.
+Scripts: [`mods/rust/server/README.md`](../mods/rust/server/README.md), published after design.
+Install official SteamCMD app 258550, then matching official Oxide.
 Use a new `%LOCALAPPDATA%\CodexRustServer` root; reject an existing destination
 or one inside a Git checkout. Never reset, delete or overwrite an old world.
 Keep binaries, configs, credentials and saves outside the repository.
