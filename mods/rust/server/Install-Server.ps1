@@ -19,13 +19,20 @@ function Get-NewServerRoot([string]$Path) {
     if (@($pathErrors | Where-Object { $_.CategoryInfo.Category -ne 'ObjectNotFound' }).Count) { throw 'RootPath absence could not be established safely.' }
     $parent = Split-Path -Parent $full
     if (-not (Test-Path -LiteralPath $parent -PathType Container)) { throw 'The parent directory must already exist.' }
-    for ($probe = $parent; $probe; $probe = Split-Path -Parent $probe) {
+    Assert-ServerAncestors $parent
+    return $full
+}
+
+function Assert-ServerAncestors([string]$Path) {
+    for ($probe = $Path; $probe;) {
         if (Test-Path -LiteralPath (Join-Path $probe '.git')) { throw 'RootPath cannot be inside a Git checkout.' }
         if ((Get-Item -LiteralPath $probe -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw 'RootPath cannot use a symbolic link or junction parent.'
         }
+        $next = Split-Path -Parent $probe
+        if (-not $next -or $next -eq $probe) { break }
+        $probe = $next
     }
-    return $full
 }
 
 function Get-InstallFreeBytes([string]$Path) {

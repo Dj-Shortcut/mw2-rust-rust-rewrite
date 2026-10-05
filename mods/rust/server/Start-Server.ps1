@@ -17,6 +17,38 @@ param(
     [switch]$Plan
 )
 
+function Assert-ServerConfiguration {
+    param(
+        [AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory = $true)][hashtable]$ProtectedSettings,
+        [string]$ConfigPath = 'server configuration'
+    )
+    $lineNumber = 0
+    foreach ($line in ($Text.TrimStart([char]0xfeff) -split '\r?\n')) {
+        $lineNumber++
+        if ($line -match '[\x00-\x08\x0b-\x1f\x7f\u0085\u2028\u2029]') {
+            throw "Unsupported configuration characters at ${ConfigPath}:$lineNumber."
+        }
+        if ($line -match '\A[ \t]*(?://.*)?\z') { continue }
+        $assignment = [regex]::Match($line,
+            '\A[ \t]*(?<name>[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+)[ \t]+(?:(?<quoted>"(?<value>[^"]*)")|(?<value>[^ \t"]+))(?:[ \t]+//.*|[ \t]*)\z')
+        if (-not $assignment.Success) {
+            throw "Unsupported configuration syntax at ${ConfigPath}:$lineNumber."
+        }
+        $name = $assignment.Groups['name'].Value.ToLowerInvariant()
+        $value = $assignment.Groups['value'].Value
+        if ($value.Contains(';') -or
+            ($assignment.Groups['quoted'].Success -and $value.EndsWith('\')) -or
+            $name -match '(?:\A|\.)(?:exec|execfile|readcfg|writecfg|loadcfg|readconfig|alias|bind|bindmeta|run|call|invoke|command|commands|set|toggle|load|save|quit|exit|restart|shutdown)\z' -or
+            $name -in @('server.secure', 'server.eac', 'server.insecure')) {
+            throw "Unsupported configuration command at ${ConfigPath}:$lineNumber."
+        }
+        if ($ProtectedSettings.ContainsKey($name) -and @($ProtectedSettings[$name]) -cnotcontains $value) {
+            throw "Saved setting '$name' conflicts with the launcher at ${ConfigPath}:$lineNumber."
+        }
+    }
+}
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if ($GamePort -eq $QueryPort) { throw 'GamePort and QueryPort must differ.' }
@@ -96,13 +128,22 @@ if ($manifest.oxideDigestVerified -isnot [bool] -or -not $manifest.oxideDigestVe
     throw 'The installation manifest must record an Oxide SHA256 verified against official release metadata.'
 }
 $identityDirectory = Join-Path $ServerRoot ('server\' + $Identity)
+$protectedSettings = @{
+    'app.port' = @('-1', '1-')
+    'server.queryip' = '127.0.0.1'
+    'server.levelurl' = ''
+    'rcon.password' = ''
+}
+for ($index = 0; $index -lt $serverArguments.Count - 1; $index++) {
+    if ($serverArguments[$index] -like '+server.*' -and $serverArguments[$index] -ne '+server.hostname') {
+        $protectedSettings[$serverArguments[$index].Substring(1)] = $serverArguments[$index + 1]
+        $index++
+    }
+}
 foreach ($name in @('server.cfg', 'serverauto.cfg')) {
     $configPath = Join-Path $identityDirectory ('cfg\' + $name)
     if (Test-Path -LiteralPath $configPath -PathType Leaf) {
-        $settings = @(Get-Content -LiteralPath $configPath | Where-Object { $_ -notmatch '^\s*(//.*)?$' })
-        if ($settings.Count -gt 0) {
-            throw "Saved configuration can override the private launch settings. Review it before starting: $configPath"
-        }
+        Assert-ServerConfiguration -Text (Get-Content -LiteralPath $configPath -Raw) -ProtectedSettings $protectedSettings -ConfigPath $configPath
     }
 }
 $memory = Get-CimInstance -ClassName Win32_OperatingSystem -Property FreePhysicalMemory

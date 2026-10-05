@@ -30,7 +30,7 @@ Keep binaries, configs, credentials and saves outside the repository.
 Client RAM is additional. [Shadow Gaming prohibits server hosting](https://support.shadow.tech/hc/en-us/articles/32731830348305-Rules-and-Restrictions-on-Shadow); use another host.
 Start separately with a fixed `mod-demo` identity, small map, loopback game bind,
 distinct game/query ports, disabled Rust+ and no configured RCON/password.
-Provide argument preview; reject saved bind overrides and invalid inputs.
+Provide argument preview; allow scalar saved settings, reject protected overrides.
 Do not open firewall rules, forward ports or rent infrastructure automatically.
 Actual game/query/RCON/Rust+ listeners must be checked before privacy is claimed.
 ## Client and acceptance

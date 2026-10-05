@@ -8,6 +8,7 @@ De eigenaar parkeerde de zelfstandige rewrite op 5 oktober 2026.
 rewrite-implementatie of automatische rewrite-loop starten.
 
 - [x] Windows-servervoorbereidingsbroncode: officiële SteamCMD/Oxide, nieuwe installatiemap en argumentpreview zijn aanwezig. PowerShell 7.6.6/Linux parseert beide scripts; 32 tijdelijke installerasserties en 14 preview-/weigercases slagen. Installerchecks gebruiken eigen kleine IO-fixtures, geen echte gamebestanden. Windows-installatie, junctions/drivegedrag en runtime zijn nog niet bewezen. [Handleiding](mods/rust/server/README.md).
+- [x] P1-bronfixes: vooroudercontrole stopt ook bij een zelfverwijzende schijfroot; de launcher accepteert gewone scalaire saved-configinstellingen en weigert conflicterende beschermde waarden. Zeven tijdelijke providerasserties en 32 configasserties op eigen fixtures slagen. Dit bewijst geen native Windows-hang, echte Rust-configsave of serverrestart.
 - [ ] Echte Rust-server starten, passende Oxide-versie en listeners controleren; standaardclient verbinden. Hosting/RAM en bestuurbare servertoegang moeten daarvoor beschikbaar zijn.
 - [ ] Self-only configureerbare wapenloadouts: permissie, valide levende speler, cooldown, volledige capaciteitscontrole en behoud van bestaande inventory.
 - [ ] Configureerbare PvP-kogelschade: standaardfactor 1, aparte permissie; geen verandering aan NPC's, andere schadesoorten, gebouwen, raids of TC's.
@@ -15,8 +16,10 @@ rewrite-implementatie of automatische rewrite-loop starten.
 - [ ] Pas daarna een geverifieerde mod-demo met installatie-, start- en verwijderinstructies leveren. Carbon, MW2-assets en skate-physics vallen buiten deze eerste mod.
 
 **Modstatus: begrensd gecontroleerde servervoorbereiding, geen werkende plugin of release.**
-Shadow Gaming Neo heeft 16 GB RAM en staat serverhosting niet toe. Een geschikte
-andere host en bestuurbare toegang ontbreken nog; er is niets extra gehuurd.
+Shadow Gaming Neo heeft 16 GB RAM en staat serverhosting niet toe. Volgens het
+supportantwoord van de eigenaar ondersteunt Host Havoc de vereiste `-insecure`
+startflag niet. Een geschikte andere host en bestuurbare toegang ontbreken nog;
+er is niets extra gehuurd.
 De controller werkt volgens de eigenaar voldoende voor een demo via Shadow
 en Steam Input; dat is geen door ons uitgevoerde hardwarecontrole.
 
