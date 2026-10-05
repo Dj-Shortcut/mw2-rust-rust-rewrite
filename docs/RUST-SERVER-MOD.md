@@ -42,9 +42,9 @@ Shadow forwards the Xbox controller; Steam Input maps it to keyboard/mouse.
 Rust PC has different controls/UI from Rust Console Edition; Xbox server rental
 does not host this PC plugin. Controller settings are outside the server mod.
 Accept setup only after real server startup, `oxide.version`, listener evidence
-and successful ordinary-client join. A syntax check or process start is narrower.
+and intended-client join with recorded EAC/startup mode. Source checks are narrower.
 Accept the later plugin after permission/cooldown/config/inventory failure flows,
 two-client firearm damage, unchanged excluded targets, reload and removal pass
 on recorded real Rust/Oxide versions. Carbon needs separate verification.
-The current cloud lacks full-server disk space and controllable Shadow access;
-document narrower script checks honestly and keep actual-server TODOs open.
+Local Mac source access is available; scripts still require Windows. See the
+[hosting gate](RUST-SERVER-HOSTING.md); no host is selected or ignored cloud evidence transferred.
