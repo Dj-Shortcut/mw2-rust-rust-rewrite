@@ -648,7 +648,7 @@ fn status(connection: &Connection, controls: &Controls, model_status: &str, hint
         }
         if !connection.message.is_empty() {
             if controls.building {
-                content.push_str(&format!("\nLast own action: {}", connection.message));
+                content.push_str(&format!("\nLast notice: {}", connection.message));
             } else {
                 content.push_str(&format!("\n{}", connection.message));
             }

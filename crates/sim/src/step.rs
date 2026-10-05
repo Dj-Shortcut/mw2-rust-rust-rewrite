@@ -373,7 +373,7 @@ fn run_players_system(ecs: &mut World) {
                 .collect();
             let bodies = alive_body_clips(&world);
             let glass_damage = world.world_objects().glass_damage_pairs();
-            let buildings = world.buildings().clone();
+            let mut ps = *world.player(*id).expect("Alive client has a player row");
             let backend = ClipBackend {
                 brushes: &brushes,
                 bsp: &bsp,
@@ -384,7 +384,7 @@ fn run_players_system(ecs: &mut World) {
                 cmodels: &cmodel_models,
                 linked_brushes: &linked_brushes,
                 model_brushes: &model_brushes,
-                buildings: &buildings,
+                buildings: world.buildings(),
             };
             let script = world.player_anim_script();
             let mantle = world.xanims();
@@ -402,9 +402,7 @@ fn run_players_system(ecs: &mut World) {
                 force_movement_anim,
                 landing_animation,
             ) = {
-                let ps = world
-                    .player_mut(*id)
-                    .expect("Alive client has a player row");
+                let ps = &mut ps;
 
                 if ps.shellshock_time.wrapping_add(ps.shellshock_duration) < level_time {
                     ps.pm_flags &= !playerstate_iw4::pm_flags::SHELLSHOCKED;
@@ -444,6 +442,9 @@ fn run_players_system(ecs: &mut World) {
                     pml.landing_animation,
                 )
             };
+            *world
+                .player_mut(*id)
+                .expect("Alive client has a player row") = ps;
             world
                 .client_meta_mut(*id)
                 .input_receipt

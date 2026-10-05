@@ -1,6 +1,6 @@
 # Native connected PC client
 
-Bounded native wall keyboard/Mesa flows pass; ordinary/layout acceptance is pending.
+Latest wall review fixes compile; current-source graphical reruns are pending.
 
 ## Start and content
 Host: `cargo run -p launcher --profile play --locked -- server --bind 127.0.0.1:28980`.
@@ -45,6 +45,6 @@ Earlier gather/build: 61 preview,70 software-input,46 actual worker/socket check
 its24 shipping/101 observer-window checks are historical. Cloth/trade guides have their own scope.
 `cargo test` succeeds with 0 permanent tests; these are ignored behavior probes.
 The Cloth slice verifies unequal carried inventories, finite stock, costs and replay.
-Foundation/Wall costs, axes and ghosts were reviewed; long-text layout remains pending.
+Earlier costs/axes/ghosts and visible720p text fit; latest-source reruns remain pending.
 See [direct TCP limits](DIRECT-MULTIPLAYER.md). No proof of Windows gameplay,
 physical controllers/audio, two physical machines, internet hosting or release readiness.

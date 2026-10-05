@@ -41,13 +41,14 @@ acceptatie en een atomische serveroverdracht. De echte TCP-flow slaagt voor 55
 controles; twee native clients voor 115 en gewone executables voor 38 beperkte
 venstercontroles. Alle vijf gelabelde volledige-inventoryweergaven passen op 720p.
 Zie [handel en verificatiegrenzen](docs/CONNECTED-TRADING.md).
-Verbonden Wood-muren zijn aanwezig in de broncode: Foundation kost 200 Wood,
-Wall 100 Wood, met stukselectie en twee richtingen. De echte TCP-routes voor beide
-richtingen slagen voor 70 en 71 controles; authority 62, codec 392, software-invoer
-585, mailbox 664 en pure panelweergave 28 zijn afzonderlijk gecontroleerd.
-Twee native keyboard/Mesa-routes slagen voor 110 en 113 controles; lokale
-Cargo-gates slagen. Gewone-build OCR en 720p-layout hebben nog open controles;
-exacte runtime-CI/review en integratie blijven pending. Zie [bediening en gecontroleerde grenzen](docs/CONNECTED-BUILDING.md).
+Verbonden Wood-muren zijn aanwezig: Foundation kost 200 Wood en Wall 100,
+met stukselectie en twee richtingen. De actuele reviewcorrecties vermijden een
+kopie van alle bouwwerken per speler en tonen gemengde meldingen als “Last notice”.
+De geoptimaliseerde Linux-build slaagt; actuele controles: authority 62 met 2582
+command-terugschrijvingen, codec 392, software-invoer 585, mailbox 664 en panel 30.
+De eerdere versie doorliep TCP 70/71 en native keyboard/Mesa 110/113 controles;
+de nieuwste versie krijgt eigen TCP/native/ordinary/layout-runs en CI/review.
+Integratie blijft pending. Zie [bediening en grenzen](docs/CONNECTED-BUILDING.md).
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
 software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone
 executables doorlopen 24 beperkte toetsenbord/Mesa-venstercontroles. Daarnaast

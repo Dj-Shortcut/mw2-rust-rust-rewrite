@@ -1,6 +1,6 @@
 # Connected Wood building
 
-Implemented source/headless slice for [#259](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/259); native checks pass; layout completion is pending.
+Implemented [#259](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/259) development source; latest review fixes await full acceptance.
 The existing connected Foundation costs 200 Wood; this slice adds a 100-Wood Wall.
 
 ## Player flow and controls
@@ -10,7 +10,8 @@ B / Controller Back opens or closes building mode; Foundation is selected initia
 Left / Controller Left selects Foundation; Right / Controller Right selects Wall.
 Q / Controller LB rotates the selected Wall between X-axis and Y-axis.
 With Foundation selected, rotation asks to select Wall and changes nothing.
-The ghost, selected kind/orientation, confirmed Wood and cost use confirmed state.
+Kind/axis selection is local; ghosts, Wood and costs use the confirmed shared world.
+Last notice mixes local feedback and receipts.
 Left click / Controller RT requests placement once on a fresh edge.
 Mode/selection/rotation edges consume the frame without gathering or placing.
 Distinct simultaneous building-control intents refuse without changing selection.
@@ -37,14 +38,13 @@ Offline building/saves stay separate; Wood ledgers public, carried stacks/trades
 
 ## Acceptance and limits
 
-Actual-source authority: 62 checks, both axes and natural A200/B100 Wood acquisition.
-Codec392, Bevy software-input585, mailbox664 and pure panel28 checks pass separately.
-Mismatch/private capacity or identity fixtures are explicitly labelled, not normal play.
-Real server/two independent TCP processes: axis0 passes70, axis1 passes71 checks.
-Each route settles Foundation200 + Wall100; live walking stops at the confirmed wall.
-Native keyboard/Mesa routes pass110/113 checks; required local Cargo gates pass.
-Ordinary shipping OCR/layout acceptance and exact runtime CI/review remain pending.
-One layout fixture fails its padded-width bound; do not claim complete acceptance.
+Current source: authority62 and2582 live command writebacks; codec392/input585 pass.
+Mailbox664 and panel30 pass; current optimized Linux build and scoped fmt pass.
+Mismatch/private capacity or identity fixtures are labelled, not normal play.
+Earlier source TCP70/71 and native keyboard/Mesa110/113 are historical results.
+Current-source TCP/native/ordinary/layout acceptance and exact-head CI/review are pending.
+Earlier720p fixtures fit visible glyphs/ink/occupied lines; hanging whitespace is excluded.
+Original strict OCR/raw-full-width failures remain preserved, never relabelled PASS.
 Read-only native observer evidence remains separate from shipping/layout fixtures.
 Floors/doors, demolition/upgrades/repair, TC/decay and server persistence stay open.
 Physical controllers, Windows/internet gameplay and release readiness remain unproved.
