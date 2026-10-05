@@ -41,6 +41,9 @@ acceptatie en een atomische serveroverdracht. De echte TCP-flow slaagt voor 55
 controles; twee native clients voor 115 en gewone executables voor 38 beperkte
 venstercontroles. Alle vijf gelabelde volledige-inventoryweergaven passen op 720p.
 Zie [handel en verificatiegrenzen](docs/CONNECTED-TRADING.md).
+De volgende geclaimde bouwstap is een gedeelde Wood-muur van 100 Wood, met
+stukselectie en twee richtingen. Dit is nog niet geïmplementeerd; zie
+[het verbonden bouwontwerp](docs/CONNECTED-BUILDING.md).
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
 software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone
 executables doorlopen 24 beperkte toetsenbord/Mesa-venstercontroles. Daarnaast
