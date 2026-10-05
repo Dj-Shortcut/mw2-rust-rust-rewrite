@@ -4,15 +4,16 @@ use net::{
 };
 use playerstate_iw4::PlayerState;
 use sim::{ClientId, Snapshot, Tick, TickInput};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use survival::{
     GatheringWorld, Harvest, Inventory, Item, ResourceKind, ResourceNode, SharedAction,
-    SharedEffect, SharedReceipt, SharedSnapshot, Stack, Terrain,
+    SharedEffect, SharedReceipt, SharedSnapshot, SharedTradeOffer, SharedTradeOutcome,
+    SharedTradeOutcomeKind, SharedTradeParty, Stack, Terrain,
 };
 
 pub const MAX_BODY_BYTES: usize = 256 * 1024;
 const MAGIC: u32 = 0x3150_4D53;
-const VERSION: u16 = 2;
+const VERSION: u16 = 3;
 const TERRAIN_SEED: u32 = 731;
 const MAX_CLIENTS: usize = 64;
 const MAX_OWNERS: usize = 2;
@@ -197,8 +198,16 @@ fn validate_input(packet: &ClientPacket, action: Option<ActionRequest>) -> Resul
     {
         return Err("Command contains a nonfinite value".into());
     }
-    if action.is_some_and(|value| value.request_id == 0) {
-        return Err("Action request ID must be nonzero".into());
+    if let Some(value) = action {
+        if value.request_id == 0 {
+            return Err("Action request ID must be nonzero".into());
+        }
+        if matches!(
+            value.action,
+            SharedAction::AcceptTrade { offer_id: 0 } | SharedAction::CloseTrade { offer_id: 0 }
+        ) {
+            return Err("Trade offer ID must be nonzero".into());
+        }
     }
     Ok(())
 }
@@ -416,7 +425,41 @@ fn put_state(out: &mut WireWriter, state: &SharedSnapshot) -> Result<(), String>
         out.put_u32(stack.quantity);
         out.put_u32(stack.wear);
     }
+    out.put_u8(u8::from(state.trade_offer.is_some()));
+    if let Some(offer) = state.trade_offer {
+        out.put_u64(offer.id);
+        put_trade_party(out, offer.seller);
+        put_trade_party(out, offer.buyer);
+        out.put_u32(offer.created_at.0);
+        out.put_u32(offer.expires_at.0);
+    }
+    out.put_u8(u8::from(state.trade_outcome.is_some()));
+    if let Some(outcome) = state.trade_outcome {
+        out.put_u64(outcome.offer_id);
+        put_trade_party(out, outcome.seller);
+        put_trade_party(out, outcome.buyer);
+        out.put_u32(outcome.closed_at.0);
+        out.put_u8(match outcome.kind {
+            SharedTradeOutcomeKind::Accepted => 1,
+            SharedTradeOutcomeKind::Cancelled => 2,
+            SharedTradeOutcomeKind::Declined => 3,
+            SharedTradeOutcomeKind::Expired => 4,
+            SharedTradeOutcomeKind::Unavailable => 5,
+        });
+    }
     Ok(())
+}
+
+fn put_trade_party(out: &mut WireWriter, party: SharedTradeParty) {
+    out.put_u32(party.client.0);
+    out.put_u32(party.owner);
+}
+
+fn read_trade_party(input: &mut Reader<'_>) -> Result<SharedTradeParty, String> {
+    Ok(SharedTradeParty {
+        client: ClientId(input.u32()?),
+        owner: input.u32()?,
+    })
 }
 
 fn read_state(input: &mut Reader<'_>, sim: Snapshot) -> Result<SharedSnapshot, String> {
@@ -455,6 +498,35 @@ fn read_state(input: &mut Reader<'_>, sim: Snapshot) -> Result<SharedSnapshot, S
             wear: input.u32()?,
         });
     }
+    let trade_offer = if input.boolean()? {
+        Some(SharedTradeOffer {
+            id: input.u64()?,
+            seller: read_trade_party(input)?,
+            buyer: read_trade_party(input)?,
+            created_at: Tick(input.u32()?),
+            expires_at: Tick(input.u32()?),
+        })
+    } else {
+        None
+    };
+    let trade_outcome = if input.boolean()? {
+        Some(SharedTradeOutcome {
+            offer_id: input.u64()?,
+            seller: read_trade_party(input)?,
+            buyer: read_trade_party(input)?,
+            closed_at: Tick(input.u32()?),
+            kind: match input.u8()? {
+                1 => SharedTradeOutcomeKind::Accepted,
+                2 => SharedTradeOutcomeKind::Cancelled,
+                3 => SharedTradeOutcomeKind::Declined,
+                4 => SharedTradeOutcomeKind::Expired,
+                5 => SharedTradeOutcomeKind::Unavailable,
+                _ => return Err("Unknown standalone trade outcome".into()),
+            },
+        })
+    } else {
+        None
+    };
     let state = SharedSnapshot {
         schema,
         tick,
@@ -464,6 +536,8 @@ fn read_state(input: &mut Reader<'_>, sim: Snapshot) -> Result<SharedSnapshot, S
         owners,
         recipient,
         inventory: Inventory::from_stacks(stacks)?,
+        trade_offer,
+        trade_outcome,
     };
     validate_state(&state)?;
     Ok(state)
@@ -503,6 +577,61 @@ fn validate_state(state: &SharedSnapshot) -> Result<(), String> {
     }
     validate_sim(&state.sim, &clients)?;
     validate_buildings(&state.sim.meta.world_objects.buildings, &state.owners)?;
+    validate_trades(state)?;
+    Ok(())
+}
+
+fn validate_trade_parties(
+    state: &SharedSnapshot,
+    seller: SharedTradeParty,
+    buyer: SharedTradeParty,
+) -> Result<(), String> {
+    if seller.client == buyer.client
+        || seller.owner == buyer.owner
+        || [seller, buyer].iter().any(|party| {
+            party.client.0 >= MAX_CLIENTS as u32
+                || !(OWNER_BASE..OWNER_LIMIT).contains(&party.owner)
+        })
+        || ![seller, buyer].iter().any(|party| {
+            party.client == state.recipient && state.owners.contains(&(party.client, party.owner))
+        })
+    {
+        return Err("Invalid or unaddressed trade parties".into());
+    }
+    Ok(())
+}
+
+fn validate_trades(state: &SharedSnapshot) -> Result<(), String> {
+    if let Some(offer) = state.trade_offer {
+        validate_trade_parties(state, offer.seller, offer.buyer)?;
+        if offer.id == 0
+            || offer.created_at > state.tick
+            || offer.created_at.0.checked_add(survival::SHARED_TRADE_TICKS)
+                != Some(offer.expires_at.0)
+            || state.tick >= offer.expires_at
+            || [offer.seller, offer.buyer].iter().any(|party| {
+                !state.owners.contains(&(party.client, party.owner))
+                    || !state
+                        .sim
+                        .players
+                        .iter()
+                        .any(|(client, player)| *client == party.client && player.health > 0)
+            })
+        {
+            return Err("Invalid current trade offer identity or lifetime".into());
+        }
+    }
+    if let Some(outcome) = state.trade_outcome {
+        validate_trade_parties(state, outcome.seller, outcome.buyer)?;
+        if outcome.offer_id == 0 || outcome.closed_at > state.tick {
+            return Err("Invalid historical trade outcome ID or tick".into());
+        }
+        if state.trade_offer.is_some_and(|offer| {
+            outcome.offer_id >= offer.id || outcome.closed_at > offer.created_at
+        }) {
+            return Err("Historical trade outcome must precede the current offer".into());
+        }
+    }
     Ok(())
 }
 
@@ -798,25 +927,51 @@ fn put_action(out: &mut WireWriter, action: Option<ActionRequest>) {
                 SharedAction::PlaceWoodFoundation => 2,
                 SharedAction::GatherCloth => 3,
                 SharedAction::CraftBandage => 4,
+                SharedAction::OfferBandage => 5,
+                SharedAction::AcceptTrade { .. } => 6,
+                SharedAction::CloseTrade { .. } => 7,
             });
             out.put_u32(value.request_id);
+            if let SharedAction::AcceptTrade { offer_id } | SharedAction::CloseTrade { offer_id } =
+                value.action
+            {
+                out.put_u64(offer_id);
+            }
         }
     }
 }
 
 fn read_action(input: &mut Reader<'_>) -> Result<Option<ActionRequest>, String> {
-    let action = match input.u8()? {
-        0 => return Ok(None),
-        1 => SharedAction::GatherTree,
-        2 => SharedAction::PlaceWoodFoundation,
-        3 => SharedAction::GatherCloth,
-        4 => SharedAction::CraftBandage,
-        _ => return Err("Unknown standalone action tag".into()),
-    };
+    let tag = input.u8()?;
+    if tag == 0 {
+        return Ok(None);
+    }
+    if !(1..=7).contains(&tag) {
+        return Err("Unknown standalone action tag".into());
+    }
     let request_id = input.u32()?;
     if request_id == 0 {
         return Err("Action request ID must be nonzero".into());
     }
+    let action = match tag {
+        1 => SharedAction::GatherTree,
+        2 => SharedAction::PlaceWoodFoundation,
+        3 => SharedAction::GatherCloth,
+        4 => SharedAction::CraftBandage,
+        5 => SharedAction::OfferBandage,
+        6 | 7 => {
+            let offer_id = input.u64()?;
+            if offer_id == 0 {
+                return Err("Trade offer ID must be nonzero".into());
+            }
+            if tag == 6 {
+                SharedAction::AcceptTrade { offer_id }
+            } else {
+                SharedAction::CloseTrade { offer_id }
+            }
+        }
+        _ => return Err("Unknown standalone action tag".into()),
+    };
     Ok(Some(ActionRequest { request_id, action }))
 }
 
@@ -824,12 +979,19 @@ fn validate_receipts(state: &SharedSnapshot, receipts: &[SharedReceipt]) -> Resu
     if receipts.len() > MAX_RECEIPTS {
         return Err("Too many action receipts".into());
     }
+    let mut seen = BTreeMap::new();
     for receipt in receipts {
         if receipt.client != state.recipient
             || receipt.request_id == 0
             || receipt.applied_at > state.tick
         {
             return Err("Action receipt has an invalid recipient, ID or tick".into());
+        }
+        if seen
+            .insert(receipt.request_id, receipt)
+            .is_some_and(|previous| previous != receipt)
+        {
+            return Err("Conflicting action receipts reuse a request ID".into());
         }
         match &receipt.result {
             Ok(SharedEffect::Gathered(harvest)) => {
@@ -870,6 +1032,16 @@ fn validate_receipts(state: &SharedSnapshot, receipts: &[SharedReceipt]) -> Resu
                 }
             }
             Ok(SharedEffect::BandageCrafted) => {}
+            Ok(
+                SharedEffect::TradeOffered { offer_id }
+                | SharedEffect::TradeAccepted { offer_id }
+                | SharedEffect::TradeClosed { offer_id },
+            ) if *offer_id == 0 => return Err("Trade receipt offer ID must be nonzero".into()),
+            Ok(
+                SharedEffect::TradeOffered { .. }
+                | SharedEffect::TradeAccepted { .. }
+                | SharedEffect::TradeClosed { .. },
+            ) => {}
             Err(error) if error.len() > MAX_STRING => {
                 return Err("Action refusal exceeds the string limit".into());
             }
@@ -900,6 +1072,18 @@ fn put_receipts(out: &mut WireWriter, receipts: &[SharedReceipt]) -> Result<(), 
                 out.put_u32(*id);
             }
             Ok(SharedEffect::BandageCrafted) => out.put_u8(4),
+            Ok(SharedEffect::TradeOffered { offer_id }) => {
+                out.put_u8(5);
+                out.put_u64(*offer_id);
+            }
+            Ok(SharedEffect::TradeAccepted { offer_id }) => {
+                out.put_u8(6);
+                out.put_u64(*offer_id);
+            }
+            Ok(SharedEffect::TradeClosed { offer_id }) => {
+                out.put_u8(7);
+                out.put_u64(*offer_id);
+            }
             Err(error) => {
                 out.put_u8(3);
                 put_string(out, error)?;
@@ -928,6 +1112,15 @@ fn read_receipts(input: &mut Reader<'_>) -> Result<Vec<SharedReceipt>, String> {
             2 => Ok(SharedEffect::FoundationPlaced { id: input.u32()? }),
             3 => Err(input.string()?),
             4 => Ok(SharedEffect::BandageCrafted),
+            5 => Ok(SharedEffect::TradeOffered {
+                offer_id: input.u64()?,
+            }),
+            6 => Ok(SharedEffect::TradeAccepted {
+                offer_id: input.u64()?,
+            }),
+            7 => Ok(SharedEffect::TradeClosed {
+                offer_id: input.u64()?,
+            }),
             _ => return Err("Unknown standalone receipt result".into()),
         };
         receipts.push(SharedReceipt {
@@ -1027,6 +1220,9 @@ impl<'a> Reader<'a> {
     }
     fn u32(&mut self) -> Result<u32, String> {
         self.wire.get_u32().map_err(|error| error.to_string())
+    }
+    fn u64(&mut self) -> Result<u64, String> {
+        self.wire.get_u64().map_err(|error| error.to_string())
     }
     fn f32(&mut self) -> Result<f32, String> {
         self.wire.get_f32().map_err(|error| error.to_string())

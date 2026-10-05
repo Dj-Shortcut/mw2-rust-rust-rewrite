@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
-use survival::{SharedAction, SharedReceipt, SharedSnapshot};
+use survival::{SharedAction, SharedEffect, SharedReceipt, SharedSnapshot};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(2);
 const INPUT_MAX_AGE: Duration = Duration::from_millis(250);
@@ -48,7 +48,7 @@ pub(super) struct NetworkUpdate {
 #[derive(Clone, Copy)]
 enum PendingAction {
     Queued(SharedAction),
-    Sent { id: u32 },
+    Sent { id: u32, action: SharedAction },
 }
 
 struct Mailbox {
@@ -299,6 +299,17 @@ fn publish(
         if mailbox.receipts.len().saturating_add(receipts.len()) > MAX_RECEIPTS {
             return Err("The server receipt buffer is full; the connection was closed".into());
         }
+        let mut action_completed = false;
+        if let Some(PendingAction::Sent { id, action }) = mailbox.pending {
+            for receipt in &receipts {
+                if id == receipt.request_id {
+                    if !matches_trade_receipt(action, &receipt.result) {
+                        return Err("The server returned a mismatched trade receipt".into());
+                    }
+                    action_completed = true;
+                }
+            }
+        }
         let became_connected = status.connected() && !mailbox.status.connected();
         mailbox.reset_controls |= reset_controls || became_connected;
         if !status.connected() || mailbox.reset_controls {
@@ -308,11 +319,8 @@ fn publish(
             mailbox.neutralize();
             mailbox.cancel_queued("The unsent action was canceled because input became stale");
         }
-        for receipt in &receipts {
-            if matches!(mailbox.pending, Some(PendingAction::Sent { id }) if id == receipt.request_id)
-            {
-                mailbox.pending = None;
-            }
+        if action_completed {
+            mailbox.pending = None;
         }
         mailbox.receipts.extend(receipts);
         mailbox.status = status;
@@ -348,7 +356,10 @@ fn prepare_input(
                 .checked_add(1)
                 .ok_or("The action request sequence is exhausted; reconnect to continue")?;
             // Reserve before unlocking so pause cannot erase an action during socket issuance.
-            mailbox.pending = Some(PendingAction::Sent { id: request_id });
+            mailbox.pending = Some(PendingAction::Sent {
+                id: request_id,
+                action,
+            });
             Some(ActionRequest { request_id, action })
         }
         _ => None,
@@ -362,6 +373,36 @@ fn fail_mailbox(shared: &Mutex<Mailbox>, error: String) {
         mailbox.reset_controls = true;
         mailbox.neutralize();
         mailbox.cancel_queued("The unsent action was canceled because the connection failed");
+    }
+}
+
+fn matches_trade_receipt(action: SharedAction, result: &Result<SharedEffect, String>) -> bool {
+    let Ok(effect) = result else {
+        return true;
+    };
+    match (action, effect) {
+        (SharedAction::OfferBandage, SharedEffect::TradeOffered { offer_id }) => *offer_id != 0,
+        (
+            SharedAction::AcceptTrade { offer_id: expected },
+            SharedEffect::TradeAccepted { offer_id },
+        )
+        | (
+            SharedAction::CloseTrade { offer_id: expected },
+            SharedEffect::TradeClosed { offer_id },
+        ) => *offer_id == expected && *offer_id != 0,
+        (
+            SharedAction::OfferBandage
+            | SharedAction::AcceptTrade { .. }
+            | SharedAction::CloseTrade { .. },
+            _,
+        )
+        | (
+            _,
+            SharedEffect::TradeOffered { .. }
+            | SharedEffect::TradeAccepted { .. }
+            | SharedEffect::TradeClosed { .. },
+        ) => false,
+        _ => true,
     }
 }
 

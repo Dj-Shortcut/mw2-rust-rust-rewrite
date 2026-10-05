@@ -162,6 +162,7 @@ pub(super) fn setup(
             position_type: PositionType::Absolute,
             left: px(16),
             top: px(16),
+            max_width: percent(97.5),
             padding: UiRect::all(px(12)),
             ..default()
         },
@@ -192,7 +193,7 @@ pub(super) fn present(
     mut visuals: ResMut<Visuals>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut cameras: Query<(&mut Camera, &mut Transform), With<AssignedCamera>>,
-    mut hud: Query<&mut Text, With<Hud>>,
+    mut hud: Query<(&mut Text, &mut TextFont), With<Hud>>,
     mut reticles: Query<&mut Node, With<Reticle>>,
 ) {
     match server.get_load_states(visuals.operator.id()) {
@@ -265,9 +266,13 @@ pub(super) fn present(
     let (ghost, hint) = interaction(&connection, &controls);
     refresh_ghost(&mut commands, &mut visuals, ghost);
     let content = status(&connection, &controls, &visuals.model_status, &hint);
-    for mut text in &mut hud {
+    for (mut text, mut font) in &mut hud {
         if **text != content {
             **text = content.clone();
+        }
+        let font_size = FontSize::Px(if controls.inventory { 14. } else { 18. });
+        if font.font_size != font_size {
+            font.font_size = font_size;
         }
     }
     for mut node in &mut reticles {
@@ -586,8 +591,7 @@ fn status(connection: &Connection, controls: &Controls, model_status: &str, hint
         content.push_str(&format!("\n{model_status}"));
     }
     if controls.paused {
-        content
-            .push_str("\nInput paused. Shared world continues.\nEsc / Controller Start to resume");
+        content.push_str("\nInput paused.\nEsc / Controller Start to resume");
     } else if !controls.focused {
         content.push_str("\nFocus this window to control your player.");
     }
@@ -604,7 +608,7 @@ fn status(connection: &Connection, controls: &Controls, model_status: &str, hint
             }
         }
         if controls.help {
-            content.push_str("\nCrafting needs 4 Cloth and room for the output.\nEsc / Controller Start pauses your input; the world keeps running.\nF1 hide help");
+            content.push_str("\nCrafting needs 4 Cloth and room for the output.\nPausing stops your input; it does not cancel a posted offer.\nF1 hide help");
         } else {
             content.push_str("\nEsc pause | F1 help");
         }

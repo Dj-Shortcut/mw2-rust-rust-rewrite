@@ -66,8 +66,9 @@ pub use markers::{Marker, MarkerKind, Waypoint, bearing, compass_heading};
 pub use radiation::{MAX_RADIATION, RADIATION_RADIUS, RADIATION_SICK};
 pub use rainbarrel::{BARREL_FILL_SECONDS, BARREL_REACH, BARREL_WATER, RainBarrel, SavedBarrel};
 pub use shared::{
-    ActorHandle, SHARED_STEP_MS, SharedAction, SharedEffect, SharedReceipt, SharedRequest,
-    SharedSession, SharedSnapshot, shared_replica,
+    ActorHandle, SHARED_STEP_MS, SHARED_TRADE_REACH, SHARED_TRADE_TICKS, SHARED_TRADE_WOOD,
+    SharedAction, SharedEffect, SharedReceipt, SharedRequest, SharedSession, SharedSnapshot,
+    SharedTradeOffer, SharedTradeOutcome, SharedTradeOutcomeKind, SharedTradeParty, shared_replica,
 };
 pub use skate::{SavedGrind, SavedSkate, SkateEvent, SkateInput, SkateState, SkateStep};
 pub use stash::{STASH_REACH, Stash};

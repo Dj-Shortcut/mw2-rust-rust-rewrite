@@ -11,8 +11,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 mod crafting;
+mod trading;
 
 pub const SHARED_STEP_MS: i32 = 50;
+pub const SHARED_TRADE_WOOD: u32 = 25;
+pub const SHARED_TRADE_REACH: f32 = 100.0;
+pub const SHARED_TRADE_TICKS: u32 = 600;
 
 pub fn shared_replica(nodes: Vec<ResourceNode>) -> Result<SimWorld, String> {
     let terrain = Terrain::new(731);
@@ -62,6 +66,42 @@ pub enum SharedAction {
     PlaceWoodFoundation,
     GatherCloth,
     CraftBandage,
+    OfferBandage,
+    AcceptTrade { offer_id: u64 },
+    CloseTrade { offer_id: u64 },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SharedTradeParty {
+    pub client: ClientId,
+    pub owner: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SharedTradeOffer {
+    pub id: u64,
+    pub seller: SharedTradeParty,
+    pub buyer: SharedTradeParty,
+    pub created_at: Tick,
+    pub expires_at: Tick,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SharedTradeOutcomeKind {
+    Accepted,
+    Cancelled,
+    Declined,
+    Expired,
+    Unavailable,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SharedTradeOutcome {
+    pub offer_id: u64,
+    pub seller: SharedTradeParty,
+    pub buyer: SharedTradeParty,
+    pub closed_at: Tick,
+    pub kind: SharedTradeOutcomeKind,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -76,6 +116,9 @@ pub enum SharedEffect {
     Gathered(Harvest),
     FoundationPlaced { id: u32 },
     BandageCrafted,
+    TradeOffered { offer_id: u64 },
+    TradeAccepted { offer_id: u64 },
+    TradeClosed { offer_id: u64 },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -96,6 +139,8 @@ pub struct SharedSnapshot {
     pub owners: Vec<(ClientId, u32)>,
     pub recipient: ClientId,
     pub inventory: Inventory,
+    pub trade_offer: Option<SharedTradeOffer>,
+    pub trade_outcome: Option<SharedTradeOutcome>,
 }
 
 impl SharedSnapshot {
@@ -168,6 +213,7 @@ struct Actor {
     initializing: bool,
     highest_request: u32,
     receipts: BTreeMap<u32, (SharedAction, SharedReceipt)>,
+    trade_outcome: Option<SharedTradeOutcome>,
 }
 
 struct PreparedRequest {
@@ -185,6 +231,8 @@ pub struct SharedSession {
     admissions: usize,
     tick: u32,
     fault: Option<String>,
+    trade: Option<trading::LiveTrade>,
+    next_trade_id: u64,
 }
 
 impl SharedSession {
@@ -205,6 +253,8 @@ impl SharedSession {
             admissions: 0,
             tick: 0,
             fault: None,
+            trade: None,
+            next_trade_id: 1,
         })
     }
 
@@ -268,6 +318,7 @@ impl SharedSession {
                 initializing: true,
                 highest_request: 0,
                 receipts: BTreeMap::new(),
+                trade_outcome: None,
             },
         );
         self.admissions += 1;
@@ -277,6 +328,7 @@ impl SharedSession {
     pub fn disconnect(&mut self, actor: ActorHandle) -> Result<(), String> {
         self.check_running()?;
         self.actor(actor)?;
+        self.invalidate_departing_trade(actor);
         self.actors.remove(&actor.client);
         // Script-owned players retire on a later authority step.
         self.retiring.insert(actor.client);
@@ -393,6 +445,7 @@ impl SharedSession {
             &mut self.gathering,
             SHARED_STEP_MS as f32 / 1000.,
         );
+        self.advance_trade();
 
         let mut receipts = Vec::with_capacity(prepared.len());
         for entry in prepared {
@@ -446,6 +499,8 @@ impl SharedSession {
                 .collect(),
             recipient: actor.client,
             inventory: state.inventory.clone(),
+            trade_offer: self.trade_offer_for(actor),
+            trade_outcome: state.trade_outcome,
         })
     }
 
@@ -489,6 +544,9 @@ impl SharedSession {
                     .inventory = inventory;
                 Ok(SharedEffect::BandageCrafted)
             }
+            SharedAction::OfferBandage => self.offer_bandage(actor),
+            SharedAction::AcceptTrade { offer_id } => self.accept_trade(actor, offer_id),
+            SharedAction::CloseTrade { offer_id } => self.close_trade(actor, offer_id),
             SharedAction::PlaceWoodFoundation => {
                 let (preview, candidate) = actor_building_placement(
                     &self.world,

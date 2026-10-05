@@ -1,7 +1,6 @@
 # Native connected PC client
 
 Implemented development route; the bounded Linux keyboard/Mesa flow is verified.
-Gather/build task: [#251](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/251).
 
 ## Start and content
 Host: `cargo run -p launcher --profile play --locked -- server --bind 127.0.0.1:28980`.
@@ -28,20 +27,21 @@ Read-only Tree/Hemp hints and foundation ghosts use confirmed shared placement r
 WASD/mouse move/look; Shift sprint, Space jump, Ctrl crouch.
 F gathers Tree/Hemp; B toggles Wood foundation mode; Left click submits placement.
 I / Controller Up opens inventory; C / Controller X crafts one Bandage for 4 Cloth.
+Inventory: V / Right offers; Enter / A accepts; Backspace / B cancels or declines.
 Esc pauses local controls/releases the mouse; F1 shows English help.
 Controller: LS/RS move/look, LS-click sprint, A jump, B crouch,
 Y gather, Back foundation mode, RT place, Start local pause.
 Focus loss, pause, admission and failure neutralize movement and new actions.
 Original operator loading gates input; load failure closes the connection with an error.
 HUD shows confirmed Wood, 200-Wood foundation cost and pending/refusal feedback.
-[Cloth gathering and recipient inventory](CONNECTED-CRAFTING.md) are implemented.
+[Cloth/inventory](CONNECTED-CRAFTING.md) and [player trading](CONNECTED-TRADING.md) are implemented.
 Combat, timed crafting/healing, skating/editor, upgrades/doors and save/load
 remain outside this route; no offline Session is created as fallback.
 
 ## Verification and limits
 The earlier gather/build slice passed 61 preview, 70 software-input and
 46 actual worker/socket checks; its bounded 24 shipping and 101 observer
-window checks cover that slice. Current Cloth evidence is in the linked guide.
+window checks cover that slice. Current Cloth/trade evidence is in the linked guides.
 `cargo test` succeeds with 0 permanent tests; these are ignored behavior probes.
 The Cloth slice uses one server and two independent clients, with unequal
 positive inventories, finite stock, exact costs and historical receipt replay.
