@@ -2,7 +2,9 @@
 
 Design for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266).
 Source target: `mods/rust/plugins/ShortcutLoadouts.cs`; stock Rust remains the base.
-This design precedes implementation; no plugin/server gameplay is verified yet.
+Design published before implementation; source now exists and compiles locally.
+See [installation/configuration and exact source evidence](../mods/rust/plugins/README.md).
+No real plugin load or server gameplay is verified yet.
 
 ## Player and configuration contract
 

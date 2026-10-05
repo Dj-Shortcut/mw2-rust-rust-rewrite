@@ -1,6 +1,6 @@
 # Rust PC server preparation
 
-Development bootstrap for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266). **No loadout/damage plugin is included yet.** These scripts have not installed or started a real Windows Rust server. Do not treat them as a verified playable demo.
+Development bootstrap for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266). [Loadout/damage source](../plugins/README.md) is included; real loading is unverified. These scripts have not installed or started a real Windows Rust server. Do not treat them as a verified playable demo.
 
 ## Choose a permitted host first
 
@@ -33,6 +33,6 @@ Existing `server.cfg`/`serverauto.cfg` files are preserved. Ordinary scalar sett
 
 Before connecting, an integrator must see `Server startup complete`, check `oxide.version` and actual UDP/TCP listeners (game/query loopback; no unwanted RCON/Rust+ listener). Only then connect from the same Windows machine in Rust's F1 console: `connect 127.0.0.1:28015`. On a Mac keyboard, Fn+F1 may be needed in Shadow. A separate host needs separately reviewed access/bind settings; this local launcher does not expose a public server. No EAC-secure-server compatibility is claimed for Shadow.
 
-Stop the server through its interactive console using `quit` and wait for exit. For updates, stop first and follow the publishers' SteamCMD-then-matching-Oxide order; this first installer intentionally refuses update mode. The mod has no plugin to unload yet. Keep installation files, saves, configs, screenshots with account details and credentials outside GitHub.
+Stop the server through its interactive console using `quit` and wait for exit. For updates, stop first and follow the publishers' SteamCMD-then-matching-Oxide order; this first installer intentionally refuses update mode. Use the [plugin removal instructions](../plugins/README.md) for plugin source. Keep installation files, saves, configs, screenshots with account details and credentials outside GitHub.
 
 Sources: [Facepunch server setup](https://wiki.facepunch.com/rust/Creating-a-server), [Oxide installation](https://docs.oxidemod.com/guides/owners/install-oxide), [Rust+ disable syntax](https://wiki.facepunch.com/rust/rust-companion-server), [EAC-disabled client](https://support.facepunchstudios.com/hc/en-us/articles/15041503601437-Launching-Rust-with-EAC-disabled-RustClient-exe), [current insecure-server flag](https://rust.facepunch.com/news/maintenance), [Shadow hosting restriction](https://support.shadow.tech/hc/en-us/articles/32731830348305-Rules-and-Restrictions-on-Shadow).
