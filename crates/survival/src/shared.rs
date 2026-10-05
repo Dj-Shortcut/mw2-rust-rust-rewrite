@@ -69,6 +69,7 @@ pub enum SharedAction {
     OfferBandage,
     AcceptTrade { offer_id: u64 },
     CloseTrade { offer_id: u64 },
+    PlaceWoodWall { axis: u8 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -119,6 +120,7 @@ pub enum SharedEffect {
     TradeOffered { offer_id: u64 },
     TradeAccepted { offer_id: u64 },
     TradeClosed { offer_id: u64 },
+    WallPlaced { id: u32 },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -166,6 +168,28 @@ impl SharedSnapshot {
     ) -> Result<BuildingPlacementPreview, String> {
         let owner = self.preview_owner(replica)?;
         Ok(actor_building_placement(replica, self.recipient, owner, Kind::Foundation, 0).0)
+    }
+
+    pub fn wall_preview(
+        &self,
+        replica: &SimWorld,
+        axis: u8,
+    ) -> Result<BuildingPlacementPreview, String> {
+        if axis > 1 {
+            return Err("Wall axis must be 0 or 1".into());
+        }
+        let owner = self.preview_owner(replica)?;
+        let mut expected = self.sim.players.iter();
+        let mut matches = true;
+        replica.visit_players(|client, player| {
+            matches &= expected
+                .next()
+                .is_some_and(|(id, state)| client == *id && player == state);
+        });
+        if !matches || expected.next().is_some() {
+            return Err("Preview snapshot and replica players do not match".into());
+        }
+        Ok(actor_building_placement(replica, self.recipient, owner, Kind::Wall, axis).0)
     }
 
     fn preview_owner(&self, replica: &SimWorld) -> Result<u32, String> {
@@ -566,6 +590,29 @@ impl SharedSession {
                     .place(actor.owner, Kind::Foundation, socket, grounded)
                     .map_err(|error| error.to_string())?;
                 Ok(SharedEffect::FoundationPlaced { id })
+            }
+            SharedAction::PlaceWoodWall { axis } => {
+                if axis > 1 {
+                    return Err("Wall axis must be 0 or 1".into());
+                }
+                let (preview, candidate) = actor_building_placement(
+                    &self.world,
+                    actor.client,
+                    actor.owner,
+                    Kind::Wall,
+                    axis,
+                );
+                let (socket, grounded) = candidate.ok_or_else(|| {
+                    preview
+                        .error
+                        .unwrap_or_else(|| "No wall placement target".into())
+                })?;
+                let id = self
+                    .world
+                    .buildings_mut()
+                    .place(actor.owner, Kind::Wall, socket, grounded)
+                    .map_err(|error| error.to_string())?;
+                Ok(SharedEffect::WallPlaced { id })
             }
         }
     }

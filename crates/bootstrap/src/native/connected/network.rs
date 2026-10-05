@@ -303,8 +303,8 @@ fn publish(
         if let Some(PendingAction::Sent { id, action }) = mailbox.pending {
             for receipt in &receipts {
                 if id == receipt.request_id {
-                    if !matches_trade_receipt(action, &receipt.result) {
-                        return Err("The server returned a mismatched trade receipt".into());
+                    if !matches_action_receipt(action, &receipt.result) {
+                        return Err("The server returned a mismatched action receipt".into());
                     }
                     action_completed = true;
                 }
@@ -376,11 +376,15 @@ fn fail_mailbox(shared: &Mutex<Mailbox>, error: String) {
     }
 }
 
-fn matches_trade_receipt(action: SharedAction, result: &Result<SharedEffect, String>) -> bool {
+fn matches_action_receipt(action: SharedAction, result: &Result<SharedEffect, String>) -> bool {
     let Ok(effect) = result else {
         return true;
     };
     match (action, effect) {
+        (SharedAction::PlaceWoodWall { axis }, SharedEffect::WallPlaced { id }) => {
+            axis <= 1 && *id != 0
+        }
+        (SharedAction::PlaceWoodWall { .. }, _) | (_, SharedEffect::WallPlaced { .. }) => false,
         (SharedAction::OfferBandage, SharedEffect::TradeOffered { offer_id }) => *offer_id != 0,
         (
             SharedAction::AcceptTrade { offer_id: expected },

@@ -41,9 +41,21 @@ acceptatie en een atomische serveroverdracht. De echte TCP-flow slaagt voor 55
 controles; twee native clients voor 115 en gewone executables voor 38 beperkte
 venstercontroles. Alle vijf gelabelde volledige-inventoryweergaven passen op 720p.
 Zie [handel en verificatiegrenzen](docs/CONNECTED-TRADING.md).
-De volgende geclaimde bouwstap is een gedeelde Wood-muur van 100 Wood, met
-stukselectie en twee richtingen. Dit is nog niet geïmplementeerd; zie
-[het verbonden bouwontwerp](docs/CONNECTED-BUILDING.md).
+Verbonden Wood-muren zijn aanwezig: Foundation kost 200 Wood en Wall 100,
+met stukselectie en twee richtingen. De actuele reviewcorrecties vermijden een
+kopie van alle bouwwerken per speler en tonen gemengde meldingen als “Last notice”.
+De nieuwste tracecorrectie slaagt voor 32813 exacte botsings-/stuk-ID-vergelijkingen.
+In een gelabelde wereld met 4096 stukken gebruikt een verre trace geen buffers;
+de lokale muurtrace gebruikt twee allocaties tegenover 8534 in de oude trace.
+Dit is geen timingmeting; de metadata wordt nog lineair doorlopen.
+De volledige geoptimaliseerde Linux-build, authority62/2582 command-terugschrijvingen
+en echte TCP70/71 slagen op deze bronversie. Nieuwe native115/118 slagen met
+afzonderlijke root/onafhankelijke reviews van beide meldingsbeelden en alle acht
+kostenbeelden; de gewone executable slaagt voor49 beperkte venstercontroles plus
+zes originele kostenreviews. Dit is Linux/Mesa/localhost-bewijs, geen hardwaretest.
+Eerdere codec/invoer/mailbox/panel- en vijf720p-fixtures behouden hun eigen bron-/fixturescope.
+Strikte mislukte OCR/breedteruns blijven bewaard; ze zijn niet alsnog goedgekeurd.
+Integratie blijft pending. Zie [bediening en grenzen](docs/CONNECTED-BUILDING.md).
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
 software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone
 executables doorlopen 24 beperkte toetsenbord/Mesa-venstercontroles. Daarnaast
@@ -135,7 +147,11 @@ Join gebruikt de eigen modellen: F verzamelt Tree/Hemp, I opent je inventory
 en C maakt daar één Bandage voor 4 Cloth. In dat panel biedt V / Controller Right
 één Bandage aan voor 25 Wood. De koper accepteert met Enter / Controller A;
 Backspace / Controller B annuleert of weigert het huidige aanbod.
-B en Left click plaatsen een Wood foundation. `game` blijft offline.
+B / Controller Back opent bouwmodus: Left / Controller Left kiest Foundation
+(200 Wood), Right / Controller Right kiest Wall (100 Wood). Q / Controller LB
+wisselt een geselecteerde Wall tussen X-axis en Y-axis; bij Foundation verandert
+het niets. Left click / Controller RT vraagt plaatsing aan de server.
+Selectie/rotatie/modewissels plaatsen niets in dezelfde frame. `game` blijft offline.
 Esc pauzeert lokale bediening; een geplaatst aanbod blijft tot annulatie/verval
 actief en verloopt na 30 seconden servertijd. F1 toont de verbonden bediening.
 De beperkte verzamelen→craften→ruilen-route is op Linux/Mesa gecontroleerd.

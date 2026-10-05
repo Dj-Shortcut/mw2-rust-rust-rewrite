@@ -17,7 +17,7 @@ No server saves or authenticated reconnect restoration are added.
 ## Transport and admission
 Use nonblocking std TCP with a 4-byte LE length and maximum 256 KiB body.
 Reject zero/oversized lengths before allocation, unknown magic/version/tags,
-trailing data and invalid bounded payloads. Standalone envelope version is 3;
+trailing data and invalid bounded payloads. Standalone envelope version is 4;
 preserve inherited protocol95 codecs. Both peers must use the same build.
 Allow two actors and two pending admissions; handshake/application deadline 5s.
 Bound input to one frame, service to four messages per peer/iteration, queued

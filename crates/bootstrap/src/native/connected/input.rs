@@ -214,13 +214,52 @@ pub(super) fn sample(
     }
     controls.command = command;
     controls.active = true;
-    if keys.just_pressed(KeyCode::KeyB) || pad_just_pressed(GamepadButton::Select) {
-        controls.building = !controls.building;
-        controls.notice = Some(if controls.building {
-            "Wood foundation mode enabled".into()
+    let mode = keys.just_pressed(KeyCode::KeyB) || pad_just_pressed(GamepadButton::Select);
+    let building_controls = controls.building || mode;
+    let foundation = building_controls
+        && (keys.just_pressed(KeyCode::ArrowLeft) || pad_just_pressed(GamepadButton::DPadLeft));
+    let wall = building_controls
+        && (keys.just_pressed(KeyCode::ArrowRight) || pad_just_pressed(GamepadButton::DPadRight));
+    let rotate = building_controls
+        && (keys.just_pressed(KeyCode::KeyQ) || pad_just_pressed(GamepadButton::LeftTrigger));
+    let intents = [mode, foundation, wall, rotate]
+        .into_iter()
+        .filter(|pressed| *pressed)
+        .count();
+    if intents > 1 {
+        controls.notice = Some("Choose one building control: mode, piece or rotate".into());
+        return;
+    }
+    if intents == 1 {
+        if connection.pending {
+            controls.notice = Some("The previous action is still pending".into());
+        } else if mode {
+            controls.building = !controls.building;
+            let kind = if controls.building_wall {
+                "wall"
+            } else {
+                "foundation"
+            };
+            let state = if controls.building {
+                "enabled"
+            } else {
+                "disabled"
+            };
+            controls.notice = Some(format!("Wood {kind} mode {state}"));
+        } else if foundation {
+            controls.building_wall = false;
+            controls.notice = Some("Wood foundation selected | Cost: 200 Wood".into());
+        } else if wall {
+            controls.building_wall = true;
+            controls.notice = Some("Wood wall selected | Cost: 100 Wood".into());
+        } else if controls.building_wall {
+            controls.wall_axis = u8::from(controls.wall_axis == 0);
+            let axis = if controls.wall_axis == 0 { "X" } else { "Y" };
+            controls.notice = Some(format!("Wood wall rotated | Axis: {axis}"));
         } else {
-            "Wood foundation mode disabled".into()
-        });
+            controls.notice = Some("Select Wall to rotate".into());
+        }
+        return;
     }
     let gather = keys.just_pressed(KeyCode::KeyF) || pad_just_pressed(GamepadButton::North);
     let place = controls.building
@@ -251,7 +290,13 @@ pub(super) fn sample(
                 Err(error) => controls.notice = Some(error),
             }
         } else {
-            controls.action = Some(SharedAction::PlaceWoodFoundation);
+            controls.action = Some(if controls.building_wall {
+                SharedAction::PlaceWoodWall {
+                    axis: controls.wall_axis,
+                }
+            } else {
+                SharedAction::PlaceWoodFoundation
+            });
         }
     }
 }
