@@ -28,7 +28,7 @@ Older complete gathering saves gain these plants without changing saved old node
 All new offline Bandage crafting reserves Cloth, including queue/cancel/refund.
 Death refunds fit available storage; excess reserved Cloth is discarded.
 Older already-paid queued Bandages retain their legacy payment/refund compatibility.
-The standalone envelope becomes version 2; imported protocol 95/schema 1 remain.
+Current standalone envelope is 3 after trading; imported protocol 95/schema 1 stay.
 Only the recipient's carried stacks are sent; building resource ledgers remain public.
 Fresh admissions receive new ownership and empty inventory, without restoration.
 
@@ -41,9 +41,9 @@ A holds 6 Cloth/1 Bandage, B holds 2 Cloth/2 Bandages; 20 = 8 + 3 × 4.
 Old saves/paid jobs, finite stock, full-slot atomicity and replay are covered.
 Two actual-source native windows pass 98 keyboard/Mesa flow checks.
 Two unmodified shipping windows pass 32 bounded keyboard/Mesa smoke checks.
-English 720p panels/primitive Hemp are reviewed; no full24-slot GPU proof.
+English panels/Hemp are reviewed; full24 layout is verified in the linked trade guide.
 All probes stay ignored; cargo test has 0 permanent test scenarios.
-Wood-for-Bandage trade is a later roadmap item, separate from Cloth crafting.
-Connected timed crafting, Bandage healing, trading, other recipes, combat/skating,
+[Wood-for-Bandage trading](CONNECTED-TRADING.md) now exists separately from crafting.
+Connected timed crafting, Bandage healing, other recipes, combat/skating,
 private building balances and server persistence are outside this slice.
 No Windows gameplay, physical controllers/audio, two-machine/internet or release proof.

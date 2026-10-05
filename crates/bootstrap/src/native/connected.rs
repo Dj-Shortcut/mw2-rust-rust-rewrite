@@ -138,6 +138,15 @@ fn receive(mut connection: ResMut<Connection>, mut controls: ResMut<Controls>) {
             Ok(SharedEffect::Gathered(harvest)) => gather_feedback(harvest),
             Ok(SharedEffect::FoundationPlaced { .. }) => "Wood foundation placed".into(),
             Ok(SharedEffect::BandageCrafted) => "Bandage crafted | Used 4 Cloth".into(),
+            Ok(SharedEffect::TradeOffered { offer_id }) => {
+                format!("Trade offer #{offer_id} posted")
+            }
+            Ok(SharedEffect::TradeAccepted { offer_id }) => {
+                format!("Trade #{offer_id} accepted")
+            }
+            Ok(SharedEffect::TradeClosed { offer_id }) => {
+                format!("Trade offer #{offer_id} closed")
+            }
             Err(error) => error,
         };
     }

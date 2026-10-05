@@ -13,7 +13,7 @@ The inherited run/import guides below document optional upstream modes.
 | [`DIRECT-MULTIPLAYER.md`](DIRECT-MULTIPLAYER.md) | bounded direct TCP server/client runtime and connected verification scope | implementing standalone transport |
 | [`NATIVE-MULTIPLAYER.md`](NATIVE-MULTIPLAYER.md) | Bevy join controls, connected input/presentation and verification limits | using or changing the native multiplayer client |
 | [`CONNECTED-CRAFTING.md`](CONNECTED-CRAFTING.md) | Cloth gathering, actor-owned Bandage crafting, private inventory and verification limits | extending connected survival |
-| [`CONNECTED-TRADING.md`](CONNECTED-TRADING.md) | consensual Wood-for-Bandage player trading; unimplemented design | extending the connected economy |
+| [`CONNECTED-TRADING.md`](CONNECTED-TRADING.md) | fixed Wood-for-Bandage player trading, controls and verified scope | extending the connected economy |
 | [`SHARED-AUTHORITY.md`](SHARED-AUTHORITY.md) | first actor-owned shared survival core and its verification boundaries | implementing the shared server world |
 | [`BUILDINGS.md`](BUILDINGS.md) | local host building, controller bindings, persistence and unfinished systems | using or changing construction |
 | [`CRAFTING.md`](CRAFTING.md) | native queue controls, payment/refund, pause and verification scope | using or changing queued crafting |

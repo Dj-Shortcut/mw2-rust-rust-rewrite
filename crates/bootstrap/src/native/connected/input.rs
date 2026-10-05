@@ -4,7 +4,7 @@ use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use playerstate_iw4::{UserCmd, buttons};
-use survival::{ResourceKind, SharedAction};
+use survival::{ResourceKind, SharedAction, SharedTradeOffer};
 
 pub(super) fn sample(
     keys: Res<ButtonInput<KeyCode>>,
@@ -124,11 +124,36 @@ pub(super) fn sample(
     }
     if controls.inventory {
         controls.active = true;
-        if keys.just_pressed(KeyCode::KeyC) || pad_just_pressed(GamepadButton::West) {
+        let craft = keys.just_pressed(KeyCode::KeyC) || pad_just_pressed(GamepadButton::West);
+        let offer = keys.just_pressed(KeyCode::KeyV) || pad_just_pressed(GamepadButton::DPadRight);
+        let accept = keys.just_pressed(KeyCode::Enter) || pad_just_pressed(GamepadButton::South);
+        let close = keys.just_pressed(KeyCode::Backspace) || pad_just_pressed(GamepadButton::East);
+        let intents = [craft, offer, accept, close]
+            .into_iter()
+            .filter(|pressed| *pressed)
+            .count();
+        if intents > 1 {
+            controls.notice = Some("Choose one action: craft, offer, accept or close".into());
+        } else if intents == 1 {
             if connection.pending {
                 controls.notice = Some("The previous action is still pending".into());
-            } else {
+            } else if craft {
                 controls.action = Some(SharedAction::CraftBandage);
+            } else if offer {
+                controls.action = Some(SharedAction::OfferBandage);
+            } else if let Some(trade) = confirmed_trade_offer(&connection) {
+                if accept {
+                    if assigned.is_some_and(|(client, _)| client == trade.buyer.client) {
+                        controls.action = Some(SharedAction::AcceptTrade { offer_id: trade.id });
+                    } else {
+                        controls.notice =
+                            Some("Only the addressed buyer can accept this offer".into());
+                    }
+                } else {
+                    controls.action = Some(SharedAction::CloseTrade { offer_id: trade.id });
+                }
+            } else {
+                controls.notice = Some("No trade offer is available for you".into());
             }
         }
         return;
@@ -229,6 +254,39 @@ pub(super) fn sample(
             controls.action = Some(SharedAction::PlaceWoodFoundation);
         }
     }
+}
+
+fn confirmed_trade_offer(connection: &Connection) -> Option<SharedTradeOffer> {
+    let world = connection.world.as_ref()?;
+    let snapshot = &world.snapshot;
+    let offer = snapshot.trade_offer?;
+    if offer.id == 0
+        || offer.created_at.0 > snapshot.tick.0
+        || snapshot.tick.0 >= offer.expires_at.0
+        || offer.seller.client == offer.buyer.client
+        || offer.seller.owner == offer.buyer.owner
+        || ![offer.seller, offer.buyer]
+            .iter()
+            .any(|party| party.client == snapshot.recipient)
+    {
+        return None;
+    }
+    for party in [offer.seller, offer.buyer] {
+        let mut owners = snapshot
+            .owners
+            .iter()
+            .filter(|(client, _)| *client == party.client);
+        if owners.next().copied() != Some((party.client, party.owner))
+            || owners.next().is_some()
+            || world
+                .replica
+                .player(party.client)
+                .is_none_or(|player| player.health <= 0)
+        {
+            return None;
+        }
+    }
+    Some(offer)
 }
 
 fn packed_angle(degrees: f32) -> i32 {

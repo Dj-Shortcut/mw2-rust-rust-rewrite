@@ -36,9 +36,11 @@ De native `join IP:PORT`-route is aanwezig voor een ongewapend gather/build-prot
 met Hemp→Cloth→Bandage en een eigen bevestigde inventory. Bandages kosten 4 Cloth;
 hout blijft bouwmateriaal. De verbonden flow en oude offline saves worden
 afzonderlijk gecontroleerd. Zie [Cloth en crafting](docs/CONNECTED-CRAFTING.md).
-De volgende geplande stap is vrijwillige handel tussen spelers: één Bandage
-voor 25 hout, met expliciete acceptatie en een atomische serveroverdracht.
-Dit is nog niet geïmplementeerd; zie [het handelsontwerp](docs/CONNECTED-TRADING.md).
+Vrijwillige spelershandel is aanwezig: één Bandage voor 25 Wood, met expliciete
+acceptatie en een atomische serveroverdracht. De echte TCP-flow slaagt voor 55
+controles; twee native clients voor 115 en gewone executables voor 38 beperkte
+venstercontroles. Alle vijf gelabelde volledige-inventoryweergaven passen op 720p.
+Zie [handel en verificatiegrenzen](docs/CONNECTED-TRADING.md).
 De geoptimaliseerde Linux-build en afzonderlijke controles van previews (61),
 software-invoer (70) en de echte netwerkworker (46) slagen. Twee gewone
 executables doorlopen 24 beperkte toetsenbord/Mesa-venstercontroles. Daarnaast
@@ -127,10 +129,13 @@ cargo run -p launcher --profile play --locked -- join 127.0.0.1:28980
 ```
 
 Join gebruikt de eigen modellen: F verzamelt Tree/Hemp, I opent je inventory
-en C maakt daar één Bandage voor 4 Cloth. B en Left click plaatsen een Wood
-foundation. `game` blijft offline. Esc pauzeert lokale
-bediening terwijl de gedeelde wereld doorgaat; F1 toont de verbonden bediening.
-De beperkte native verzamelen→fundering-route is op Linux/Mesa gecontroleerd.
+en C maakt daar één Bandage voor 4 Cloth. In dat panel biedt V / Controller Right
+één Bandage aan voor 25 Wood. De koper accepteert met Enter / Controller A;
+Backspace / Controller B annuleert of weigert het huidige aanbod.
+B en Left click plaatsen een Wood foundation. `game` blijft offline.
+Esc pauzeert lokale bediening; een geplaatst aanbod blijft tot annulatie/verval
+actief en verloopt na 30 seconden servertijd. F1 toont de verbonden bediening.
+De beperkte verzamelen→craften→ruilen-route is op Linux/Mesa gecontroleerd.
 Stop de server met Ctrl+C.
 
 De launcher kiest standaard hetzelfde zelfstandige native startpad. De eigen
