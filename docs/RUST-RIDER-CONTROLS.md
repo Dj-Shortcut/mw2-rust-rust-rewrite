@@ -1,7 +1,7 @@
 # Rider lifecycle and control fencing
 
 Part of [the full existing-Rust mod](RUST-MW2-SKATE.md); [task #283](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/283).
-Status: design-first source task; no native adapter or playable claim.
+Status: source compiled against genuine server Mono references; 115 temporary actual-DLL cases pass.
 
 ## Boundary and API
 
@@ -9,7 +9,7 @@ Original C#7.3 `mods/rust/shared/RiderControlSession.cs`, transportless and boun
 Its net48 project references actual [gunplay](RUST-GUNPLAY-CORE.md)/[skate](RUST-SKATE-CORE.md) projects.
 It owns identity, release gates, one candidate and cleanup acknowledgement.
 Weapon UID state, physics, inventory, firing and networking stay with the adapter.
-The trusted adapter serializes native effects, lifecycle and settlement.
+The adapter serializes effects/lifecycle/settlement; historical `Current` authorizes no new effects.
 Host-issued Guid identities/leases provide fencing, not authentication.
 Create requires positive player ID, nonempty runtime/life IDs and bounded host tick.
 Prepare requires the exact next 10ms tick, confirmed `GunPose` and board lease.
@@ -23,22 +23,22 @@ Foreign, reused, stale, overlapping and out-of-order operations publish nothing.
 
 ## Release and settlement
 
-Fire/Reload/Jump start locked and relock on mode change, missing input or rejection.
+Fire/Reload/Jump start locked; mode/lease changes, missing input and rejection relock.
 Only explicit false buttons clear gates; missing input is not a release.
 Held Fire while locked uses Unavailable, preserving the release requirement.
 Reload/Jump true are suppressed until explicit release; entering Skating relocks Jump.
-No input produces no actions and Unavailable; historical input is never replayed.
+No input gives no actions/Unavailable; the adapter rejects backlog and admits only fresh current-tick samples.
 Confirmed mode reaches Gunplay before ticking, so mount/bail beats reload completion.
 The adapter preserves every UID state and advances holstered guns at the same tick.
 Applied publishes the prepared frame and release gates.
 RejectedNoEffects consumes tick/sequence, retains confirmed mode/lease and relocks.
 Its fallback is Unavailable/no actions; settle the same core tick from original/
 reconciled state, preserving ammo/cadence. No core reset or native atomicity is claimed.
-UnknownPartial closes control and requires reconciliation; it claims no rollback.
+UnknownPartial closes control; acknowledgement requires trusted reconciliation of ambiguous native effects, with no rollback claim.
 
 ## Lifecycle and verification
 
-Death/disconnect/reload/stop invalidates pending work even without safe dismount.
+Death/disconnect/reload/stop invalidates even without safe dismount; ambiguous work uses UnknownPartial.
 A stable exact cleanup ticket retains committed and pending confirmed board leases
 (at most two distinct leases). Retry is idempotent until exact acknowledgement.
 Old/foreign tickets cannot acknowledge cleanup for replacement lives or boards.
