@@ -8,7 +8,7 @@ The inherited run/import guides below document optional upstream modes.
 | file | about | when to read |
 |---|---|---|
 | [`AUTONOMY.md`](AUTONOMY.md) | standing authorization, task ownership and verification | continuing work or coordinating agents |
-| [`RUST-MW2-SKATE.md`](RUST-MW2-SKATE.md) | full existing-Rust MW2 gunplay/skate goal, client feasibility and complete acceptance | planning the finished mod rather than a component |
+| [`RUST-MW2-SKATE.md`](RUST-MW2-SKATE.md) / [client-loader gate](RUST-CLIENT-LOADER.md) | full existing-Rust MW2 gunplay/skate goal, exact client feasibility and complete acceptance | planning the finished mod and proving its client route |
 | [`RUST-SERVER-PLUGIN.md`](RUST-SERVER-PLUGIN.md) | implemented loadout/PvP source, configuration contract and real-server acceptance | installing or changing the Oxide plugin |
 | [`RUST-SERVER-HOSTING.md`](RUST-SERVER-HOSTING.md) | self-managed host capabilities, cost approval and real-host acceptance | choosing an existing PC or a permitted rental |
 | [`RUST-SERVER-LINUX.md`](RUST-SERVER-LINUX.md) | guarded Linux installer, portable plan and real-host control gates | preparing a permitted Linux Rust/Oxide host |
