@@ -1,11 +1,15 @@
 # TODO — pc-survival met FPS en skaten
 
-## Actief: kleine mod voor bestaande Rust-pc-game
+## Actief: bestaande Rust-pc-game met MW2-gunplay en skateboarden
 
 De eigenaar parkeerde de zelfstandige rewrite op 5 oktober 2026.
-[Issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266) en
-[het modplan](docs/RUST-SERVER-MOD.md) bepalen nu het werk. Geen nieuwe
-rewrite-implementatie of automatische rewrite-loop starten.
+Op 6 oktober verduidelijkte hij dat klaar **MW2-geïnspireerde gunplay én skateboarden** betekent.
+[Volledige acceptatie](docs/RUST-MW2-SKATE.md) / [#275](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/275) bepalen dat doel.
+[Issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266) en [het componentplan](docs/RUST-SERVER-MOD.md) behandelen alleen loadouts/schade.
+Geen nieuwe rewrite-implementatie of automatische rewrite-loop starten.
+
+- [ ] Server/client-route bewijzen voor echt MW2-geïnspireerd wapengedrag en een zichtbaar bestuurbaar skateboard; gewone Oxide-hooks bewijzen deze clientmogelijkheden niet.
+- [ ] Volledige verbonden klasse→schieten/ADS/reload→board/push/trick/rail/landen→afstappen/schieten-flow zelf verifiëren, inclusief twee clients, survival/TC en lifecycle-/foutgevallen. Geen component als afgeronde mod of als tussenbuild aan de eigenaar laten testen.
 
 - [x] Windows-servervoorbereidingsbroncode: officiële SteamCMD/Oxide, nieuwe installatiemap en argumentpreview zijn aanwezig. PowerShell 7.6.6/Linux parseert beide scripts; 32 tijdelijke installerasserties en 14 preview-/weigercases slagen. Installerchecks gebruiken eigen kleine IO-fixtures, geen echte gamebestanden. Windows-installatie, junctions/drivegedrag en runtime zijn nog niet bewezen. [Handleiding](mods/rust/server/README.md).
 - [x] P1-bronfixes: vooroudercontrole stopt ook bij een zelfverwijzende schijfroot; de launcher accepteert gewone scalaire saved-configinstellingen en weigert conflicterende beschermde waarden. Zeven tijdelijke providerasserties en 32 configasserties op eigen fixtures slagen. Dit bewijst geen native Windows-hang, echte Rust-configsave of serverrestart.
@@ -16,9 +20,9 @@ rewrite-implementatie of automatische rewrite-loop starten.
 - [x] PvP-Bullet-broncode: begrensde factor 0.1–4 (standaard 1), aparte aanvallerpermissie en vastgelegde vuurwapenprefab; uitsluitend verbonden verschillende menselijke spelers en Bullet-component. NPC-/gebouw-/TC-/raid-/andere schade blijft buiten de wijziging; echte PvP is nog niet bewezen.
 - [x] Plugin lokaal op macOS/arm64 compileren tegen echte Steam-serverreferenties (app258550/depot258552/manifest8588463972864888654), officiële Oxide2.0.7801 en .NET SDK8.0.425: geen fouten/waarschuwingen. 93 tijdelijke controles van echte productiehelpers/configschema slagen; onafhankelijke bronreview uitgevoerd. Geen nep-Rust-API, permanente tests of runtimebewijs.
 - [ ] Plugin werkelijk laden; volledige flow en weigeringen zelf op een echte Rust/Oxide-server controleren, inclusief cleanup/hooks en twee clients voor PvP.
-- [ ] Pas daarna een geverifieerde mod-demo met installatie-, start- en verwijderinstructies leveren. Carbon, MW2-assets en skate-physics vallen buiten deze eerste mod.
+- [ ] Loadout/schadecomponent met installatie-, start- en verwijderinstructies op een echte server verifiëren; dit is alleen componentbewijs. De volledige mod-demo vereist ook de hierboven beschreven MW2-gunplay/skate-flow en complete eigen verificatie.
 
-**Modstatus: servervoorbereiding en lokaal gecompileerde pluginbron aanwezig; echte server-/speelverificatie en release ontbreken.**
+**Productstatus: servervoorbereiding en loadout/schadecomponentbron aanwezig; MW2-gunplay, skateboarden, volledige speelverificatie en release ontbreken.**
 Plugin- en Linux-voorbereidingsbron zijn op `main` gemerged via [#269](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/269) en [#270](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/270); de echte runtime-acceptatie hierboven blijft open.
 De eigenaar wil het bronwerk afgerond voordat hij hosting bestelt; huur niets zonder zijn keuze en concrete kostenakkoord.
 Shadow Gaming Neo heeft 16 GB RAM en staat serverhosting niet toe. Volgens het
