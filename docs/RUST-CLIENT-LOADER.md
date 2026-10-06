@@ -1,6 +1,5 @@
 # Exact Rust Windows client-loader gate
-Part of [full acceptance](RUST-MW2-SKATE.md); [diagnosis #289](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/289).
-Status: official empty-loader probe failed; subsequent bare-client recovery passed.
+Part of [full acceptance](RUST-MW2-SKATE.md) / [diagnosis #289](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/289): official loader failed, bare recovery passed.
 This is development evidence, not installation or an owner-playtest request.
 ## Actual Windows observations, 6 October 2026
 The local Mac launcher reached Shadow Windows with working mouse/typed commands.
@@ -35,15 +34,16 @@ Validate table strides, owners and parameter spans before interpreting accessor 
 Five original mechanism fixtures used explicit cache scaffolding; actual Windows
 metadata parsing now separately found 175 empty and 938 nonempty getterless setters.
 Checked owner/accessor/parameter relationships passed; full byte geometry is pending.
-[Correction design](../mods/rust/client/generator/README.md): preserve property indices
-and methods; omit only noninferable wrappers; invalid present accessors still fail.
-Upstream #548 closed without merge; no correction is implemented or approved yet.
+[Correction source/build](../mods/rust/client/generator/README.md) preserves indices/methods;
+omits only noninferable wrappers; invalid relationships and output references fail.
+Clean Mac source build passed (41 nullable/source-link warnings/0 errors), 54 DLL fixture checks
+and two original-DLL reproductions; corrected retail parsing/runtime remain pending.
+Upstream #548 closed without merge; its closure establishes no current approval.
 Review any generator correction/licence before retry; only passing empty-loader
 generation/menu/normal-exit/rollback permits a log-only Load probe.
 That callback proves no Unity frame hooks, input or native game adapters.
 ## Remaining acceptance
-No compatible client extension or complete mod is verified on this exact installation.
-A loader marker cannot prove weapon/camera/input adapters, visible board/rider,
+No compatible client extension/full mod is verified. A marker cannot prove weapon/camera/input adapters, visible board/rider,
 network movement, lifecycle cleanup or the complete two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.
 The owner tests after source completion and our full verification; no intermediate playtest.
