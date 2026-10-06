@@ -57,6 +57,8 @@ try {
         $DotNetPath = Join-Path $sdkDirectory 'dotnet.exe'
     }
     $DotNetPath = (Resolve-Path -LiteralPath $DotNetPath).Path
+    $installedSdk = @(& $DotNetPath --list-sdks) -match ('^' + [Regex]::Escape($inputs.sdkVersion) + ' \[')
+    if ($LASTEXITCODE -ne 0 -or !$installedSdk) { throw "Required SDK $($inputs.sdkVersion) is not installed at $DotNetPath" }
     if (!$GitPath) {
         $gitCommand = Get-Command git -CommandType Application -ErrorAction SilentlyContinue
         if ($gitCommand) { $GitPath = $gitCommand.Source }

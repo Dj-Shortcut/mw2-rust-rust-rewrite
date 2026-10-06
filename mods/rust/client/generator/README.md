@@ -1,8 +1,8 @@
 # Bounded property-signature generator correction
 
 Source for [issue #289](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/289).
-The correction and a clean Mac source build are verified; corrected Windows
-metadata parsing, complete interop generation and installation remain pending.
+The correction and clean source builds on Mac and actual Windows are verified.
+Actual Windows metadata loads; full property coverage, complete interop generation and installation remain unfinished.
 No playable mod is available. This supports the [offline loader gate](../../../../docs/RUST-CLIENT-LOADER.md).
 
 ## Observed failure and behavior
@@ -39,7 +39,7 @@ Use PowerShell 7.4 or later. Review these source files before execution.
 From a checkout, run with an absolute, new build directory outside any game:
 
 ```powershell
-./Build-Generator.ps1 -Destination C:\Users\Shadow\Downloads\rust-generator-build
+./Build-Generator.ps1 -Destination (Join-Path $HOME 'rust-generator-build')
 ```
 
 On Windows, omitted tool paths download digest-checked official portable SDK9.0.318
@@ -50,14 +50,19 @@ copy of the pinned upstream ZIP. No installer, game copy or global profile is us
 If fetching only this folder, `fetch-generator.ps1 -Commit <40-character repository
 commit> -Destination <new absolute folder>` downloads immutable reviewable source,
 records the commit, and performs no build or installation. Keep that fetch script
-and commit tied to the reviewed repository revision.
+and commit tied to the reviewed repository revision. A failed fetch preserves its
+partial directory for diagnosis and writes no success manifest. Retry with a
+different new absolute destination; partial files are never reused or deleted.
 Patch application pins LF output per invocation, independent of user/global Git
 line-ending settings. The first native Windows attempt stopped at the source-hash
 gate because Git converted patched source to CRLF; the failed directory is preserved.
 A private clean-archive reproduction matched the observed CRLF hash under adverse
 Git settings (0/8 source hashes matched); the corrected invocation matched all eight
 pinned source hashes while preserving the caller settings. Recipe syntax passed.
-A fresh corrected Windows build remains required.
+A fresh corrected Windows build completed with 41 upstream/archive warnings and
+zero errors; its stage manifest has the expected Core/Lib assembly identities.
+Actual corrected LoadFromFile returned true with unchanged retail hashes. The full
+property scan remains blocked; complete loader generation is unverified.
 The build verifies the source archive, patch, resulting eight source files, package
 source configuration and four separate locks. It restores the original framework
 graph in locked mode, then builds net6 with SDK9/C#13. Keep upstream assembly-version
@@ -73,7 +78,8 @@ Project-authored corrections and build/fetch recipes follow Apache-2.0 in
 No upstream binary, checkout, private fixture, generated reference or retail file ships.
 
 ## Verification and offline retry gate
-A clean source build using the published recipe passed on macOS/arm64: 38 upstream nullable and 3 archive source-link warnings, zero errors. Both resulting DLLs decode as neutral,
+Clean source builds using the published recipe passed on macOS/arm64 and actual
+Shadow Windows: 38 upstream nullable and 3 archive source-link warnings, zero errors. The Mac DLLs decode as neutral,
 unsigned net6 assemblies2022.1.0.0 with informational version2022.1.0-rust-property.1;
 Core's Lib/Stable reference versions match the official dependency identities.
 54 temporary authored assertions against those actual DLLs passed, covering v39
@@ -83,7 +89,16 @@ paired/indexer/setter-only emissions. Two original-DLL fixture cases separately
 reproduced the empty-setter exception and wrong first-parameter indexer value.
 Primitive binary and image maps are controlled scaffolding, not retail registration.
 Attribute payloads and truly parameterized generic-interface round trips remain unproved.
-No permanent test was added. These results prove no Windows parser or gameplay flow.
+No permanent test was added. Authored fixtures prove no retail gameplay flow.
+The fresh actual Windows parser read the unchanged retail binary/metadata and
+handled the original empty-setter case without cache injection. All 71,422 real
+RawPropertyType metadata getters were then invoked: 44,622 resolved, 175 getterless empty setters
+were tagged, and 26,625 getter-plus-empty-setter cases threw the explicit
+"Property setter has no value parameter" guard. A second scan classified all
+26,625 exceptions under that prefix. Full property coverage has not passed;
+these cases require a documented correction before any loader retry.
+57 temporary recipe checks passed for actual SDK availability/caller-policy
+distinction and mocked download failure preservation/retry; both scripts parse.
 
 Review the exact patch/licences before a staged Windows correction is tried.
 A changed DLL's bytes do not alone invalidate BepInEx's cache: preserve/retire the
