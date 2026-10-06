@@ -17,7 +17,7 @@ oxide.grant user <SteamID64> shortcutloadouts.damage
 ```
 
 In chat, `/loadout carbine` requests the default AK plus 120 rifle rounds. It requires permission, a connected/alive/awake/non-wounded human, enough empty main/belt slots and a 60-second successful-grant cooldown. It never clears inventory, stacks, swaps or deliberately drops kit items. Requests do not target another player.
-Failure cleans up tracked newly created items; other plugins' independent side effects cannot be globally undone. A cleanup veto/error disables both features and logs the created UID for the administrator. Reload clears cooldowns; disconnect does not clear an active cooldown.
+Failure cleans up tracked newly created items; other plugins' independent side effects cannot be globally undone. A detected item-removal veto/error disables both features and logs the created UID for the administrator. Entity-destruction vetoes may leave orphan entities and require real-server conflict checks. Reload clears cooldowns; disconnect does not clear an active cooldown.
 
 ## Configuration and removal
 
