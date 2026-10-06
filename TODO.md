@@ -9,6 +9,7 @@ Op 6 oktober verduidelijkte hij dat klaar **MW2-geïnspireerde gunplay én skate
 Geen nieuwe rewrite-implementatie of automatische rewrite-loop starten.
 
 - [ ] Server/client-route bewijzen voor echt MW2-geïnspireerd wapengedrag en een zichtbaar bestuurbaar skateboard; gewone Oxide-hooks bewijzen deze clientmogelijkheden niet.
+- [x] Gedeelde C#-skatebesturingsbron: mount, push/sturen/remmen, hellingzwaartekracht, ollie, spin/flip, botsing/landen/bail en gecontroleerd afstappen. Echte module op macOS tegen echte Mono-referenties gecompileerd; 69 tijdelijke scenario’s tegen de echte gecompileerde module met analytische wereldfixtures slagen (0 buildfouten/waarschuwingen). [Contract en grenzen](docs/RUST-SKATE-CORE.md). Geen native adapter, zichtbare board/rider, rails, replicatie of speelbewijs.
 - [ ] Volledige verbonden klasse→schieten/ADS/reload→board/push/trick/rail/landen→afstappen/schieten-flow zelf verifiëren, inclusief twee clients, survival/TC en lifecycle-/foutgevallen. Geen component als afgeronde mod of als tussenbuild aan de eigenaar laten testen.
 
 - [x] Windows-servervoorbereidingsbroncode: officiële SteamCMD/Oxide, nieuwe installatiemap en argumentpreview zijn aanwezig. PowerShell 7.6.6/Linux parseert beide scripts; 32 tijdelijke installerasserties en 14 preview-/weigercases slagen. Installerchecks gebruiken eigen kleine IO-fixtures, geen echte gamebestanden. Windows-installatie, junctions/drivegedrag en runtime zijn nog niet bewezen. [Handleiding](mods/rust/server/README.md).
@@ -22,7 +23,7 @@ Geen nieuwe rewrite-implementatie of automatische rewrite-loop starten.
 - [ ] Plugin werkelijk laden; volledige flow en weigeringen zelf op een echte Rust/Oxide-server controleren, inclusief cleanup/hooks en twee clients voor PvP.
 - [ ] Loadout/schadecomponent met installatie-, start- en verwijderinstructies op een echte server verifiëren; dit is alleen componentbewijs. De volledige mod-demo vereist ook de hierboven beschreven MW2-gunplay/skate-flow en complete eigen verificatie.
 
-**Productstatus: servervoorbereiding en loadout/schadecomponentbron aanwezig; MW2-gunplay, skateboarden, volledige speelverificatie en release ontbreken.**
+**Productstatus: servervoorbereiding, loadout/schade en gedeelde skatebesturingsbron aanwezig; native MW2-gunplay/skateboarden, volledige speelverificatie en release ontbreken.**
 Plugin- en Linux-voorbereidingsbron zijn op `main` gemerged via [#269](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/269) en [#270](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/270); de echte runtime-acceptatie hierboven blijft open.
 De eigenaar wil het bronwerk afgerond voordat hij hosting bestelt; huur niets zonder zijn keuze en concrete kostenakkoord.
 Shadow Gaming Neo heeft 16 GB RAM en staat serverhosting niet toe. Volgens het
