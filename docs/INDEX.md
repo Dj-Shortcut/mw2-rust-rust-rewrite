@@ -12,6 +12,7 @@ The inherited run/import guides below document optional upstream modes.
 | [`AUTONOMY.md`](AUTONOMY.md) | standing authorization, task ownership and verification | continuing work or coordinating agents |
 | [`RUST-SERVER-MOD.md`](RUST-SERVER-MOD.md) | existing-Rust mod direction, Windows server setup design and acceptance | preparing or contributing to the small server mod |
 | [`RUST-SERVER-HOSTING.md`](RUST-SERVER-HOSTING.md) | self-managed host capabilities, cost approval and real-host acceptance | choosing an existing PC or a permitted rental |
+| [`RUST-SERVER-LINUX.md`](RUST-SERVER-LINUX.md) | guarded Linux installer, portable plan and real-host control gates | preparing a permitted Linux Rust/Oxide host |
 | [`MULTIPLAYER.md`](MULTIPLAYER.md) | standalone shared-world milestone, authority boundaries and two-client acceptance; design only | working on core multiplayer |
 | [`DIRECT-MULTIPLAYER.md`](DIRECT-MULTIPLAYER.md) | bounded direct TCP server/client runtime and connected verification scope | implementing standalone transport |
 | [`NATIVE-MULTIPLAYER.md`](NATIVE-MULTIPLAYER.md) | Bevy join controls, connected input/presentation and verification limits | using or changing the native multiplayer client |

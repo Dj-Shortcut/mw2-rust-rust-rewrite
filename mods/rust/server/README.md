@@ -1,10 +1,12 @@
 # Rust PC server preparation
 
-Development bootstrap for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266). [Loadout/damage source](../plugins/README.md) is included; real loading is unverified. These scripts have not installed or started a real Windows Rust server. Do not treat them as a verified playable demo.
+Development bootstrap for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266). [Loadout/damage source](../plugins/README.md) is included; real loading is unverified. The PowerShell scripts have not installed or started a real Windows Rust server. Do not treat them as a verified playable demo.
+
+For Linux installation preparation and read-only preview, see [LINUX.md](LINUX.md). Native Linux installation/startup remains unverified.
 
 ## Choose a permitted host first
 
-An existing suitable PC or a self-managed rental can run the official dedicated server. See the [hosting capability and acceptance checklist](../../../docs/RUST-SERVER-HOSTING.md) before choosing. These scripts execute only on Windows; Linux/Oxide is a separate setup path. A rental needs the owner's choice and approval of concrete costs. Local Mac source access does not prove server startup or remote-client reachability.
+An existing suitable PC or a self-managed rental can run the official dedicated server. See the [hosting capability and acceptance checklist](../../../docs/RUST-SERVER-HOSTING.md) before choosing. The PowerShell scripts execute only on Windows; Linux/Oxide is a separate setup path. A rental needs the owner's choice and approval of concrete costs. Local Mac source access does not prove server startup or remote-client reachability.
 
 Use a Windows 64-bit machine where server hosting is permitted, with at least **12 GiB available RAM** and **20 GiB free local disk**. The Rust client needs additional resources; use a separate server when cohosting does not fit. Shadow Gaming prohibits server hosting, and Neo has 16 GB total RAM: leave Shadow as the owner's reported insecure-client setup, not the server. A Rust Console Edition/Xbox server cannot load this PC plugin framework. No paid infrastructure is provisioned by these scripts.
 

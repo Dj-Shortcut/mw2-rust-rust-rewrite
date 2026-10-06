@@ -8,8 +8,8 @@ A suitable host has not been selected; no server or playable mod is verified.
 We can install the official dedicated server ourselves through SteamCMD app
 258550 and add matching Oxide. Stock Rust supplies the world and game rules.
 Use Windows or Linux for the published [Oxide packages](https://docs.oxidemod.com/guides/owners/install-oxide).
-The repository's [preparation scripts](../mods/rust/server/README.md) execute on
-Windows only; Linux setup needs its own reviewed instructions and verification.
+Use [Windows preparation/startup](../mods/rust/server/README.md) or [Linux installation preparation](../mods/rust/server/LINUX.md).
+Each needs its corresponding native host; Linux startup/control and all real-host acceptance remain pending.
 [Facepunch](https://wiki.facepunch.com/rust/Creating-a-server) lists 12 GB free RAM
 and 15 GB free disk; reserve 20 GiB disk for our preparation, plus OS resources.
 An existing suitable PC avoids a server rental; power and connectivity still matter.
