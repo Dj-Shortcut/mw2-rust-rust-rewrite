@@ -40,7 +40,25 @@ The corrected Windows build passed with 41 warnings/0 errors; Core/Lib stay outs
 Patched LoadFromFile returned true with unchanged retail hashes; original crash case passes.
 All 71,422 RawPropertyType metadata getters were invoked: 44,622 resolved, 175 tagged getterless empty setters,
 26,625 getter-plus-empty-setter exceptions, all classified by the explicit no-value guard.
-Raw getter scan:26,618 VOID,seven non-VOID,null0/errors0. [Bounded accessor correction](../mods/rust/client/generator/README.md#bounded-accessor-correction) now implemented: omit VOID/empty-setter wrappers, preserve non-VOID getters and reject suppressed-setter references. Current Mac build passes (41 warnings/0 errors);106 authored DLL checks pass, including16 serialized V29 payload cases. Generic local-index resolution is unsupported. Actual .2 Windows build passes (41 warnings/0 errors); all71,422 raw-property calls pass (44,629 resolved,175 getterless empty setters tagged,26,618 VOID/empty-setter tagged,0 exceptions). Full Core initialization completes with162 assemblies and AttributeInjector PreProcess/Process returns without exception once. First managed BuildAssemblies then fails with four type failures, each `Property type cannot be void`. Further native classification finds22,588 additional raw VOID getters (22,574 without setters,14 with one-parameter setters; none getterless) among the resolved count. The [proposed bounded correction](../mods/rust/client/generator/README.md#proposed-remaining-void-getter-correction) omits these wrappers after relationship validation while retaining methods/slots and output-reference guards. Implementation and verification remain pending. Full managed PE round trip, interop generation/runtime and loader retry remain open; no output libraries or installation were produced by this probe.
+Raw getter scan: 26,618 VOID, seven non-VOID, zero nulls/errors.
+[Bounded accessor correction](../mods/rust/client/generator/README.md#bounded-accessor-correction)
+omits VOID/empty-setter wrappers, preserves non-VOID getters and rejects suppressed-setter references.
+The .2 Mac build passed (41 warnings, 0 errors) and 106 authored DLL checks passed,
+including 16 serialized V29 payload cases. Generic local-index resolution is unsupported.
+Actual .2 Windows build passed (41 warnings, 0 errors); all 71,422 raw-property calls
+passed: 44,629 resolved, 175 getterless empty setters tagged, 26,618 VOID/empty-setter
+tagged, zero exceptions. Full Core initialization completed with 162 assemblies;
+AttributeInjector PreProcess/Process returned without exception once.
+First managed BuildAssemblies then failed with four type failures, each
+`Property type cannot be void`. Further native classification found 22,588 additional
+raw VOID getters among the resolved count: 22,574 without setters, 14 with one-parameter
+setters, none getterless. No output libraries or installation were produced.
+
+The [remaining bounded correction](../mods/rust/client/generator/README.md#remaining-void-getter-correction)
+omits these wrappers after relationship validation, retains methods/slots and rejects
+managed VOID interface getters before association. Its .3 source builds on Mac with
+41 warnings and zero errors; all 182 authored DLL checks pass. Fresh native .3 build,
+full managed PE round trip, interop generation/runtime and loader retry remain open.
 Upstream #548 closed without merge; its closure establishes no current approval.
 Review corrections/licences before retry; only passing empty-loader generation/menu/exit/rollback permits a log-only Load probe.
 That callback proves no Unity frame hooks, input or native game adapters.
@@ -48,3 +66,4 @@ That callback proves no Unity frame hooks, input or native game adapters.
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.
 The owner tests after source completion and full verification; choose/rent no host without owner choice and concrete cost approval.
+

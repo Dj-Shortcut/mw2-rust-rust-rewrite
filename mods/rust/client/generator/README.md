@@ -1,9 +1,10 @@
 # Bounded property-signature generator correction
 
 Source for [issue #289](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/289).
-The accessor correction (.2) builds on Mac and actual Shadow Windows.
-Its full metadata-property scan and Core initialization pass; managed assembly output
-is blocked by additional VOID getters. Complete interop generation and installation remain unfinished.
+The .3 correction builds on Mac and passes 182 authored temporary checks.
+Actual Shadow Windows .2 verification reached Core initialization and exposed additional
+VOID getters during managed output; the fresh .3 native generation gate is pending.
+Complete interop generation and installation remain unfinished.
 No playable mod is available. This supports the [offline loader gate](../../../../docs/RUST-CLIENT-LOADER.md).
 
 ## Observed failure and behavior
@@ -102,7 +103,7 @@ to a suppressed setter fail explicitly, including an implementing suppressed
 setter targeting an ordinary interface setter. Stable method semantics skip
 omitted wrappers. Core type resolution and managed signature checks still apply.
 
-The current clean Mac build passed with 41 warnings and zero errors. The actual
+The previous .2 clean Mac build passed with 41 warnings and zero errors. Its actual
 Core/Lib DLLs decode as neutral unsigned net6 assemblies2022.1.0.0 with embedded
 informational version2022.1.0-rust-property.2; Core's Lib/Stable reference versions
 match official dependency identities. All 106 temporary authored checks against
@@ -127,7 +128,7 @@ VOID getters: 22,574 without setters, 14 with one-parameter setters. None is get
 Four type failures are not a count of all invalid properties. No generated library
 was written, loader installed or retry attempted on the mutated context.
 
-### Proposed remaining VOID-getter correction
+### Remaining VOID-getter correction
 Resolve every present getter after both accessor-owner and parameter-span checks.
 For exact raw VOID, tag and omit the entire wrapper regardless of setter presence
 or count; retain both original method contexts and property slots. Preserve the
@@ -140,9 +141,24 @@ Pointer-to-VOID remains eligible; unresolved eligible types and malformed relati
 Keep managed VOID rejection and named-attribute/interface reference guards.
 Getterless setter-value VOID and class/value-type aliases are outside this change.
 
-Implementation, new authored fixtures and a fresh native build remain pending.
-Full generation must pass before the corrected empty loader can meet its offline
-menu/exit/rollback gate.
+The .3 source implements this correction. A fresh pinned Mac recipe build passed
+with 41 upstream/archive warnings and zero errors; all nine patched source hashes
+and four unchanged package locks match. Actual neutral unsigned net6 Core/Lib DLLs
+have assembly version 2022.1.0.0 and informational version 2022.1.0-rust-property.3.
+All 182 authored checks against those DLLs pass; their fixture build has zero warnings
+and errors. The 76 new checks were also run against the genuine .2 DLLs: 53 fail,
+including six interface cases that emitted the offending association before rejection.
+The .3 checks retain valid generic getters, ordinary VOID interface methods, shared
+setters and pointer-to-VOID, and reject malformed accessors, unresolved getter types,
+missing managed getter signatures and model-only interface getter associations.
+No parameter cache or retail bytes were supplied to these authored fixtures.
+
+Fresh Windows .3 build, full raw-property scan, Core initialization, managed assembly
+output and interop generation remain pending. Arithmetic targets for the raw scan
+are 22,041 typed, 175 getterless-empty omissions, 26,618 old VOID/empty omissions
+and 22,588 new VOID omissions, with zero exceptions; these are not measured .3 results.
+Full native generation must pass before the corrected empty loader can meet its
+offline menu/exit/rollback gate.
 
 57 temporary recipe checks passed for actual SDK availability/caller-policy
 distinction and mocked download failure preservation/retry; both scripts parse.

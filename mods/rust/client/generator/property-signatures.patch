@@ -163,7 +163,7 @@ index bcae340..5211e46 100644
  
                  if (stableName == null)
 diff --git a/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs b/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs
-index d0428fa..1b77e75 100644
+index d0428fa..6132df0 100644
 --- a/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs
 +++ b/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs
 @@ -168,7 +168,12 @@ public static class AsmResolverAssemblyPopulator
@@ -234,16 +234,19 @@ index d0428fa..1b77e75 100644
              {
                  foreach (var parameter in managedGetter.Parameters)
                  {
-@@ -537,12 +566,34 @@ public static class AsmResolverAssemblyPopulator
+@@ -537,12 +566,40 @@ public static class AsmResolverAssemblyPopulator
  
              foreach (var overrideContext in methodContext.Overrides)
              {
 +                var baseOverride = overrideContext;
 +                while (baseOverride is ConcreteGenericMethodAnalysisContext genericOverride)
 +                    baseOverride = genericOverride.BaseMethodContext;
++                var overridesPropertyGetter = false;
 +                if (baseOverride.DeclaringType != null)
 +                    foreach (var property in baseOverride.DeclaringType.Properties)
 +                    {
++                        if (property.Getter == baseOverride)
++                            overridesPropertyGetter = true;
 +                        if (!property.HasInferableSignature && (property.Getter == baseOverride || property.Setter == baseOverride))
 +                            property.RequireInferableSignature();
 +                        if (property.SuppressedSetter == baseOverride)
@@ -257,6 +260,9 @@ index d0428fa..1b77e75 100644
                  var method = methodContext.GetExtraData<MethodDefinition>("AsmResolverMethod") ?? throw new($"AsmResolver method not found in method analysis context for {methodContext}");
 -                type.MethodImplementations.Add(new MethodImplementation(interfaceMethod, method));
                  var interfaceMethodResolved = interfaceMethod.Resolve();
++                if ((overridesPropertyGetter || interfaceMethodResolved?.IsGetMethod == true) &&
++                    (method.Signature == null || method.Signature.ReturnType.ElementType == ElementType.Void))
++                    throw new InvalidOperationException($"Interface getter has no value type: {method.Name}");
                  if (interfaceMethodResolved != null)
                  {
 +                    if (interfaceMethodResolved.IsSetMethod)
@@ -270,7 +276,7 @@ index d0428fa..1b77e75 100644
                      if (interfaceMethodResolved.IsGetMethod && !method.IsGetMethod)
                      {
                          getMethodsToCreate ??= [];
-@@ -556,6 +607,7 @@ public static class AsmResolverAssemblyPopulator
+@@ -556,6 +613,7 @@ public static class AsmResolverAssemblyPopulator
                          setMethodsToCreate.Add((interfacePropertyResolved, interfaceMethod.DeclaringType!.ToTypeSignature(), method));
                      }
                  }
@@ -278,7 +284,7 @@ index d0428fa..1b77e75 100644
              }
          }
  
-@@ -585,6 +637,8 @@ public static class AsmResolverAssemblyPopulator
+@@ -585,6 +643,8 @@ public static class AsmResolverAssemblyPopulator
                  var (interfaceProperty, interfaceType, setMethod) = entry;
                  if (getMethodsToCreate?.Any(e => e.InterfaceProperty == interfaceProperty && SignatureComparer.Default.Equals(e.InterfaceType, interfaceType)) == true)
                      continue;
@@ -399,7 +405,7 @@ index 0384535..e1d2b49 100644
          }
          finally
 diff --git a/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs b/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs
-index 2d1b598..4687722 100644
+index 2d1b598..7641d99 100644
 --- a/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs
 +++ b/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs
 @@ -1,5 +1,4 @@
@@ -408,7 +414,7 @@ index 2d1b598..4687722 100644
  using LibCpp2IL.BinaryStructures;
  using LibCpp2IL.Reflection;
  
-@@ -14,36 +13,114 @@ public class Il2CppPropertyDefinition : ReadableClass, IIl2CppTokenProvider
+@@ -14,36 +13,116 @@ public class Il2CppPropertyDefinition : ReadableClass, IIl2CppTokenProvider
      [Version(Max = 24)] public int customAttributeIndex;
      public uint token;
  
@@ -482,12 +488,14 @@ index 2d1b598..4687722 100644
 +        if (setter != null)
 +            ValidateParameterSpan(setter);
 +        reason = null;
-+        if (getter != null && setter?.parameterCount == 0)
++        if (getter != null)
 +        {
 +            var type = getter.RawReturnType ?? throw new InvalidOperationException($"Unable to resolve property getter signature: {Name}");
 +            if (type.Type == Il2CppTypeEnum.IL2CPP_TYPE_VOID)
 +            {
-+                reason = "getter returns void and setter has no value parameter";
++                reason = setter?.parameterCount == 0
++                    ? "getter returns void and setter has no value parameter"
++                    : "getter returns void";
 +                return null;
 +            }
 +        }

@@ -11,8 +11,8 @@
   },
   "targetFramework": "net6.0",
   "assemblyVersion": "2022.1.0.0",
-  "informationalVersion": "2022.1.0-rust-property.2",
-  "patchSha256": "0468c9260a13a1d1708229b555f80f832ca1bdb0a1624e03dcc298db760cd187",
+  "informationalVersion": "2022.1.0-rust-property.3",
+  "patchSha256": "a37c138a7e846c4d4f9ea3a9259e1ec98bfff907a1391b1d28015ed9b882caa4",
   "lockFiles": {
     "Cpp2IL.Core.lock.json": "c10ee49a5d8e1c850d01aec7b59f6799f16d5d3568357061fa0a94394b377137",
     "LibCpp2IL.lock.json": "4c10813fcf1b1f7a37fcebeb2be5d7e23979462ca13f55c5692ddafb9ecf638e",
@@ -31,9 +31,9 @@
     "Cpp2IL.Core/Model/Contexts/TypeAnalysisContext.cs": "2e78b7ba24b76b02cfe331e9a285aba89f0535b20efaff71ccc8a60f4ef02c77",
     "Cpp2IL.Core/OutputFormats/DiffableCsOutputFormat.cs": "4d25a7748b4836c1ddfd616a6bb2169de57dad4951ede487c3aaf9938d5e5f78",
     "Cpp2IL.Core/ProcessingLayers/StableRenamingProcessingLayer.cs": "e57b79ce3d107839795bb739f1fa2f17c0476fda2fdabc0b177950c0d7f23850",
-    "Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs": "cd5ada8e9cfd8c63ef7727a933e79f3a13bcd408fd9d276b0c19f833215f4e00",
+    "Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs": "2e15cda15d1fa5a4d779c8fc8a73260d4cc23d80b8619b80a06f4e461690416c",
     "Cpp2IL.Core/Utils/V29AttributeUtils.cs": "2221ed772a586b0729d3a856e74faa01ad2f322c9f9647271ec83d9cb439a81c",
     "LibCpp2IL/Metadata/Il2CppMetadata.cs": "8416e0d60c8736bcd33c17ac8e838a7a671e7168057f6398ed8dafa34445050a",
-    "LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs": "17e60878aa1f68091119c44e706bd808ce258eb4c5ee97fcc5932d53359c95b0"
+    "LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs": "ec8a1f934ca96568fc4b535d7cf872f899e0ecfe5b58141ab2d64b57af5a7dba"
   }
 }
