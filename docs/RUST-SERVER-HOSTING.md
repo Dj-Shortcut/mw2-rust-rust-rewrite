@@ -30,7 +30,7 @@ Host Havoc declined the required startup flag in the owner's support exchange.
 - We can stop/start the server, read logs and use an authenticated server console.
 - We can install matching Oxide and our C# plugin, edit its config and permissions,
   reload/remove it and retain the installed Rust build/Oxide version evidence.
-- The remote Shadow client has a reviewed route to the game port for F1 direct join.
+- The remote Shadow client has a reviewed route to the UDP game port for F1 direct join.
   Query access is only needed for separately required discovery, not this direct join.
   The loopback launcher provides no remote route; review host-specific bindings
   and access rules before changes. No public RCON is required.
