@@ -1,4 +1,4 @@
-# Bounded property-signature generator correction
+# Property-signature and interop source generator
 
 Source for [issue #289](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/289).
 The .3 correction builds on Mac and actual Shadow Windows and passes 182 authored
@@ -6,8 +6,9 @@ temporary checks. Actual .3 raw-property scanning and Core initialization pass;
 first managed assembly generation fails with two encountered interface-getter
 value-type errors. This count is not a complete incompatible-type census.
 [Actual evidence and next diagnosis](../../../../docs/RUST-CLIENT-LOADER.md#interface-diagnosis-before-another-correction)
-retain the rejection pending vtable/slot/signature verification.
-Complete interop generation and installation remain unfinished.
+retain the strict rejection. The .4 [explicit source-model API](#explicit-interop-source-api)
+builds on Mac and passes 230 authored cases; full native interop generation and
+installation remain unfinished.
 No playable mod is available. This supports the [offline loader gate](../../../../docs/RUST-CLIENT-LOADER.md).
 
 ## Observed failure and behavior
@@ -68,7 +69,7 @@ The previous correction (.1) Windows build completed with 41 upstream/archive wa
 zero errors; its stage manifest has the expected Core/Lib assembly identities.
 Actual corrected LoadFromFile returned true with unchanged retail hashes. That revision
 blocked on paired empty setters; complete loader generation is unverified.
-The build verifies the source archive, patch, resulting nine source files, package
+The build verifies the source archive, patch, resulting ten source files, package
 source configuration and four separate locks. It restores the original framework
 graph in locked mode, then builds net6 with SDK9/C#13. Keep upstream assembly-version
 settings: Core/Lib/Wasm2022.1.0.0 and Stable0.1.0.0. Do not replace the other official
@@ -168,8 +169,8 @@ comes from Cpp2IL. Exact vtable/offset/slot diagnosis identifies one candidate a
 is a concrete generic method context and interface reflection reports IsGenericType=false. Both candidate table
 rows also match directly decoded metadata bytes. Upstream #567 leaves these pairs
 because both targets have empty interface-offset arrays. Registration provenance
-and a separately reviewed interop-source contract remain open; no signature or
-override was changed by this diagnostic work.
+and native validation of the explicit source-model contract remain open; no
+signature or override was changed by this diagnostic work.
 Full native generation must pass before the corrected empty loader can meet its
 offline menu/exit/rollback gate.
 
@@ -184,14 +185,36 @@ no server connection or Steam/EAC launch with the folder bootstrap present.
 Only complete empty-loader generation, responsive menus, normal exit and verified
 rollback permit a later log-only Load probe; that proves no native adapters.
 
-## Proposed explicit interop-source API
+## Explicit interop-source API
 
-Design only. [The separate source-model contract](../../../../docs/RUST-CLIENT-LOADER.md#proposed-interop-only-source-models)
-adds an explicitly selected in-memory interop input API while normal assembly
+The .4 source implements
+[the separate source-model contract](../../../../docs/RUST-CLIENT-LOADER.md#explicit-interop-only-source-models).
+It adds an explicitly selected in-memory interop input API while normal assembly
 generation and output remain strict. It omits all synthetic explicit-interface
 MethodImpl/property construction, preserving original metadata signatures and
 eligible original property semantics. Synthetic property APIs and semantic-based
 names can differ. It is not a return-type correction or a normal dummy-DLL export.
 The existing BepInEx default caller remains unchanged; a deliberate isolated
-offline consumer, fresh fixture/interop/native verification and output validation
-are required before installation. No such source mode is implemented yet.
+offline consumer, fresh native verification and output validation are required
+before installation. Interface-specific guards in the omitted synthetic phase
+are also absent in alternate mode; consumed original-property/type/attribute
+validation remains active. Strict generation still runs that phase.
+
+A build-attempt marker rejects reused contexts after success or failure, across
+modes and formatter instances, before output-directory creation. This excludes
+same-context reuse only: global caches still require one builder and a fresh
+process after failure. These metadata models must not be serialized as repaired
+normal dummy assemblies; the offline caller must prohibit that export.
+
+The pinned Mac .4 recipe passed with 41 upstream/archive warnings and 0 errors,
+ten changed-source hashes and four lock hashes checked. Its two staged neutral
+unsigned net6 libraries retain assembly version 2022.1.0.0, with informational
+version 2022.1.0-rust-property.4. All 230 authored checks pass: prior 182, plus
+26 complete public builder cases and 22 selected official-consumer cases. The
+fixture build has two nullable scaffold warnings and 0 errors. Raw VOID Core
+resolution in the authored builder fixture uses an authored corlib binding;
+raw fields remain independently asserted. Selected consumer passes and two
+Pass20 CIL inspections establish bounded metadata behavior, not a complete
+runner, generated PE validity, native resolution/calls or gameplay. Generic
+argument and constraint-target identity coverage is incomplete. No .4 Windows
+build, full native generation, installation or Rust retry has occurred.

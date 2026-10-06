@@ -103,16 +103,16 @@ empty interface-offset arrays. Consequently, the target filter from merged
 its separate source-side BaseMethod change has not been evaluated here.
 
 No proven mapping correction follows from these checks. Registration provenance
-and any separate interop-source emission contract remain to be assessed before
-changing source. Preserve the current rejection while the mismatch is unexplained. Do not guess a value type, discard incompatible edges or interpret
-wrapper omission as permission to generate invalid interface metadata. Private
+and full native validation of the explicit source-model contract remain open.
+Preserve strict assembly rejection while the mismatch is unexplained. Do not
+guess a value type, silently discard incompatible edges or interpret wrapper
+omission as permission to generate invalid interface metadata. Private
 retail names, indices, addresses, files and transcripts remain outside publication.
 
-## Proposed interop-only source models
+## Explicit interop-only source models
 
-Design only; this API and its offline consumer are not implemented or verified.
-The proposed explicitly selected `BuildInteropSourceModels` entry point supplies
-in-memory metadata to the pinned official interop generator. Default
+The .4 source implements the explicitly selected `BuildInteropSourceModels`
+entry point. It supplies in-memory metadata to the pinned official interop generator. Default
 `BuildAssemblies`, registered DLL formats and `DoOutput` retain strict behavior.
 The alternate route omits the whole synthetic explicit-interface MethodImpl and
 property construction phase for every edge. It retains original type flags,
@@ -135,8 +135,28 @@ a separate isolated offline consumer must opt in and prohibit dummy export.
 
 Verify strict and alternate routes in fresh contexts: preserved source methods,
 signatures/tokens, valid original properties/interfaces/constraints and existing
-malformed/unresolved/named-write rejection; no synthesized edge/property in the
-alternate model; exact interop consumer output and its documented API losses.
+malformed/unresolved/named-write rejection for references still consumed; no
+synthesized edge/property in the alternate model; exact interop consumer output
+and its documented API losses. Omitting that entire phase also omits its
+interface-specific reference guards. This does not relax the strict route.
+
+A per-context attempt marker is set before any build mutation; success or failure
+requires a fresh context for another attempt, including cross-mode or formatter
+reuse. This does not make global Cpp2IL caches safe across concurrent applications;
+use one builder and a fresh process after failure. Ordinary `DoOutput` remains
+the existing strict semantic route; separate strict generated-PE validation is
+still required.
+
+The pinned .4 recipe built on the actual Mac with 41 upstream/archive warnings
+and 0 errors; ten changed source hashes and four dependency lock hashes checked.
+All 230 authored cases pass against the built libraries: 182 prior cases,
+26 public builder cases and 22 selected official interop-consumer cases. The
+fixture build has two nullable scaffold warnings and 0 errors. These cover
+strict VOID rejection before association, omitted synthetic APIs, original
+properties/indexers, constraints/native metadata and context-reuse rejection.
+Selected passes and two CIL inspections do not prove the complete runner, PE
+validity, native type resolution or native invocation; generic target identity
+coverage is bounded. No .4 Windows generation or loader retry has occurred.
 Fresh full native generation and generated-output validation must pass before
 installation. Empty offline menus, normal exit and rollback remain later gates.
 
