@@ -29,7 +29,7 @@ Default configuration:
                          {"Shortname":"ammo.rifle","Amount":120}]}}
 ```
 
-Cooldown: 1–3600 seconds. Factor: finite 0.1–4. Configure 1–16 lowercase kit names, each with 1–24 firearm/cartridge entries, bounded by the actual item stack size and a hard amount limit of 2048. Unknown fields, unparseable values, invalid names/items and unsupported ammunition disable both features. Items use stock creation defaults; attachments, skins and weapon tuning are not configured.
+Cooldown: 1–3600 seconds. Factor: finite 0.1–4. Configure 1–16 lowercase kit names, each with 1–24 firearm/cartridge entries, bounded by the actual item stack size and a hard amount limit of 2048. Unknown fields, including JSON metadata fields, unparseable values, invalid names/items and unsupported ammunition disable both features. Items use stock creation defaults; attachments, skins and weapon tuning are not configured.
 Only a permitted attacker's recorded firearm hit against a different connected human has its positive Bullet component scaled. Factor 1 passes through. NPCs, buildings/TCs, raids, self-hits and other damage components retain stock rules; other plugins may independently affect damage.
 Edit config, then `oxide.reload ShortcutLoadouts`.
 For temporary unloading, use `oxide.unload ShortcutLoadouts`; stored permission grants remain and take effect again on reload.
@@ -45,5 +45,5 @@ dotnet build mods/rust/plugins/ShortcutLoadouts.csproj -p:RustManagedPath=/absol
 ```
 
 The project uses those genuine Mono/framework references, C# 7.3 and `net48`; it excludes duplicate Newtonsoft types already in `Oxide.References`. Outputs are ignored under `context/rust-plugin-build/`. No fabricated Rust API or permanent test is included.
-Verified on macOS arm64 with SDK 8.0.425, Steam app 258550/depot 258552 public manifest 8588463972864888654 and official Oxide 2.0.7801: genuine-reference build, 93 temporary assertions of actual production helpers/schema, and independent source review.
+Verified on macOS arm64 with SDK 8.0.425, Steam app 258550/depot 258552 public manifest 8588463972864888654 and official Oxide 2.0.7801: genuine-reference build (0 warnings/errors), 93 actual compiled-helper/schema regressions and 43 actual compiled-parser assertions, plus independent source review.
 These checks prove neither runtime hook ordering/inventory cleanup nor actual PvP. Complete the [real-server acceptance](../../../docs/RUST-SERVER-PLUGIN.md) before any playable/ready claim.
