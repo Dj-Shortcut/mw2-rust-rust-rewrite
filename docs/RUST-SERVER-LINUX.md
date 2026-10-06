@@ -2,7 +2,8 @@
 
 Design for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266).
 Source target: `mods/rust/server/Install-LinuxServer.py`.
-Design precedes implementation; no Linux installation or playable server is verified.
+Design published first; installer source and bounded Mac checks now exist.
+See [commands and evidence](../mods/rust/server/LINUX.md); no Linux installation or playable server is verified.
 
 ## Command and failure contract
 
