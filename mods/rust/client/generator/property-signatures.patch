@@ -1,0 +1,548 @@
+diff --git a/Cpp2IL.Core/Model/Contexts/MethodAnalysisContext.cs b/Cpp2IL.Core/Model/Contexts/MethodAnalysisContext.cs
+index 6422da0..d087be6 100644
+--- a/Cpp2IL.Core/Model/Contexts/MethodAnalysisContext.cs
++++ b/Cpp2IL.Core/Model/Contexts/MethodAnalysisContext.cs
+@@ -387,6 +387,8 @@ public class MethodAnalysisContext : HasGenericParameters, IMethodInfoProvider
+                 //This one is a bit trickier, as il2cpp doesn't use semantics.
+                 foreach (var prop in DeclaringType.Properties)
+                 {
++                    if (!prop.HasInferableSignature)
++                        continue;
+                     if (prop.Getter == this)
+                         return MethodSemantics.Getter;
+                     if (prop.Setter == this)
+diff --git a/Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs b/Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs
+index d0e400d..c521c4c 100644
+--- a/Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs
++++ b/Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs
+@@ -13,6 +13,24 @@ public class PropertyAnalysisContext : HasCustomAttributesAndName, IPropertyInfo
+ 
+     public MethodAnalysisContext? Getter { get; }
+     public MethodAnalysisContext? Setter { get; }
++    public MethodAnalysisContext? SuppressedSetter { get; }
++    public string? SetterAssociationOmissionReason { get; }
++
++    public string? NoninferableSignatureReason { get; }
++    public bool HasInferableSignature => NoninferableSignatureReason == null;
++
++    public void RequireInferableSignature()
++    {
++        if (!HasInferableSignature)
++            throw new InvalidOperationException($"Property signature unavailable for {this}: {NoninferableSignatureReason}");
++    }
++
++    public void RequireUsableSetterAssociation()
++    {
++        RequireInferableSignature();
++        if (SuppressedSetter != null)
++            throw new InvalidOperationException($"Property setter association unavailable for {this}: {SetterAssociationOmissionReason}");
++    }
+ 
+     protected override int CustomAttributeIndex => Definition?.customAttributeIndex ?? -1;
+ 
+@@ -32,26 +50,54 @@ public class PropertyAnalysisContext : HasCustomAttributesAndName, IPropertyInfo
+         set => OverrideAttributes = value;
+     }
+ 
+-    public virtual TypeAnalysisContext DefaultPropertyType => DeclaringType.DeclaringAssembly.ResolveIl2CppType(Definition?.RawPropertyType)
+-        ?? throw new($"Subclasses must override {nameof(DefaultPropertyType)}.");
++    public virtual TypeAnalysisContext DefaultPropertyType
++    {
++        get
++        {
++            RequireInferableSignature();
++            return DeclaringType.DeclaringAssembly.ResolveIl2CppType(Definition?.RawPropertyType)
++                ?? throw new InvalidOperationException($"Unable to resolve eligible property type: {this}");
++        }
++    }
+ 
+     public TypeAnalysisContext? OverridePropertyType { get; set; }
+ 
+     public TypeAnalysisContext PropertyType
+     {
+-        get => OverridePropertyType ?? DefaultPropertyType;
+-        set => OverridePropertyType = value;
++        get
++        {
++            RequireInferableSignature();
++            return OverridePropertyType ?? DefaultPropertyType;
++        }
++        set
++        {
++            RequireInferableSignature();
++            OverridePropertyType = value;
++        }
+     }
+ 
+     public PropertyAnalysisContext(Il2CppPropertyDefinition definition, TypeAnalysisContext parent) : base(definition.token, parent.AppContext)
+     {
+         DeclaringType = parent;
+         Definition = definition;
++        if (!ReferenceEquals(definition.DeclaringType, parent.Definition))
++            throw new InvalidOperationException("Property analysis parent does not match metadata owner");
++        NoninferableSignatureReason = definition.NoninferableSignatureReason;
+ 
+         InitCustomAttributeData();
+ 
+-        Getter = parent.GetMethod(definition.Getter);
+-        Setter = parent.GetMethod(definition.Setter);
++        var getterDefinition = definition.Getter;
++        var setterDefinition = definition.Setter;
++        Getter = parent.GetMethod(getterDefinition);
++        Setter = parent.GetMethod(setterDefinition);
++        if (getterDefinition != null && Getter == null || setterDefinition != null && Setter == null)
++            throw new InvalidOperationException($"Present property accessor analysis missing: {this}");
++        if (HasInferableSignature && getterDefinition != null && setterDefinition?.parameterCount == 0)
++        {
++            SuppressedSetter = Setter;
++            SetterAssociationOmissionReason = "setter has no value parameter";
++            Setter = null;
++        }
+     }
+ 
+     protected PropertyAnalysisContext(MethodAnalysisContext? getter, MethodAnalysisContext? setter, TypeAnalysisContext parent) : base(0, parent.AppContext)
+@@ -69,9 +115,18 @@ public class PropertyAnalysisContext : HasCustomAttributesAndName, IPropertyInfo
+     #region StableNameDotNet implementation
+ 
+     public ITypeInfoProvider PropertyTypeInfoProvider
+-        => Definition!.RawPropertyType!.ThisOrElementIsGenericParam()
+-            ? new GenericParameterTypeInfoProviderWrapper(Definition.RawPropertyType!.GetGenericParamName())
+-            : TypeAnalysisContext.GetSndnProviderForType(AppContext, Definition.RawPropertyType!);
++    {
++        get
++        {
++            RequireInferableSignature();
++            if (Definition == null)
++                return PropertyType;
++            var type = Definition.RawPropertyType ?? throw new InvalidOperationException($"Unable to resolve eligible property type: {this}");
++            return type.ThisOrElementIsGenericParam()
++                ? new GenericParameterTypeInfoProviderWrapper(type.GetGenericParamName())
++                : TypeAnalysisContext.GetSndnProviderForType(AppContext, type);
++        }
++    }
+ 
+     public string PropertyName => Name;
+ 
+diff --git a/Cpp2IL.Core/Model/Contexts/TypeAnalysisContext.cs b/Cpp2IL.Core/Model/Contexts/TypeAnalysisContext.cs
+index d11dfb9..a2c69ab 100644
+--- a/Cpp2IL.Core/Model/Contexts/TypeAnalysisContext.cs
++++ b/Cpp2IL.Core/Model/Contexts/TypeAnalysisContext.cs
+@@ -370,7 +370,7 @@ public class TypeAnalysisContext : HasGenericParameters, ITypeInfoProvider, ICSh
+     IEnumerable<ITypeInfoProvider> ITypeInfoProvider.GenericArgumentInfoProviders => [];
+     IEnumerable<IFieldInfoProvider> ITypeInfoProvider.FieldInfoProviders => Fields;
+     IEnumerable<IMethodInfoProvider> ITypeInfoProvider.MethodInfoProviders => Methods;
+-    IEnumerable<IPropertyInfoProvider> ITypeInfoProvider.PropertyInfoProviders => Properties;
++    IEnumerable<IPropertyInfoProvider> ITypeInfoProvider.PropertyInfoProviders => Properties.Where(p => p.HasInferableSignature);
+     ITypeInfoProvider? ITypeInfoProvider.DeclaringTypeInfoProvider => DeclaringType;
+ 
+     #endregion
+diff --git a/Cpp2IL.Core/OutputFormats/DiffableCsOutputFormat.cs b/Cpp2IL.Core/OutputFormats/DiffableCsOutputFormat.cs
+index 75b3dc7..f985c81 100644
+--- a/Cpp2IL.Core/OutputFormats/DiffableCsOutputFormat.cs
++++ b/Cpp2IL.Core/OutputFormats/DiffableCsOutputFormat.cs
+@@ -250,6 +250,8 @@ public class DiffableCsOutputFormat : Cpp2IlOutputFormat
+ 
+     private static void AppendProperty(StringBuilder sb, PropertyAnalysisContext prop, int indent)
+     {
++        if (!prop.HasInferableSignature)
++            return;
+         //Custom attributes for property. Includes a trailing newline
+         AppendCustomAttributes(sb, prop, indent);
+ 
+diff --git a/Cpp2IL.Core/ProcessingLayers/StableRenamingProcessingLayer.cs b/Cpp2IL.Core/ProcessingLayers/StableRenamingProcessingLayer.cs
+index bcae340..5211e46 100644
+--- a/Cpp2IL.Core/ProcessingLayers/StableRenamingProcessingLayer.cs
++++ b/Cpp2IL.Core/ProcessingLayers/StableRenamingProcessingLayer.cs
+@@ -201,6 +201,8 @@ public class StableRenamingProcessingLayer : Cpp2IlProcessingLayer
+             var typePropNames = new Dictionary<string, int>();
+             foreach (var propAnalysisContext in typeAnalysisContext.Properties)
+             {
++                if (!propAnalysisContext.HasInferableSignature)
++                    continue;
+                 var stableName = StableNameGenerator.GetStableNameForPropertyIfNeeded(propAnalysisContext);
+ 
+                 if (stableName == null)
+diff --git a/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs b/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs
+index d0428fa..6132df0 100644
+--- a/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs
++++ b/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs
+@@ -168,7 +168,12 @@ public static class AsmResolverAssemblyPopulator
+         => new(CustomAttributeArgumentMemberType.Field, field.Field.Name, GetTypeSigFromAttributeArg(parentAssembly, field.Value), FromAnalyzedAttributeArgument(parentAssembly, field.Value, field.Field.FieldType == field.Field.AppContext.SystemTypes.SystemObjectType));
+ 
+     private static CustomAttributeNamedArgument FromAnalyzedAttributeProperty(AssemblyDefinition parentAssembly, CustomAttributeProperty property)
+-        => new(CustomAttributeArgumentMemberType.Property, property.Property.Name, GetTypeSigFromAttributeArg(parentAssembly, property.Value), FromAnalyzedAttributeArgument(parentAssembly, property.Value, property.Property.PropertyType == property.Property.AppContext.SystemTypes.SystemObjectType));
++    {
++        property.Property.RequireUsableSetterAssociation();
++        _ = property.Property.GetExtraData<PropertyDefinition>("AsmResolverProperty")
++            ?? throw new InvalidOperationException($"Eligible attribute property output missing: {property.Property}");
++        return new(CustomAttributeArgumentMemberType.Property, property.Property.Name, GetTypeSigFromAttributeArg(parentAssembly, property.Value), FromAnalyzedAttributeArgument(parentAssembly, property.Value, property.Property.PropertyType == property.Property.AppContext.SystemTypes.SystemObjectType));
++    }
+ 
+     private static CustomAttribute? ConvertCustomAttribute(AnalyzedCustomAttribute analyzedCustomAttribute, AssemblyDefinition assemblyDefinition)
+     {
+@@ -276,7 +281,13 @@ public static class AsmResolverAssemblyPopulator
+                     CopyCustomAttributes(field, field.GetExtraData<FieldDefinition>("AsmResolverField")!.CustomAttributes);
+ 
+                 foreach (var property in type.Properties)
+-                    CopyCustomAttributes(property, property.GetExtraData<PropertyDefinition>("AsmResolverProperty")!.CustomAttributes);
++                {
++                    if (!property.HasInferableSignature)
++                        continue;
++                    var output = property.GetExtraData<PropertyDefinition>("AsmResolverProperty")
++                        ?? throw new InvalidOperationException($"Eligible property output missing: {property}");
++                    CopyCustomAttributes(property, output.CustomAttributes);
++                }
+ 
+                 foreach (var eventDefinition in type.Events)
+                     CopyCustomAttributes(eventDefinition, eventDefinition.GetExtraData<EventDefinition>("AsmResolverEvent")!.CustomAttributes);
+@@ -441,6 +452,8 @@ public static class AsmResolverAssemblyPopulator
+     {
+         foreach (var propertyCtx in typeContext.Properties)
+         {
++            if (!propertyCtx.HasInferableSignature)
++                continue;
+             var propertyTypeSig = propertyCtx.ToTypeSignature(importer.TargetModule);
+             var propertySignature = propertyCtx.IsStatic
+                 ? PropertySignature.CreateStatic(propertyTypeSig)
+@@ -450,11 +463,27 @@ public static class AsmResolverAssemblyPopulator
+ 
+             var managedGetter = propertyCtx.Getter?.GetExtraData<MethodDefinition>("AsmResolverMethod");
+             var managedSetter = propertyCtx.Setter?.GetExtraData<MethodDefinition>("AsmResolverMethod");
+-
++            if (propertyCtx.Getter != null && managedGetter == null || propertyCtx.Setter != null && managedSetter == null)
++                throw new InvalidOperationException($"Eligible property accessor output missing: {propertyCtx}");
++
++            if (propertyTypeSig.ElementType == ElementType.Void)
++                throw new InvalidOperationException($"Property type cannot be void: {propertyCtx}");
++            var getterSignature = managedGetter?.Signature;
++            var setterSignature = managedSetter?.Signature;
++            if (managedGetter != null && (getterSignature == null || managedGetter.IsStatic != propertyCtx.IsStatic || getterSignature.HasThis == propertyCtx.IsStatic || !SignatureComparer.Default.Equals(getterSignature.ReturnType, propertyTypeSig)))
++                throw new InvalidOperationException($"Inconsistent property getter signature: {propertyCtx}");
++            if (managedSetter != null && (setterSignature == null || managedSetter.IsStatic != propertyCtx.IsStatic || setterSignature.HasThis == propertyCtx.IsStatic || setterSignature.ReturnType.ElementType != ElementType.Void || setterSignature.ParameterTypes.Count == 0 || !SignatureComparer.Default.Equals(setterSignature.ParameterTypes[^1], propertyTypeSig)))
++                throw new InvalidOperationException($"Inconsistent property setter signature: {propertyCtx}");
++            if (getterSignature != null && setterSignature != null)
++            {
++                if (setterSignature.ParameterTypes.Count != getterSignature.ParameterTypes.Count + 1 ||
++                    !getterSignature.ParameterTypes.Zip(setterSignature.ParameterTypes, (getType, setType) => SignatureComparer.Default.Equals(getType, setType)).All(match => match))
++                    throw new InvalidOperationException($"Inconsistent property indexer signature: {propertyCtx}");
++            }
+             managedProperty.SetSemanticMethods(managedGetter, managedSetter);
+ 
+             //Indexer parameters
+-            if (managedGetter != null && managedGetter.Parameters.Count > 0)
++            if (managedGetter != null)
+             {
+                 foreach (var parameter in managedGetter.Parameters)
+                 {
+@@ -537,12 +566,40 @@ public static class AsmResolverAssemblyPopulator
+ 
+             foreach (var overrideContext in methodContext.Overrides)
+             {
++                var baseOverride = overrideContext;
++                while (baseOverride is ConcreteGenericMethodAnalysisContext genericOverride)
++                    baseOverride = genericOverride.BaseMethodContext;
++                var overridesPropertyGetter = false;
++                if (baseOverride.DeclaringType != null)
++                    foreach (var property in baseOverride.DeclaringType.Properties)
++                    {
++                        if (property.Getter == baseOverride)
++                            overridesPropertyGetter = true;
++                        if (!property.HasInferableSignature && (property.Getter == baseOverride || property.Setter == baseOverride))
++                            property.RequireInferableSignature();
++                        if (property.SuppressedSetter == baseOverride)
++                            property.RequireUsableSetterAssociation();
++                        if (property.Setter == baseOverride)
++                            foreach (var implementingProperty in typeContext.Properties)
++                                if (implementingProperty.SuppressedSetter == methodContext)
++                                    implementingProperty.RequireUsableSetterAssociation();
++                    }
+                 var interfaceMethod = (IMethodDefOrRef)overrideContext.ToMethodDescriptor(importer.TargetModule);
+                 var method = methodContext.GetExtraData<MethodDefinition>("AsmResolverMethod") ?? throw new($"AsmResolver method not found in method analysis context for {methodContext}");
+-                type.MethodImplementations.Add(new MethodImplementation(interfaceMethod, method));
+                 var interfaceMethodResolved = interfaceMethod.Resolve();
++                if ((overridesPropertyGetter || interfaceMethodResolved?.IsGetMethod == true) &&
++                    (method.Signature == null || method.Signature.ReturnType.ElementType == ElementType.Void))
++                    throw new InvalidOperationException($"Interface getter has no value type: {method.Name}");
+                 if (interfaceMethodResolved != null)
+                 {
++                    if (interfaceMethodResolved.IsSetMethod)
++                    {
++                        foreach (var implementingProperty in typeContext.Properties)
++                            if (implementingProperty.SuppressedSetter == methodContext)
++                                implementingProperty.RequireUsableSetterAssociation();
++                        if (method.Signature == null || method.Signature.ParameterTypes.Count == 0)
++                            throw new InvalidOperationException($"Interface setter has no value parameter: {method.Name}");
++                    }
+                     if (interfaceMethodResolved.IsGetMethod && !method.IsGetMethod)
+                     {
+                         getMethodsToCreate ??= [];
+@@ -556,6 +613,7 @@ public static class AsmResolverAssemblyPopulator
+                         setMethodsToCreate.Add((interfacePropertyResolved, interfaceMethod.DeclaringType!.ToTypeSignature(), method));
+                     }
+                 }
++                type.MethodImplementations.Add(new MethodImplementation(interfaceMethod, method));
+             }
+         }
+ 
+@@ -585,6 +643,8 @@ public static class AsmResolverAssemblyPopulator
+                 var (interfaceProperty, interfaceType, setMethod) = entry;
+                 if (getMethodsToCreate?.Any(e => e.InterfaceProperty == interfaceProperty && SignatureComparer.Default.Equals(e.InterfaceType, interfaceType)) == true)
+                     continue;
++                if (setMethod.Signature == null || setMethod.Signature.ParameterTypes.Count == 0)
++                    throw new InvalidOperationException($"Interface setter has no value parameter: {setMethod.Name}");
+                 var name = $"{interfaceType.FullName}.{interfaceProperty.Name}";
+                 var propertySignature = setMethod.IsStatic
+                     ? PropertySignature.CreateStatic(setMethod.Signature!.ParameterTypes[^1], setMethod.Signature.ParameterTypes.Take(setMethod.Signature.ParameterTypes.Count - 1))
+diff --git a/Cpp2IL.Core/Utils/V29AttributeUtils.cs b/Cpp2IL.Core/Utils/V29AttributeUtils.cs
+index 3812a08..348247c 100644
+--- a/Cpp2IL.Core/Utils/V29AttributeUtils.cs
++++ b/Cpp2IL.Core/Utils/V29AttributeUtils.cs
+@@ -63,6 +63,7 @@ public static class V29AttributeUtils
+             var value = ReadBlob(reader, context, ret, CustomAttributeParameterKind.Property, i);
+             var propIndex = stream.ReadUnityCompressedInt();
+             var property = ResolveMemberFromIndex(stream, constructor, context, propIndex, t => t.Properties);
++            property.RequireUsableSetterAssociation();
+ 
+             ret.Properties.Add(new(property, value));
+         }
+diff --git a/LibCpp2IL/Metadata/Il2CppMetadata.cs b/LibCpp2IL/Metadata/Il2CppMetadata.cs
+index 0384535..e1d2b49 100644
+--- a/LibCpp2IL/Metadata/Il2CppMetadata.cs
++++ b/LibCpp2IL/Metadata/Il2CppMetadata.cs
+@@ -60,6 +60,40 @@ public class Il2CppMetadata : ClassReadingBinaryReader
+     
+     public int TypeDefinitionCount => typeDefs.Length;
+     public int MethodDefinitionCount => methodDefs.Length;
++    public int ParameterDefinitionCount => parameterDefs.Length;
++
++    private readonly object _propertyOwnerLock = new();
++    private Dictionary<Il2CppPropertyDefinition, Il2CppTypeDefinition>? _propertyOwners;
++
++    internal Il2CppTypeDefinition GetPropertyOwner(Il2CppPropertyDefinition property)
++    {
++        lock (_propertyOwnerLock)
++        {
++            if (_propertyOwners == null)
++            {
++                var owners = new Dictionary<Il2CppPropertyDefinition, Il2CppTypeDefinition>();
++                foreach (var type in typeDefs)
++                {
++                    var start = type.FirstPropertyId.Value;
++                    var count = type.PropertyCount;
++                    if (start < -1 || (count == 0 ? start > propertyDefs.Length : start < 0 || (long)start + count > propertyDefs.Length))
++                        throw new InvalidOperationException("Invalid property owner range");
++                    for (var i = 0; i < count; i++)
++                    {
++                        var item = propertyDefs[start + i];
++                        if (owners.ContainsKey(item))
++                            throw new InvalidOperationException("Property has multiple declaring types");
++                        owners.Add(item, type);
++                    }
++                }
++                if (owners.Count != propertyDefs.Length)
++                    throw new InvalidOperationException("Property has no declaring type");
++                _propertyOwners = owners;
++            }
++            return _propertyOwners.TryGetValue(property, out var owner) ? owner
++                : throw new InvalidOperationException("Property is outside the metadata table");
++        }
++    }
+ 
+     public static bool HasMetadataHeader(byte[] bytes) => bytes.Length >= 4 && BitConverter.ToUInt32(bytes, 0) == 0xFAB11BAF;
+     
+@@ -453,39 +487,29 @@ public class Il2CppMetadata : ClassReadingBinaryReader
+ 
+     private T[] ReadMetadataClassArray<T>(Il2CppGlobalMetadataSectionHeader section) where T : ReadableClass, new()
+     {
+-        //First things first, we're going to be moving the position around a lot, so we need to lock. 
+         GetLockOrThrow();
+-
+-        Position = section.Offset;
+-
+         try
+         {
+-            //Length is in bytes, not in elements, so we need to work out the element size to know how big of an array to allocate.
+-            //We do this by reading the first element, then count how many bytes we read.
++            if (section.Offset < 0 || section.Size < 0 || (long)section.Offset + section.Size > Length || section.HasCount && section.Count < 0)
++                throw new InvalidOperationException($"Invalid metadata section bounds: {typeof(T).Name}");
++            if (section.Size == 0)
++            {
++                if (section.HasCount && section.Count != 0)
++                    throw new InvalidOperationException($"Empty metadata section has nonzero count: {typeof(T).Name}");
++                return [];
++            }
++            Position = section.Offset;
+             var first = ReadReadableHereNoLock<T>();
+-
+-            //How many bytes did we read?
+             var elementSize = (int)(Position - section.Offset);
+-
+-            //For build report purposes, we track that many bytes. FillReadableArrayHereNoLock will add the rest.
+-            TrackRead<T>(elementSize);
+-
+-            //Now we can work out how many elements there are.
++            if (elementSize <= 0 || section.Size % elementSize != 0)
++                throw new InvalidOperationException($"Invalid metadata section stride: {typeof(T).Name}");
+             var numElements = section.Size / elementSize;
+-            
+-            if (numElements == 0) {
+-                return [];
+-            }
+-            
+-            Debug.Assert(!section.HasCount || section.Count == numElements, $"Section {typeof(T).Name} has a count field of {section.Count} but we calculated {numElements} elements based on the size and element size. Dynamic-width indices wrong?");
+-
+-            //And so we can allocate an array of that length, and assign the first element.
++            if (section.HasCount && section.Count != numElements)
++                throw new InvalidOperationException($"Invalid metadata section count: {typeof(T).Name}");
++            TrackRead<T>(elementSize);
+             var arr = new T[numElements];
+             arr[0] = first;
+-
+-            //And finally, read the rest of the elements, starting at index 1.
+             FillReadableArrayHereNoLock(arr, 1);
+-
+             return arr;
+         }
+         finally
+diff --git a/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs b/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs
+index 2d1b598..7641d99 100644
+--- a/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs
++++ b/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs
+@@ -1,5 +1,4 @@
+ using System;
+-using System.Linq;
+ using LibCpp2IL.BinaryStructures;
+ using LibCpp2IL.Reflection;
+ 
+@@ -14,36 +13,116 @@ public class Il2CppPropertyDefinition : ReadableClass, IIl2CppTokenProvider
+     [Version(Max = 24)] public int customAttributeIndex;
+     public uint token;
+ 
+-    [NonSerialized] private Il2CppTypeDefinition? _type;
+-
+     public int PropertyIndex => LibCpp2IlReflection.GetPropertyIndexFromProperty(this);
+ 
+     public Il2CppTypeDefinition? DeclaringType
+     {
+-        get
++        get => LibCpp2IlMain.TheMetadata?.GetPropertyOwner(this);
++        internal set
+         {
+-            if (_type != null)
+-                return _type;
++            if (!ReferenceEquals(LibCpp2IlMain.TheMetadata?.GetPropertyOwner(this), value))
++                throw new InvalidOperationException("Property declaring type does not match metadata owner");
++        }
++    }
++
++    public string? Name { get; private set; }
++
++    public Il2CppMethodDefinition? Getter => GetAccessor(get);
+ 
+-            if (LibCpp2IlMain.TheMetadata == null) return null;
++    public Il2CppMethodDefinition? Setter => GetAccessor(set);
+ 
+-            _type = LibCpp2IlMain.TheMetadata.typeDefs.FirstOrDefault(t => t.Properties!.Contains(this));
+-            return _type;
++    public string? NoninferableSignatureReason
++    {
++        get
++        {
++            _ = GetSignatureMethod(out var reason);
++            return reason;
+         }
+-        internal set => _type = value;
+     }
+ 
+-    public string? Name { get; private set; }
++    public Il2CppTypeReflectionData? PropertyType => RawPropertyType is { } type ? LibCpp2ILUtils.GetTypeReflectionData(type) : null;
+ 
+-    public Il2CppMethodDefinition? Getter => LibCpp2IlMain.TheMetadata == null || get.IsNull || DeclaringType == null ? null : LibCpp2IlMain.TheMetadata.GetMethodDefinitionFromIndex(DeclaringType.FirstMethodIdx + get);
++    public Il2CppType? RawPropertyType
++    {
++        get
++        {
++            var method = GetSignatureMethod(out _);
++            if (method == null)
++                return null;
++            var type = Getter != null
++                ? method.RawReturnType
++                : LibCpp2IlMain.Binary!.GetType(LibCpp2IlMain.TheMetadata!.GetParameterDefinitionFromIndex(
++                    Il2CppVariableWidthIndex<Il2CppParameterDefinition>.MakeTemporaryForFixedWidthUsage(
++                        method.parameterStart.Value + method.parameterCount - 1)).typeIndex);
++            return type ?? throw new InvalidOperationException($"Unable to resolve property signature: {Name}");
++        }
++    }
+ 
+-    public Il2CppMethodDefinition? Setter => LibCpp2IlMain.TheMetadata == null || set.IsNull || DeclaringType == null ? null : LibCpp2IlMain.TheMetadata.GetMethodDefinitionFromIndex(DeclaringType.FirstMethodIdx + set);
++    public bool IsStatic => (Getter ?? Setter ?? throw new InvalidOperationException($"Property has no accessors: {Name}")).IsStatic;
++
++    private Il2CppMethodDefinition? GetSignatureMethod(out string? reason)
++    {
++        if (LibCpp2IlMain.TheMetadata == null || LibCpp2IlMain.Binary == null)
++            throw new InvalidOperationException("Property signatures require initialized metadata and binary");
++        var getter = Getter;
++        var setter = Setter;
++        if (getter != null)
++            ValidateParameterSpan(getter);
++        if (setter != null)
++            ValidateParameterSpan(setter);
++        reason = null;
++        if (getter != null)
++        {
++            var type = getter.RawReturnType ?? throw new InvalidOperationException($"Unable to resolve property getter signature: {Name}");
++            if (type.Type == Il2CppTypeEnum.IL2CPP_TYPE_VOID)
++            {
++                reason = setter?.parameterCount == 0
++                    ? "getter returns void and setter has no value parameter"
++                    : "getter returns void";
++                return null;
++            }
++        }
++        if (getter != null)
++            return getter;
++        if (setter?.parameterCount > 0)
++            return setter;
++        reason = setter == null ? "no accessors" : "setter has no value parameter";
++        return null;
++    }
+ 
+-    public Il2CppTypeReflectionData? PropertyType => LibCpp2IlMain.TheMetadata == null ? null : Getter == null ? Setter!.Parameters![0].Type : Getter!.ReturnType;
++    private Il2CppMethodDefinition? GetAccessor(Il2CppVariableWidthIndex<Il2CppMethodDefinition> index)
++    {
++        var metadata = LibCpp2IlMain.TheMetadata ?? throw new InvalidOperationException("Property accessors require initialized metadata");
++        var owner = DeclaringType ?? throw new InvalidOperationException($"Property has no declaring type: {Name}");
++        var firstProperty = owner.FirstPropertyId.Value;
++        if (firstProperty < 0 || (long)firstProperty + owner.PropertyCount > metadata.propertyDefs.Length ||
++            Array.IndexOf(metadata.propertyDefs, this, firstProperty, owner.PropertyCount) < 0)
++            throw new InvalidOperationException($"Invalid property owner range: {Name}");
++        if (index.Value < -1)
++            throw new InvalidOperationException($"Invalid property accessor sentinel: {Name}");
++        var firstMethod = owner.FirstMethodIdx.Value;
++        if (firstMethod < -1 || (owner.MethodCount == 0 ? firstMethod > metadata.MethodDefinitionCount : firstMethod < 0 || (long)firstMethod + owner.MethodCount > metadata.MethodDefinitionCount))
++            throw new InvalidOperationException($"Invalid property owner method range: {Name}");
++        if (index.IsNull)
++            return null;
++        if (firstMethod < 0 || index.Value >= owner.MethodCount)
++            throw new InvalidOperationException($"Invalid property accessor range: {Name}");
++        var method = metadata.methodDefs[firstMethod + index.Value];
++        var declaringIndex = method.declaringTypeIdx.Value;
++        if (declaringIndex < 0 || declaringIndex >= metadata.TypeDefinitionCount || !ReferenceEquals(metadata.typeDefs[declaringIndex], owner))
++            throw new InvalidOperationException($"Invalid property accessor owner: {Name}");
++        return method;
++    }
+ 
+-    public Il2CppType? RawPropertyType => LibCpp2IlMain.TheMetadata == null ? null : Getter == null ? Setter!.Parameters![0].RawType : Getter!.RawReturnType;
++    private void ValidateParameterSpan(Il2CppMethodDefinition method)
++    {
++        var start = method.parameterStart.Value;
++        var count = method.parameterCount;
++        var total = LibCpp2IlMain.TheMetadata!.ParameterDefinitionCount;
++        if (start < -1 || (count == 0 ? start > total : start < 0 || (long)start + count > total))
++            throw new InvalidOperationException($"Invalid property accessor parameter span: {Name}");
++    }
+ 
+-    public bool IsStatic => Getter == null ? Setter!.IsStatic : Getter!.IsStatic;
+     public uint Token => token;
+ 
+     public override void Read(ClassReadingBinaryReader reader)
