@@ -46,5 +46,5 @@ and intended-client join with recorded EAC/startup mode. Source checks are narro
 Accept the later plugin after permission/cooldown/config/inventory failure flows,
 two-client firearm damage, unchanged excluded targets, reload and removal pass
 on recorded real Rust/Oxide versions. Carbon needs separate verification.
-Local Mac source access is available; scripts still require Windows. See the
-[hosting gate](RUST-SERVER-HOSTING.md); no host is selected or ignored cloud evidence transferred.
+Mac source access works; [Windows startup](../mods/rust/server/README.md) and
+[Linux installation](../mods/rust/server/LINUX.md) need native hosts; none is selected. See the [hosting gate](RUST-SERVER-HOSTING.md).
