@@ -42,7 +42,7 @@ on recorded real Rust/framework/client versions before asking the owner to play.
 Record intended controller/Steam Input mappings and observed input; injected input
 is not a physical-controller test. Source compilation and helper checks remain narrower.
 A small component, a green CI run or an unverified prototype is not the finished mod.
-Current code supplies loadouts/Bullet scaling only; MW2 gunplay and skating are missing.
+Loadouts/Bullet scaling and [skate motion source](RUST-SKATE-CORE.md) exist; native MW2 gunplay/skating are missing.
 Host access is also missing. Keep [TODO](../TODO.md) and component claims explicit.
 Select/rent nothing without the owner's choice and concrete cost approval; source
 and architecture work precede rental. See the [hosting gate](RUST-SERVER-HOSTING.md).
