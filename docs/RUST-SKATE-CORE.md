@@ -7,8 +7,8 @@ It does not resume Bevy, supply a visible board/rider, or satisfy playable accep
 ## State and authority
 
 Use metres, Y-up, yaw degrees (zero faces +Z), and a board-centre position.
-Immutable state holds position/velocity, yaw, airborne spin/flip, grounded/air/bail
-mode and previous jump button. No score, player identity, inventory or persistence.
+Immutable state holds position/velocity, yaw, spin/flip, ground/air/bail/grind mode,
+previous jump and rail capture/cooldown. No score, identity, inventory or persistence.
 The host queries axis-aligned standing-rider/flat-board boxes including headroom.
 Native adapters must also validate actual animated/rotating board and rider geometry.
 Queries use `SkateHull` half-extents and centre offset; hit fraction/unit normal are validated. The core derives positions; a packet cannot supply contacts.
@@ -19,7 +19,7 @@ Initial solid overlap differs from zero-fraction contact. Queries are synchronou
 ## Contract and controls
 
 `TryMount(position, yaw, world, out state, out error)` requires nearby walkable support.
-`TryStep(state, input, dt, world, out next, out events, out error)` copies on success.
+`TryStep(state, input, dt, world, ..., out error)` copies on success; a rail-aware overload also accepts a validated catalog.
 `TryDismount(state, world, out feet, out error)` sweeps standing-rider side exits;
 returned feet are 0.15m below the supported board anchor. Boxes ignore only skin contact.
 Inputs: push/brake/jump buttons and normalized steer/spin/flip axes; native bindings
@@ -32,7 +32,7 @@ Bail stops the core until the host performs a safe dismount or authorized remoun
 Dismount prefers either side, never teleports through a blocking sweep or into air.
 Finite input/state/query checks, bounded speed/coordinates, and `0 < dt <= 0.05`
 reject NaN/infinity, invalid traces and oversized steps atomically. Tuning is provisional.
-Rail capture/travel, rider animations and fall damage are later native integration work.
+[Rail capture/travel source](RUST-SKATE-RAILS.md) is present; native rails, rider animation and fall damage remain unverified.
 There is no saved-state format or network protocol; adapters must not deserialize state
 from an untrusted client. Runtime cleanup/death/rejoin remains the host's responsibility.
 
