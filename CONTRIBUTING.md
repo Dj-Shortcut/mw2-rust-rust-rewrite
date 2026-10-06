@@ -5,8 +5,11 @@ permission-controlled weapon loadouts and configurable firearm PvP damage.
 Read [the mod plan](docs/RUST-SERVER-MOD.md) and [TODO.md](TODO.md) before
 contributing. The standalone Rust/Bevy game is parked; its source and historical
 verification remain available. Coordinate documentation, setup and focused mod
-work through issues and PRs. [Server preparation](mods/rust/server/README.md) has
-bounded source checks; no mod plugin or playable release is ready yet.
+work through issues and PRs. [Plugin source](mods/rust/plugins/README.md) is
+implemented and locally compiled against genuine Rust/Oxide references.
+[Windows](mods/rust/server/README.md) and [Linux](mods/rust/server/LINUX.md)
+preparation have bounded source checks. Real server startup, plugin loading and
+client gameplay remain unverified; no playable mod release is ready yet.
 
 ## Documentation first
 

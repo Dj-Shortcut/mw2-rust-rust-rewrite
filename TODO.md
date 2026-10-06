@@ -19,6 +19,7 @@ rewrite-implementatie of automatische rewrite-loop starten.
 - [ ] Pas daarna een geverifieerde mod-demo met installatie-, start- en verwijderinstructies leveren. Carbon, MW2-assets en skate-physics vallen buiten deze eerste mod.
 
 **Modstatus: servervoorbereiding en lokaal gecompileerde pluginbron aanwezig; echte server-/speelverificatie en release ontbreken.**
+Plugin- en Linux-voorbereidingsbron zijn op `main` gemerged via [#269](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/269) en [#270](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/270); de echte runtime-acceptatie hierboven blijft open.
 De eigenaar wil het bronwerk afgerond voordat hij hosting bestelt; huur niets zonder zijn keuze en concrete kostenakkoord.
 Shadow Gaming Neo heeft 16 GB RAM en staat serverhosting niet toe. Volgens het
 supportantwoord van de eigenaar ondersteunt Host Havoc de vereiste `-insecure`
