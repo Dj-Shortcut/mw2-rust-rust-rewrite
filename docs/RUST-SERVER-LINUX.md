@@ -10,10 +10,12 @@ See [commands and evidence](../mods/rust/server/LINUX.md); no Linux installation
 Python3 standard-library CLI: `--root /absolute/new/path --plan` prints preparation
 steps on any platform without network, downloads, file writes or execution.
 Actual installation requires permitted Linux x86_64/glibc, a nonroot user,
-12 GiB available RAM, 20 GiB free disk and an existing writable parent.
+12 GiB available RAM after host/cgroup bounds, 20 GiB free disk and an existing writable parent.
 Refuse existing destinations, Git roots, symlink ancestors, traversal,
 control characters and paths that SteamCMD cannot safely consume.
 Check path/resources before creating a fresh installation root.
+Read active v1/v2 cgroup limits/usage and all ancestors; retain the host bound.
+Refuse unknown/clipped namespace views; this RAM snapshot is not a reservation.
 No automatic package install, sudo, service, server start, update or deletion.
 
 Install official Linux SteamCMD, public app258550 anonymously, then matching
@@ -23,7 +25,8 @@ SteamCMD measured hash lacks an independent publisher digest; label it as such.
 Reject archive traversal, links/special entries, duplicates and unreasonable sizes.
 Retain executable SteamCMD permissions; safely overwrite only installed regular
 files during the intended Oxide overlay. Never overwrite old worlds/configs.
-Record selected release, hashes, Steam build and stage transitions in manifest;
+SteamCMD timeout: `--steam-timeout-seconds` 60–86400, default 14400 (4 hours).
+Record release/hashes/build/stages/timeout via unique atomic temporary manifests;
 failure preserves partial data for inspection. `installed-unverified` proves
 files/recording only, not dependency/version compatibility or startup.
 SteamCMD may create its normal per-user Steam cache/logs outside the new root.

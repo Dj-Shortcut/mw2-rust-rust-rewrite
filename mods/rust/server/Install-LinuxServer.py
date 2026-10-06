@@ -17,6 +17,7 @@ import signal
 import stat
 import subprocess
 import sys
+import tempfile
 import tarfile
 import urllib.request
 import zipfile
@@ -24,6 +25,7 @@ import zipfile
 STEAM_URL = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
 RELEASE_API = "https://api.github.com/repos/OxideMod/Oxide.Rust/releases/tags/"
 DEFAULT_RELEASE = "2.0.7801"
+DEFAULT_STEAM_TIMEOUT = 14400
 MAX_ARCHIVE = 64 * 1024 * 1024
 MAX_EXPANDED = 256 * 1024 * 1024
 MIN_RAM = 12 * 1024**3
@@ -46,11 +48,18 @@ def release_argument(value: str) -> str:
     return value
 
 
-def plan(root: Path, release: str) -> dict:
+def timeout_argument(value: str) -> int:
+    if not re.fullmatch(r"[0-9]{1,5}", value) or not 60 <= int(value) <= 86400:
+        raise ValueError("SteamCMD timeout must be an integer from 60 to 86400 seconds.")
+    return int(value)
+
+
+def plan(root: Path, release: str, steam_timeout: int = DEFAULT_STEAM_TIMEOUT) -> dict:
     return {
         "state": "plan-only-unverified",
         "root": str(root),
         "oxide_release": release,
+        "steam_timeout_seconds": steam_timeout,
         "steps": [
             "Require permitted nonroot Linux x86_64/glibc, available RAM/disk and new nonsymlink root outside Git.",
             "Download official SteamCMD; its measured SHA256 has no independent publisher comparison.",
@@ -92,12 +101,170 @@ def validate_new_root(root: Path) -> None:
             raise ValueError("Installation inside a Git checkout is refused.")
 
 
-def available_ram() -> int:
-    text = Path("/proc/meminfo").read_text(encoding="ascii")
-    match = re.search(r"^MemAvailable:\s+([0-9]+)\s+kB$", text, re.MULTILINE)
-    if not match:
+def control_text(path: Path, *, optional: bool = False, limit: int = 1024 * 1024) -> str | None:
+    try:
+        with path.open(encoding="ascii") as source:
+            text = source.read(limit + 1)
+    except FileNotFoundError:
+        if optional:
+            return None
+        raise
+    if len(text) > limit:
+        raise ValueError("Linux memory control metadata exceeds its bound.")
+    return text
+
+
+def cgroup_path(value: str) -> PurePosixPath:
+    if not value.startswith("/") or any(ord(c) < 32 or ord(c) == 127 for c in value) or \
+            (value != "/" and any(part in {"", ".", ".."} for part in value[1:].split("/"))):
+        raise ValueError("Cannot establish a safe absolute cgroup path.")
+    return PurePosixPath(value)
+
+
+def mount_path(value: str) -> PurePosixPath:
+    if re.search(r"\\(?![0-7]{3})", value):
+        raise ValueError("Malformed cgroup mount path escape.")
+    return cgroup_path(re.sub(r"\\([0-7]{3})", lambda m: chr(int(m.group(1), 8)), value))
+
+
+def memory_number(value: str) -> int:
+    if not re.fullmatch(r"[0-9]{1,20}", value.strip()) or int(value) > 2**64 - 1:
+        raise ValueError("Invalid unsigned cgroup memory value.")
+    return int(value)
+
+
+def memory_cgroup(proc: Path, membership: str) -> tuple[int, Path, Path, bool] | None:
+    groups = {}
+    for line in membership.splitlines():
+        fields = line.split(":", 2)
+        if len(fields) != 3 or not re.fullmatch(r"0|[1-9][0-9]{0,9}", fields[0]):
+            raise ValueError("Malformed process cgroup membership.")
+        number, controllers, group = fields
+        if (number == "0") != (controllers == ""):
+            raise ValueError("Invalid cgroup hierarchy/controller identity.")
+        version = 1 if "memory" in controllers.split(",") else 2 if number == "0" and controllers == "" else None
+        if version is None:
+            continue
+        if version in groups or (version == 1 and number == "0"):
+            raise ValueError("Ambiguous process memory cgroup membership.")
+        groups[version] = cgroup_path(group)
+    if not groups:
+        return None
+    # A v1 memory controller takes precedence on a hybrid host.
+    version = 1 if 1 in groups else 2
+    candidates = []
+    for line in control_text(proc / "self/mountinfo").splitlines():
+        halves = line.split(" - ", 1)
+        if len(halves) != 2:
+            raise ValueError("Malformed Linux mount metadata.")
+        fields, filesystem = halves[0].split(), halves[1].split()
+        if len(fields) < 6 or len(filesystem) < 3:
+            raise ValueError("Incomplete Linux mount metadata.")
+        relevant = filesystem[0] == "cgroup2" if version == 2 else \
+            filesystem[0] == "cgroup" and "memory" in filesystem[2].split(",")
+        if not relevant:
+            continue
+        root, mount = mount_path(fields[3]), Path(mount_path(fields[4]))
+        try:
+            relative = groups[version].relative_to(root)
+        except ValueError:
+            continue
+        leaf = mount.joinpath(*relative.parts)
+        candidates.append((len(root.parts), version, leaf, mount, root == PurePosixPath("/")))
+    if not candidates:
+        raise ValueError("Cannot resolve the process memory cgroup to a visible mount.")
+    # Prefer the widest visible mount so parent limits are not skipped by a bind mount.
+    _, version, leaf, mount, from_root = min(candidates, key=lambda item: item[0])
+    if not leaf.is_dir():
+        raise ValueError("The active memory cgroup is not accessible at its mount.")
+    return version, leaf, mount, from_root
+
+
+def memory_controller_disabled(proc: Path) -> bool:
+    text = control_text(proc / "cgroups")
+    if not re.search(r"^#subsys_name\s+hierarchy\s+num_cgroups\s+enabled$", text, re.MULTILINE):
+        raise ValueError("Missing Linux controller metadata header.")
+    rows = [line.split() for line in text.splitlines() if line.strip() and not line.startswith("#")]
+    if any(len(row) != 4 or not re.fullmatch(r"[A-Za-z0-9_]+", row[0]) or
+           not all(re.fullmatch(r"[0-9]{1,10}", value) for value in row[1:3]) or
+           row[3] not in {"0", "1"} for row in rows) or len({row[0] for row in rows}) != len(rows):
+        raise ValueError("Invalid Linux controller metadata.")
+    memory = [row for row in rows if row[0] == "memory"]
+    return not memory or memory[0][3] == "0"
+
+
+def require_full_memory_view(version: int, mount: Path, from_root: bool) -> None:
+    if not from_root:
+        raise ValueError("A clipped cgroup mount cannot establish ancestor memory limits.")
+    if version == 2:
+        # These interfaces exist only on physical non-root cgroups, including namespace roots.
+        for name in ("cgroup.type", "memory.max", "memory.current"):
+            if control_text(mount / name, optional=True, limit=128) is not None:
+                raise ValueError("A namespaced cgroup view cannot establish hidden ancestor limits.")
+    else:
+        page_size = os.sysconf("SC_PAGE_SIZE")
+        unlimited = ((2**63 - 1) // page_size) * page_size  # Linux x86_64 PAGE_COUNTER_MAX in bytes.
+        text = control_text(mount / "memory.stat")
+        for control, key in (("memory.limit_in_bytes", "hierarchical_memory_limit"),
+                             ("memory.memsw.limit_in_bytes", "hierarchical_memsw_limit")):
+            value = control_text(mount / control, optional=control.startswith("memory.memsw"), limit=64)
+            if value is None:
+                continue
+            effective = re.findall(r"^" + key + r"\s+([0-9]+)$", text, re.MULTILINE)
+            if memory_number(value) != unlimited or len(effective) != 1 or memory_number(effective[0]) != unlimited:
+                raise ValueError("The visible v1 root cannot establish unconstrained ancestors.")
+
+def bound_cgroup_ram(available: int, proc: Path, cgroup: tuple[int, Path, Path, bool]) -> int:
+    version, leaf, mount, from_root = cgroup
+    require_full_memory_view(version, mount, from_root)
+    names = ("memory.max", "memory.current") if version == 2 else \
+        ("memory.limit_in_bytes", "memory.usage_in_bytes")
+    for current in ancestors(leaf):
+        maximum = control_text(current / names[0], optional=version == 2, limit=64)
+        usage = control_text(current / names[1], optional=version == 2, limit=64)
+        if maximum is None and usage is None:
+            controllers = control_text(current / "cgroup.controllers", limit=4096).split()
+            at_root = current == mount and from_root
+            if "memory" in controllers:
+                # Only the real v2 hierarchy root lacks these files with memory available.
+                if not at_root:
+                    raise ValueError("Missing memory controls in an active cgroup.")
+            elif current == mount and not (from_root and memory_controller_disabled(proc)):
+                raise ValueError("Cannot establish memory limits at the visible cgroup boundary.")
+        elif maximum is None or usage is None:
+            raise ValueError("Incomplete cgroup memory control pair.")
+        else:
+            used = memory_number(usage)
+            if not (version == 2 and maximum.strip() == "max"):
+                # The large numeric v1 unlimited sentinel retains the host bound.
+                available = min(available, max(0, memory_number(maximum) - used))
+            if version == 1:
+                swap_max = control_text(current / "memory.memsw.limit_in_bytes", optional=True, limit=64)
+                swap_used = control_text(current / "memory.memsw.usage_in_bytes", optional=True, limit=64)
+                if (swap_max is None) != (swap_used is None):
+                    raise ValueError("Incomplete combined cgroup memory/swap control pair.")
+                if swap_max is not None:
+                    available = min(available, max(0, memory_number(swap_max) - memory_number(swap_used)))
+        if current == mount:
+            break
+    return available
+
+
+def available_ram(proc: Path = Path("/proc")) -> int:
+    text = control_text(proc / "meminfo")
+    matches = re.findall(r"^MemAvailable:\s+([0-9]+)\s+kB$", text, re.MULTILINE)
+    if len(matches) != 1:
         raise ValueError("Cannot establish available RAM from Linux MemAvailable.")
-    return int(match.group(1)) * 1024
+    available = memory_number(matches[0]) * 1024
+    membership = control_text(proc / "self/cgroup")
+    cgroup = memory_cgroup(proc, membership)
+    if cgroup is not None:
+        available = bound_cgroup_ram(available, proc, cgroup)
+    elif not memory_controller_disabled(proc):
+        raise ValueError("Cannot establish process memory cgroup membership.")
+    if control_text(proc / "self/cgroup") != membership:
+        raise ValueError("Process cgroup changed during memory preflight; retry on a stable host.")
+    return available
 
 
 def preflight(root: Path) -> None:
@@ -279,7 +446,7 @@ def overlay_oxide(archive: Path, root: Path) -> None:
                 raise ValueError("Expected regular framework DLL is missing after overlay.")
 
 
-def run_process(arguments: list[str], cwd: Path, logfile: Path, timeout: int = 1800) -> None:
+def run_process(arguments: list[str], cwd: Path, logfile: Path, timeout: int = DEFAULT_STEAM_TIMEOUT) -> None:
     with logfile.open("xb") as log:
         process = subprocess.Popen(arguments, cwd=cwd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         try:
@@ -314,22 +481,34 @@ def steam_build(root: Path) -> str:
 
 def write_manifest(root: Path, manifest: dict) -> None:
     manifest["updated_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    temporary = root / ".mod-bootstrap/manifest.tmp"
-    no_symlinks(temporary)
-    with temporary.open("x", encoding="utf-8") as output:
-        json.dump(manifest, output, indent=2, allow_nan=False)
-        output.write("\n")
-    os.replace(temporary, root / "install-manifest.json")
+    staging = root / ".mod-bootstrap"
+    no_symlinks(staging)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix="manifest-", suffix=".tmp",
+                                         dir=staging, delete=False) as output:
+            temporary = Path(output.name)
+            json.dump(manifest, output, indent=2, allow_nan=False)
+            output.write("\n")
+        os.replace(temporary, root / "install-manifest.json")
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                # Each write uses a new exclusive name, even if interrupted cleanup cannot finish.
+                pass
 
 
-def install(root: Path, release: str) -> dict:
+def install(root: Path, release: str, steam_timeout: int = DEFAULT_STEAM_TIMEOUT) -> dict:
+    steam_timeout = timeout_argument(str(steam_timeout))
     preflight(root)
     root.mkdir(mode=0o700)  # Atomic refusal if the destination appeared during preflight.
     staging = root / ".mod-bootstrap"
     staging.mkdir(mode=0o700)
     manifest = {"status": "preparing", "stage": "downloads", "root": str(root),
                 "app_id": 258550, "branch": "public", "oxide_release": release,
-                "runtime_verified": False, "world_started": False}
+                "steam_timeout_seconds": steam_timeout, "runtime_verified": False, "world_started": False}
     try:
         write_manifest(root, manifest)
         metadata_file = staging / "oxide-release.json"
@@ -353,7 +532,7 @@ def install(root: Path, release: str) -> dict:
         run_process([str(steam_root / "steamcmd.sh"), "+@ShutdownOnFailedCommand", "1",
                      "+@NoPromptForPassword", "1", "+force_install_dir", str(root), "+login", "anonymous",
                      "+app_update", "258550", "-beta", "public", "validate", "+quit"],
-                    steam_root, staging / "steamcmd-install.log")
+                    steam_root, staging / "steamcmd-install.log", timeout=steam_timeout)
         manifest["steam_build"] = steam_build(root)
         manifest["stage"] = "oxide-overlay"
         write_manifest(root, manifest)
@@ -374,6 +553,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=root_argument)
     parser.add_argument("--oxide-release", default=DEFAULT_RELEASE, type=release_argument)
+    parser.add_argument("--steam-timeout-seconds", default=DEFAULT_STEAM_TIMEOUT, type=timeout_argument,
+                        help="SteamCMD installation/validation limit: 60–86400 seconds; default 14400 (4 hours).")
     parser.add_argument("--plan", action="store_true", help="Print a portable plan without network or file changes.")
     args = parser.parse_args(argv)
     previous = {}
@@ -383,7 +564,8 @@ def main(argv: list[str] | None = None) -> int:
         if not args.plan and platform.system() == "Linux":
             for signum in (signal.SIGTERM, signal.SIGHUP):
                 previous[signum] = signal.signal(signum, interrupted)
-        result = plan(args.root, args.oxide_release) if args.plan else install(Path(args.root), args.oxide_release)
+        result = plan(args.root, args.oxide_release, args.steam_timeout_seconds) if args.plan else \
+            install(Path(args.root), args.oxide_release, args.steam_timeout_seconds)
         print(json.dumps(result, indent=2, allow_nan=False))
         return 0
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, tarfile.TarError, zipfile.BadZipFile) as error:
