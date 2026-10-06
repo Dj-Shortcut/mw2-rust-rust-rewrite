@@ -85,21 +85,26 @@ namespace Oxide.Plugins
             {
                 // Oxide creates defaults only when the configuration file is absent.
                 base.LoadConfig();
-                string json = File.ReadAllText(Config.Filename);
-                var settings = JsonConvert.DeserializeObject<Settings>(json, new JsonSerializerSettings
-                {
-                    TypeNameHandling = TypeNameHandling.None,
-                    MissingMemberHandling = MissingMemberHandling.Error
-                });
-                string error = ValidateSettings(settings);
-                if (error != null) throw new InvalidDataException(error);
-                _settings = settings;
+                _settings = ParseSettings(File.ReadAllText(Config.Filename));
             }
             catch (Exception error)
             {
                 PrintError("Configuration rejected; both features are disabled. Existing file is preserved. " +
                     error.Message);
             }
+        }
+
+        internal static Settings ParseSettings(string json)
+        {
+            var settings = JsonConvert.DeserializeObject<Settings>(json, new JsonSerializerSettings
+            {
+                TypeNameHandling = TypeNameHandling.None,
+                MetadataPropertyHandling = MetadataPropertyHandling.Ignore,
+                MissingMemberHandling = MissingMemberHandling.Error
+            });
+            string error = ValidateSettings(settings);
+            if (error != null) throw new InvalidDataException(error);
+            return settings;
         }
 
         private void Init()
