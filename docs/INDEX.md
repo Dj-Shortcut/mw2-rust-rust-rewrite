@@ -6,7 +6,6 @@ game. Keep them this short: nobody opens a long file twice.
 Full goal: [RUST-MW2-SKATE.md](RUST-MW2-SKATE.md); [loadout/damage component](RUST-SERVER-MOD.md); standalone rewrite paused.
 Historical standalone goals and verified status: [../TODO.md](../TODO.md).
 The inherited run/import guides below document optional upstream modes.
-
 | file | about | when to read |
 |---|---|---|
 | [`AUTONOMY.md`](AUTONOMY.md) | standing authorization, task ownership and verification | continuing work or coordinating agents |
@@ -14,6 +13,7 @@ The inherited run/import guides below document optional upstream modes.
 | [`RUST-SERVER-PLUGIN.md`](RUST-SERVER-PLUGIN.md) | implemented loadout/PvP source, configuration contract and real-server acceptance | installing or changing the Oxide plugin |
 | [`RUST-SERVER-HOSTING.md`](RUST-SERVER-HOSTING.md) | self-managed host capabilities, cost approval and real-host acceptance | choosing an existing PC or a permitted rental |
 | [`RUST-SERVER-LINUX.md`](RUST-SERVER-LINUX.md) | guarded Linux installer, portable plan and real-host control gates | preparing a permitted Linux Rust/Oxide host |
+| [`RUST-RIDER-CONTROLS.md`](RUST-RIDER-CONTROLS.md) | rider identity, input release, candidate and cleanup fences; source contract | coordinating gunplay/skate lifecycle |
 | [`MULTIPLAYER.md`](MULTIPLAYER.md) | standalone shared-world milestone, authority boundaries and two-client acceptance; design only | working on core multiplayer |
 | [`DIRECT-MULTIPLAYER.md`](DIRECT-MULTIPLAYER.md) | bounded direct TCP server/client runtime and connected verification scope | implementing standalone transport |
 | [`NATIVE-MULTIPLAYER.md`](NATIVE-MULTIPLAYER.md) | Bevy join controls, connected input/presentation and verification limits | using or changing the native multiplayer client |
