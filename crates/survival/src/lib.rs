@@ -33,8 +33,8 @@ pub use beehive::{BEE_STING_DAMAGE, Beehive, HIVE_HONEY, HIVE_REACH, HIVE_SECOND
 pub use climate::{COLD_CELSIUS, DAY_SECONDS, FREEZING_CELSIUS, HOT_CELSIUS, WorldClock};
 pub use cooking::{
     CAMPFIRE_REACH, CAMPFIRE_WARMTH, CAMPFIRE_WARMTH_RADIUS, COMFORT_SECONDS_PER_HP, COOK_SECONDS,
-    COOK_WOOD, Campfire, Campfires, FireState, RAIN_CAMPFIRE_WARMTH, RAIN_COOK_SPEED, TEA_SECONDS,
-    TEA_WARMTH,
+    COOK_WOOD, Campfire, Campfires, FireState, MAX_FIRE_WOOD, RAIN_CAMPFIRE_WARMTH,
+    RAIN_COOK_SPEED, START_FIRE_WOOD, TEA_SECONDS, TEA_WARMTH, WOOD_BURN_SECONDS,
 };
 pub use crafting::{CraftJob, CraftQueue, MAX_CRAFT_JOBS};
 pub use crates::{
@@ -1752,14 +1752,74 @@ impl Session {
         self.campfires.in_reach(player.origin)
     }
 
-    pub fn cook_fish(&mut self) -> Result<(), String> {
+    fn lit_campfire_in_reach(&self) -> Result<&Campfire, String> {
+        let fire = self.campfire_in_reach().ok_or("No campfire within reach")?;
+        if !fire.is_lit() {
+            return Err("The campfire is not burning".into());
+        }
+        Ok(fire)
+    }
+
+    pub fn add_wood_to_campfire(&mut self, amount: u32) -> Result<(), String> {
         self.require_alive()?;
         let id = self
             .campfire_in_reach()
             .ok_or("No campfire within reach")?
             .id();
+        if amount == 0 {
+            return Err("Add at least one wood".into());
+        }
         let mut campfires = self.campfires.clone();
-        campfires.start(id)?;
+        campfires.add_wood(id, amount)?;
+        self.world
+            .buildings_mut()
+            .consume(
+                LOCAL.0,
+                Resources {
+                    wood: amount,
+                    ..Default::default()
+                },
+            )
+            .map_err(|_| format!("You need {amount} wood"))?;
+        self.campfires = campfires;
+        self.message = format!("Added {amount} wood to the campfire");
+        Ok(())
+    }
+
+    pub fn light_campfire(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        let id = self
+            .campfire_in_reach()
+            .ok_or("No campfire within reach")?
+            .id();
+        self.campfires.light(id)?;
+        self.warming = self.near_campfire();
+        self.message = "You light the campfire".into();
+        Ok(())
+    }
+
+    pub fn put_out_campfire(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        let id = self
+            .campfire_in_reach()
+            .ok_or("No campfire within reach")?
+            .id();
+        self.campfires.put_out(id)?;
+        self.warming = self.near_campfire();
+        self.message = "You put out the campfire".into();
+        Ok(())
+    }
+
+    pub fn cook_fish(&mut self) -> Result<(), String> {
+        self.require_alive()?;
+        let fire = *self.campfire_in_reach().ok_or("No campfire within reach")?;
+        let wood = COOK_WOOD.min(MAX_FIRE_WOOD - fire.wood());
+        let mut campfires = self.campfires.clone();
+        campfires.start(fire.id())?;
+        campfires.add_wood(fire.id(), wood)?;
+        if !fire.is_lit() {
+            campfires.light(fire.id())?;
+        }
         let mut inventory = self.inventory.clone();
         inventory
             .take(Item::Fish, 1)
@@ -1769,13 +1829,14 @@ impl Session {
             .consume(
                 LOCAL.0,
                 Resources {
-                    wood: COOK_WOOD,
+                    wood,
                     ..Default::default()
                 },
             )
-            .map_err(|_| format!("You need {COOK_WOOD} wood to cook"))?;
+            .map_err(|_| format!("You need {wood} wood to cook"))?;
         self.campfires = campfires;
         self.inventory = inventory;
+        self.warming = self.near_campfire();
         self.message = if self.weather.is_raining() {
             format!(
                 "Cooking raw fish: {:.0} s in the rain",
@@ -1789,7 +1850,7 @@ impl Session {
 
     pub fn brew_tea(&mut self) -> Result<(), String> {
         self.require_alive()?;
-        self.campfire_in_reach().ok_or("No campfire within reach")?;
+        self.lit_campfire_in_reach()?;
         if self.inventory.count(Item::Food) == 0 || self.inventory.count(Item::Water) == 0 {
             return Err("You need food and water to brew tea".into());
         }
@@ -1817,7 +1878,7 @@ impl Session {
 
     pub fn cook_stew(&mut self) -> Result<(), String> {
         self.require_alive()?;
-        self.campfire_in_reach().ok_or("No campfire within reach")?;
+        self.lit_campfire_in_reach()?;
         if [Item::CookedFish, Item::Food, Item::Water]
             .iter()
             .any(|&item| self.inventory.count(item) == 0)
@@ -2222,6 +2283,7 @@ impl Session {
             crates: Some(self.crates.saved()),
             locked_crate: self.crates.saved_locked(),
             campfires: self.campfires.saved(),
+            campfire_fuel: self.campfires.saved_fuel(),
             airdrops: self.airdrops.saved(),
             garden: self.garden.saved(),
             waypoint: self.waypoint,
@@ -2362,6 +2424,7 @@ impl Session {
         crates.restore_locked(&scene.locked_crate);
         let mut campfires = self.campfires.clone();
         campfires.restore(&scene.campfires);
+        campfires.restore_fuel(&scene.campfire_fuel);
         let mut airdrops = self.airdrops.clone();
         airdrops.restore(&scene.airdrops);
         let mut garden = self.garden.clone();

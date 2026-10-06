@@ -125,7 +125,8 @@ bereik, fouten, tijdsverloop en verificatiegrenzen.
 Craft een hengel via recept 7; richt in loopmodus op bereikbaar water en druk
 L om te vissen. L haalt een actieve lijn weer binnen. Xbox D-pad Rechts gebruikt
 dezelfde visactie. Bij een kampvuur binnen bereik start G het bakken van één
-rauwe vis voor 5 hout; na 15 simulatieseconden verzamelt G de gebakken vis. Xbox D-pad Links gebruikt
+rauwe vis voor 5 hout, dat op het vuur gaat en het aansteekt als het uit was;
+na 15 simulatieseconden verzamelt G de gebakken vis. Xbox D-pad Links gebruikt
 dezelfde kampvuuractie. Selecteer de gebakken vis in de inventory en gebruik I.
 Richt op bereikbaar materiaal voor de verzamelhint; F oogst. F5/F9 bewaren/laden
 de lokale sessie: scene, spelerpositie/kijkrichting, gezondheid, ammo en

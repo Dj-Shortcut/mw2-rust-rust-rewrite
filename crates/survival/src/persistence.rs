@@ -10,7 +10,7 @@
 
 use crate::airdrop::SavedAirdrops;
 use crate::beehive::SavedHive;
-use crate::cooking::SavedFires;
+use crate::cooking::{SavedFires, SavedFuels};
 use crate::crates::{SavedCrates, SavedLocked};
 use crate::farming::SavedGarden;
 use crate::fishtrap::SavedTrap;
@@ -69,6 +69,8 @@ pub(crate) struct SavedSession {
     pub locked_crate: SavedLocked,
     #[serde(default)]
     pub campfires: SavedFires,
+    #[serde(default)]
+    pub campfire_fuel: SavedFuels,
     #[serde(default)]
     pub airdrops: SavedAirdrops,
     #[serde(default)]
@@ -258,6 +260,7 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Loaded, String> {
                     crates: None,
                     locked_crate: SavedLocked::default(),
                     campfires: SavedFires::default(),
+                    campfire_fuel: SavedFuels::default(),
                     airdrops: SavedAirdrops::default(),
                     garden: SavedGarden::default(),
                     waypoint: None,
