@@ -1,5 +1,4 @@
 # `docs/` — the one-page map
-
 Short files (each ≤50 lines) on what lives where and how to poke the live
 game. Keep them this short: nobody opens a long file twice.
 
@@ -14,6 +13,7 @@ The inherited run/import guides below document optional upstream modes.
 | [`RUST-SERVER-HOSTING.md`](RUST-SERVER-HOSTING.md) | self-managed host capabilities, cost approval and real-host acceptance | choosing an existing PC or a permitted rental |
 | [`RUST-SERVER-LINUX.md`](RUST-SERVER-LINUX.md) | guarded Linux installer, portable plan and real-host control gates | preparing a permitted Linux Rust/Oxide host |
 | [`RUST-RIDER-CONTROLS.md`](RUST-RIDER-CONTROLS.md) | rider identity, input release, candidate and cleanup fences; source contract | coordinating gunplay/skate lifecycle |
+| [`RUST-SKATE-WORLD.md`](RUST-SKATE-WORLD.md) | genuine server collision adapter design and native acceptance gaps | connecting skate motion to Rust terrain and obstacles |
 | [`MULTIPLAYER.md`](MULTIPLAYER.md) | standalone shared-world milestone, authority boundaries and two-client acceptance; design only | working on core multiplayer |
 | [`DIRECT-MULTIPLAYER.md`](DIRECT-MULTIPLAYER.md) | bounded direct TCP server/client runtime and connected verification scope | implementing standalone transport |
 | [`NATIVE-MULTIPLAYER.md`](NATIVE-MULTIPLAYER.md) | Bevy join controls, connected input/presentation and verification limits | using or changing the native multiplayer client |
