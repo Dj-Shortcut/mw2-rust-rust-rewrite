@@ -1,11 +1,27 @@
+diff --git a/Cpp2IL.Core/Model/Contexts/MethodAnalysisContext.cs b/Cpp2IL.Core/Model/Contexts/MethodAnalysisContext.cs
+index 6422da0..d087be6 100644
+--- a/Cpp2IL.Core/Model/Contexts/MethodAnalysisContext.cs
++++ b/Cpp2IL.Core/Model/Contexts/MethodAnalysisContext.cs
+@@ -387,6 +387,8 @@ public class MethodAnalysisContext : HasGenericParameters, IMethodInfoProvider
+                 //This one is a bit trickier, as il2cpp doesn't use semantics.
+                 foreach (var prop in DeclaringType.Properties)
+                 {
++                    if (!prop.HasInferableSignature)
++                        continue;
+                     if (prop.Getter == this)
+                         return MethodSemantics.Getter;
+                     if (prop.Setter == this)
 diff --git a/Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs b/Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs
-index d0e400d..ce1d27d 100644
+index d0e400d..c521c4c 100644
 --- a/Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs
 +++ b/Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs
-@@ -14,6 +14,15 @@ public class PropertyAnalysisContext : HasCustomAttributesAndName, IPropertyInfo
+@@ -13,6 +13,24 @@ public class PropertyAnalysisContext : HasCustomAttributesAndName, IPropertyInfo
+ 
      public MethodAnalysisContext? Getter { get; }
      public MethodAnalysisContext? Setter { get; }
- 
++    public MethodAnalysisContext? SuppressedSetter { get; }
++    public string? SetterAssociationOmissionReason { get; }
++
 +    public string? NoninferableSignatureReason { get; }
 +    public bool HasInferableSignature => NoninferableSignatureReason == null;
 +
@@ -15,10 +31,16 @@ index d0e400d..ce1d27d 100644
 +            throw new InvalidOperationException($"Property signature unavailable for {this}: {NoninferableSignatureReason}");
 +    }
 +
++    public void RequireUsableSetterAssociation()
++    {
++        RequireInferableSignature();
++        if (SuppressedSetter != null)
++            throw new InvalidOperationException($"Property setter association unavailable for {this}: {SetterAssociationOmissionReason}");
++    }
+ 
      protected override int CustomAttributeIndex => Definition?.customAttributeIndex ?? -1;
  
-     public override AssemblyAnalysisContext CustomAttributeAssembly => DeclaringType.DeclaringAssembly;
-@@ -32,21 +41,39 @@ public class PropertyAnalysisContext : HasCustomAttributesAndName, IPropertyInfo
+@@ -32,26 +50,54 @@ public class PropertyAnalysisContext : HasCustomAttributesAndName, IPropertyInfo
          set => OverrideAttributes = value;
      }
  
@@ -62,7 +84,24 @@ index d0e400d..ce1d27d 100644
  
          InitCustomAttributeData();
  
-@@ -69,9 +96,18 @@ public class PropertyAnalysisContext : HasCustomAttributesAndName, IPropertyInfo
+-        Getter = parent.GetMethod(definition.Getter);
+-        Setter = parent.GetMethod(definition.Setter);
++        var getterDefinition = definition.Getter;
++        var setterDefinition = definition.Setter;
++        Getter = parent.GetMethod(getterDefinition);
++        Setter = parent.GetMethod(setterDefinition);
++        if (getterDefinition != null && Getter == null || setterDefinition != null && Setter == null)
++            throw new InvalidOperationException($"Present property accessor analysis missing: {this}");
++        if (HasInferableSignature && getterDefinition != null && setterDefinition?.parameterCount == 0)
++        {
++            SuppressedSetter = Setter;
++            SetterAssociationOmissionReason = "setter has no value parameter";
++            Setter = null;
++        }
+     }
+ 
+     protected PropertyAnalysisContext(MethodAnalysisContext? getter, MethodAnalysisContext? setter, TypeAnalysisContext parent) : base(0, parent.AppContext)
+@@ -69,9 +115,18 @@ public class PropertyAnalysisContext : HasCustomAttributesAndName, IPropertyInfo
      #region StableNameDotNet implementation
  
      public ITypeInfoProvider PropertyTypeInfoProvider
@@ -124,7 +163,7 @@ index bcae340..5211e46 100644
  
                  if (stableName == null)
 diff --git a/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs b/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs
-index d0428fa..226b862 100644
+index d0428fa..1b77e75 100644
 --- a/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs
 +++ b/Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs
 @@ -168,7 +168,12 @@ public static class AsmResolverAssemblyPopulator
@@ -133,7 +172,7 @@ index d0428fa..226b862 100644
      private static CustomAttributeNamedArgument FromAnalyzedAttributeProperty(AssemblyDefinition parentAssembly, CustomAttributeProperty property)
 -        => new(CustomAttributeArgumentMemberType.Property, property.Property.Name, GetTypeSigFromAttributeArg(parentAssembly, property.Value), FromAnalyzedAttributeArgument(parentAssembly, property.Value, property.Property.PropertyType == property.Property.AppContext.SystemTypes.SystemObjectType));
 +    {
-+        property.Property.RequireInferableSignature();
++        property.Property.RequireUsableSetterAssociation();
 +        _ = property.Property.GetExtraData<PropertyDefinition>("AsmResolverProperty")
 +            ?? throw new InvalidOperationException($"Eligible attribute property output missing: {property.Property}");
 +        return new(CustomAttributeArgumentMemberType.Property, property.Property.Name, GetTypeSigFromAttributeArg(parentAssembly, property.Value), FromAnalyzedAttributeArgument(parentAssembly, property.Value, property.Property.PropertyType == property.Property.AppContext.SystemTypes.SystemObjectType));
@@ -195,7 +234,7 @@ index d0428fa..226b862 100644
              {
                  foreach (var parameter in managedGetter.Parameters)
                  {
-@@ -537,6 +566,13 @@ public static class AsmResolverAssemblyPopulator
+@@ -537,12 +566,34 @@ public static class AsmResolverAssemblyPopulator
  
              foreach (var overrideContext in methodContext.Overrides)
              {
@@ -204,12 +243,42 @@ index d0428fa..226b862 100644
 +                    baseOverride = genericOverride.BaseMethodContext;
 +                if (baseOverride.DeclaringType != null)
 +                    foreach (var property in baseOverride.DeclaringType.Properties)
++                    {
 +                        if (!property.HasInferableSignature && (property.Getter == baseOverride || property.Setter == baseOverride))
 +                            property.RequireInferableSignature();
++                        if (property.SuppressedSetter == baseOverride)
++                            property.RequireUsableSetterAssociation();
++                        if (property.Setter == baseOverride)
++                            foreach (var implementingProperty in typeContext.Properties)
++                                if (implementingProperty.SuppressedSetter == methodContext)
++                                    implementingProperty.RequireUsableSetterAssociation();
++                    }
                  var interfaceMethod = (IMethodDefOrRef)overrideContext.ToMethodDescriptor(importer.TargetModule);
                  var method = methodContext.GetExtraData<MethodDefinition>("AsmResolverMethod") ?? throw new($"AsmResolver method not found in method analysis context for {methodContext}");
-                 type.MethodImplementations.Add(new MethodImplementation(interfaceMethod, method));
-@@ -585,6 +621,8 @@ public static class AsmResolverAssemblyPopulator
+-                type.MethodImplementations.Add(new MethodImplementation(interfaceMethod, method));
+                 var interfaceMethodResolved = interfaceMethod.Resolve();
+                 if (interfaceMethodResolved != null)
+                 {
++                    if (interfaceMethodResolved.IsSetMethod)
++                    {
++                        foreach (var implementingProperty in typeContext.Properties)
++                            if (implementingProperty.SuppressedSetter == methodContext)
++                                implementingProperty.RequireUsableSetterAssociation();
++                        if (method.Signature == null || method.Signature.ParameterTypes.Count == 0)
++                            throw new InvalidOperationException($"Interface setter has no value parameter: {method.Name}");
++                    }
+                     if (interfaceMethodResolved.IsGetMethod && !method.IsGetMethod)
+                     {
+                         getMethodsToCreate ??= [];
+@@ -556,6 +607,7 @@ public static class AsmResolverAssemblyPopulator
+                         setMethodsToCreate.Add((interfacePropertyResolved, interfaceMethod.DeclaringType!.ToTypeSignature(), method));
+                     }
+                 }
++                type.MethodImplementations.Add(new MethodImplementation(interfaceMethod, method));
+             }
+         }
+ 
+@@ -585,6 +637,8 @@ public static class AsmResolverAssemblyPopulator
                  var (interfaceProperty, interfaceType, setMethod) = entry;
                  if (getMethodsToCreate?.Any(e => e.InterfaceProperty == interfaceProperty && SignatureComparer.Default.Equals(e.InterfaceType, interfaceType)) == true)
                      continue;
@@ -219,14 +288,14 @@ index d0428fa..226b862 100644
                  var propertySignature = setMethod.IsStatic
                      ? PropertySignature.CreateStatic(setMethod.Signature!.ParameterTypes[^1], setMethod.Signature.ParameterTypes.Take(setMethod.Signature.ParameterTypes.Count - 1))
 diff --git a/Cpp2IL.Core/Utils/V29AttributeUtils.cs b/Cpp2IL.Core/Utils/V29AttributeUtils.cs
-index 3812a08..faa36ae 100644
+index 3812a08..348247c 100644
 --- a/Cpp2IL.Core/Utils/V29AttributeUtils.cs
 +++ b/Cpp2IL.Core/Utils/V29AttributeUtils.cs
 @@ -63,6 +63,7 @@ public static class V29AttributeUtils
              var value = ReadBlob(reader, context, ret, CustomAttributeParameterKind.Property, i);
              var propIndex = stream.ReadUnityCompressedInt();
              var property = ResolveMemberFromIndex(stream, constructor, context, propIndex, t => t.Properties);
-+            property.RequireInferableSignature();
++            property.RequireUsableSetterAssociation();
  
              ret.Properties.Add(new(property, value));
          }
@@ -330,7 +399,7 @@ index 0384535..e1d2b49 100644
          }
          finally
 diff --git a/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs b/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs
-index 2d1b598..6b83188 100644
+index 2d1b598..4687722 100644
 --- a/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs
 +++ b/LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs
 @@ -1,5 +1,4 @@
@@ -339,7 +408,7 @@ index 2d1b598..6b83188 100644
  using LibCpp2IL.BinaryStructures;
  using LibCpp2IL.Reflection;
  
-@@ -14,36 +13,103 @@ public class Il2CppPropertyDefinition : ReadableClass, IIl2CppTokenProvider
+@@ -14,36 +13,114 @@ public class Il2CppPropertyDefinition : ReadableClass, IIl2CppTokenProvider
      [Version(Max = 24)] public int customAttributeIndex;
      public uint token;
  
@@ -373,8 +442,8 @@ index 2d1b598..6b83188 100644
 +    {
 +        get
 +        {
-+            var method = GetSignatureMethod();
-+            return method != null ? null : Setter == null ? "no accessors" : "setter has no value parameter";
++            _ = GetSignatureMethod(out var reason);
++            return reason;
          }
 -        internal set => _type = value;
      }
@@ -387,7 +456,7 @@ index 2d1b598..6b83188 100644
 +    {
 +        get
 +        {
-+            var method = GetSignatureMethod();
++            var method = GetSignatureMethod(out _);
 +            if (method == null)
 +                return null;
 +            var type = Getter != null
@@ -402,7 +471,7 @@ index 2d1b598..6b83188 100644
 -    public Il2CppMethodDefinition? Setter => LibCpp2IlMain.TheMetadata == null || set.IsNull || DeclaringType == null ? null : LibCpp2IlMain.TheMetadata.GetMethodDefinitionFromIndex(DeclaringType.FirstMethodIdx + set);
 +    public bool IsStatic => (Getter ?? Setter ?? throw new InvalidOperationException($"Property has no accessors: {Name}")).IsStatic;
 +
-+    private Il2CppMethodDefinition? GetSignatureMethod()
++    private Il2CppMethodDefinition? GetSignatureMethod(out string? reason)
 +    {
 +        if (LibCpp2IlMain.TheMetadata == null || LibCpp2IlMain.Binary == null)
 +            throw new InvalidOperationException("Property signatures require initialized metadata and binary");
@@ -411,12 +480,23 @@ index 2d1b598..6b83188 100644
 +        if (getter != null)
 +            ValidateParameterSpan(getter);
 +        if (setter != null)
-+        {
 +            ValidateParameterSpan(setter);
-+            if (getter != null && setter.parameterCount == 0)
-+                throw new InvalidOperationException($"Property setter has no value parameter: {Name}");
++        reason = null;
++        if (getter != null && setter?.parameterCount == 0)
++        {
++            var type = getter.RawReturnType ?? throw new InvalidOperationException($"Unable to resolve property getter signature: {Name}");
++            if (type.Type == Il2CppTypeEnum.IL2CPP_TYPE_VOID)
++            {
++                reason = "getter returns void and setter has no value parameter";
++                return null;
++            }
 +        }
-+        return getter ?? (setter?.parameterCount > 0 ? setter : null);
++        if (getter != null)
++            return getter;
++        if (setter?.parameterCount > 0)
++            return setter;
++        reason = setter == null ? "no accessors" : "setter has no value parameter";
++        return null;
 +    }
  
 -    public Il2CppTypeReflectionData? PropertyType => LibCpp2IlMain.TheMetadata == null ? null : Getter == null ? Setter!.Parameters![0].Type : Getter!.ReturnType;

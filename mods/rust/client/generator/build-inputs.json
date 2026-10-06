@@ -11,8 +11,8 @@
   },
   "targetFramework": "net6.0",
   "assemblyVersion": "2022.1.0.0",
-  "informationalVersion": "2022.1.0-rust-property.1",
-  "patchSha256": "da3449ae4a1e8880a3731c81153ddf045e20cd13ad729159b15041eef73d174b",
+  "informationalVersion": "2022.1.0-rust-property.2",
+  "patchSha256": "0468c9260a13a1d1708229b555f80f832ca1bdb0a1624e03dcc298db760cd187",
   "lockFiles": {
     "Cpp2IL.Core.lock.json": "c10ee49a5d8e1c850d01aec7b59f6799f16d5d3568357061fa0a94394b377137",
     "LibCpp2IL.lock.json": "4c10813fcf1b1f7a37fcebeb2be5d7e23979462ca13f55c5692ddafb9ecf638e",
@@ -26,13 +26,14 @@
     "sha256": "da35e72aa21c005a5a0d298cfbae110bc1609a815730ea0dde84b01a1b3cd3be"
   },
   "patchedFiles": {
-    "Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs": "bdb37f02af183ed6aca0c3e4eda51886e694613b3a7cfe471136b251f85254a1",
+    "Cpp2IL.Core/Model/Contexts/MethodAnalysisContext.cs": "ff64d69e1b004ae2836b8b311b4e3c10535fbde7b727fdcfa3d52b9ee70857ba",
+    "Cpp2IL.Core/Model/Contexts/PropertyAnalysisContext.cs": "4a3a99e9845c3066a19027324e4947429cb9f79b552c6f5acaa044ed3a240924",
     "Cpp2IL.Core/Model/Contexts/TypeAnalysisContext.cs": "2e78b7ba24b76b02cfe331e9a285aba89f0535b20efaff71ccc8a60f4ef02c77",
     "Cpp2IL.Core/OutputFormats/DiffableCsOutputFormat.cs": "4d25a7748b4836c1ddfd616a6bb2169de57dad4951ede487c3aaf9938d5e5f78",
     "Cpp2IL.Core/ProcessingLayers/StableRenamingProcessingLayer.cs": "e57b79ce3d107839795bb739f1fa2f17c0476fda2fdabc0b177950c0d7f23850",
-    "Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs": "017525cb043d89161f88ef174db351efeec9167c74782726b54aa537efb7d503",
-    "Cpp2IL.Core/Utils/V29AttributeUtils.cs": "8e2de81e9d96506c3b03a102eb7202d791081b6b94e608589c430abe4f2cc4ba",
+    "Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs": "cd5ada8e9cfd8c63ef7727a933e79f3a13bcd408fd9d276b0c19f833215f4e00",
+    "Cpp2IL.Core/Utils/V29AttributeUtils.cs": "2221ed772a586b0729d3a856e74faa01ad2f322c9f9647271ec83d9cb439a81c",
     "LibCpp2IL/Metadata/Il2CppMetadata.cs": "8416e0d60c8736bcd33c17ac8e838a7a671e7168057f6398ed8dafa34445050a",
-    "LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs": "2849ea5a45a6764a9f600bba03603beafbf484f52663bed22cf8d07f656176c7"
+    "LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs": "17e60878aa1f68091119c44e706bd808ce258eb4c5ee97fcc5932d53359c95b0"
   }
 }

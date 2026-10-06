@@ -32,7 +32,7 @@ metadata parsing now separately found 175 empty and 938 nonempty getterless sett
 Checked owner/accessor/parameter relationships passed; full byte geometry is pending.
 [Correction source/build](../mods/rust/client/generator/README.md) preserves indices/methods;
 omits only noninferable wrappers; invalid relationships and output references fail.
-Clean Mac source build passed (41 nullable/source-link warnings/0 errors), 54 DLL fixture checks
+Previous correction (.1): clean Mac source build passed (41 nullable/source-link warnings/0 errors), 54 DLL fixture checks
 and two original-DLL reproductions. The first Windows source build stopped before
 restore/build at a post-patch hash mismatch: observed bytes matched CRLF conversion
 of the expected LF file; per-invocation Git LF settings correct that build route.
@@ -40,7 +40,7 @@ The corrected Windows build passed with 41 warnings/0 errors; Core/Lib stay outs
 Patched LoadFromFile returned true with unchanged retail hashes; original crash case passes.
 All 71,422 RawPropertyType metadata getters were invoked: 44,622 resolved, 175 tagged getterless empty setters,
 26,625 getter-plus-empty-setter exceptions, all classified by the explicit no-value guard.
-Raw getter scan:26,618 VOID,seven non-VOID,null0/errors0. [Next bounded design](../mods/rust/client/generator/README.md#next-bounded-accessor-correction-design-not-implemented); full generation/runtime and loader retry remain pending.
+Raw getter scan:26,618 VOID,seven non-VOID,null0/errors0. [Bounded accessor correction](../mods/rust/client/generator/README.md#bounded-accessor-correction) now implemented: omit VOID/empty-setter wrappers, preserve non-VOID getters and reject suppressed-setter references. Current Mac build passes (41 warnings/0 errors);106 authored DLL checks pass, including16 serialized V29 payload cases. Generic local-index resolution is unsupported; full managed PE round trip, current Windows build/parser, full generation/runtime and loader retry remain pending.
 Upstream #548 closed without merge; its closure establishes no current approval.
 Review corrections/licences before retry; only passing empty-loader generation/menu/exit/rollback permits a log-only Load probe.
 That callback proves no Unity frame hooks, input or native game adapters.

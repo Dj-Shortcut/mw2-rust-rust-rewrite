@@ -1,8 +1,8 @@
 # Bounded property-signature generator correction
 
 Source for [issue #289](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/289).
-The correction and clean source builds on Mac and actual Windows are verified.
-Actual Windows metadata loads; full property coverage, complete interop generation and installation remain unfinished.
+The current accessor correction builds on Mac; the previous revision also built on actual Windows.
+Actual Windows metadata loaded with the previous revision; the current Windows build, full property coverage, complete interop generation and installation remain unfinished.
 No playable mod is available. This supports the [offline loader gate](../../../../docs/RUST-CLIENT-LOADER.md).
 
 ## Observed failure and behavior
@@ -56,14 +56,14 @@ different new absolute destination; partial files are never reused or deleted.
 Patch application pins LF output per invocation, independent of user/global Git
 line-ending settings. The first native Windows attempt stopped at the source-hash
 gate because Git converted patched source to CRLF; the failed directory is preserved.
-A private clean-archive reproduction matched the observed CRLF hash under adverse
+For the previous correction (.1), a private clean-archive reproduction matched the observed CRLF hash under adverse
 Git settings (0/8 source hashes matched); the corrected invocation matched all eight
 pinned source hashes while preserving the caller settings. Recipe syntax passed.
-A fresh corrected Windows build completed with 41 upstream/archive warnings and
+The previous correction (.1) Windows build completed with 41 upstream/archive warnings and
 zero errors; its stage manifest has the expected Core/Lib assembly identities.
 Actual corrected LoadFromFile returned true with unchanged retail hashes. The full
 property scan remains blocked; complete loader generation is unverified.
-The build verifies the source archive, patch, resulting eight source files, package
+The build verifies the source archive, patch, resulting nine source files, package
 source configuration and four separate locks. It restores the original framework
 graph in locked mode, then builds net6 with SDK9/C#13. Keep upstream assembly-version
 settings: Core/Lib/Wasm2022.1.0.0 and Stable0.1.0.0. Do not replace the other official
@@ -78,43 +78,48 @@ Project-authored corrections and build/fetch recipes follow Apache-2.0 in
 No upstream binary, checkout, private fixture, generated reference or retail file ships.
 
 ## Verification and offline retry gate
-Clean source builds using the published recipe passed on macOS/arm64 and actual
-Shadow Windows: 38 upstream nullable and 3 archive source-link warnings, zero errors. The Mac DLLs decode as neutral,
-unsigned net6 assemblies2022.1.0.0 with informational version2022.1.0-rust-property.1;
-Core's Lib/Stable reference versions match the official dependency identities.
-54 temporary authored assertions against those actual DLLs passed, covering v39
-widths/ownership/spans, omission/order, controlled lazy type resolution, explicit
-attribute/interface failures, six incoherent managed signatures and three valid
-paired/indexer/setter-only emissions. Two original-DLL fixture cases separately
-reproduced the empty-setter exception and wrong first-parameter indexer value.
-Primitive binary and image maps are controlled scaffolding, not retail registration.
-Attribute payloads and truly parameterized generic-interface round trips remain unproved.
-No permanent test was added. Authored fixtures prove no retail gameplay flow.
-The fresh actual Windows parser read the unchanged retail binary/metadata and
-handled the original empty-setter case without cache injection. All 71,422 real
-RawPropertyType metadata getters were then invoked: 44,622 resolved, 175 getterless empty setters
-were tagged, and 26,625 getter-plus-empty-setter cases threw the explicit
-"Property setter has no value parameter" guard. A second scan classified all
-26,625 exceptions under that prefix. Full property coverage has not passed;
-these cases require a documented correction before any loader retry.
+The previous correction built on Mac and actual Shadow Windows with 38 upstream
+nullable and three archive SourceLink warnings, zero errors. Its Windows parser
+read unchanged retail binary/metadata and handled the original getterless empty
+setter case without cache injection. All 71,422 RawPropertyType metadata getters
+were invoked: 44,622 resolved, 175 getterless empty setters were tagged, and
+26,625 getter-plus-empty-setter cases threw the explicit no-value guard.
 A separate raw getter-type scan over those 26,625 rows resolved every type:
 26,618 returned VOID, seven returned non-VOID, and none returned null or threw.
 These counts describe metadata APIs only; no game getter was executed.
+Two original-DLL fixture cases reproduced the empty-setter exception and wrong
+first-parameter indexer value. Original rows, files and logs stay private.
 
-### Next bounded accessor correction (design, not implemented)
-After the existing relationship checks, getter plus empty setter with a resolved
-VOID getter has no inferable property type: tag and omit its wrapper, preserving
-both underlying methods and the original property slot. With a resolved non-VOID
-getter, retain getter-only output and suppress only the setter association.
-Retain the original metadata setter and exact method context for reference checks.
-Null type resolution and malformed spans remain errors. Named writes and interface
-setter references to a suppressed setter must fail explicitly. Existing omitted
-wrapper reference guards remain; stable method semantics must describe only emitted
-associations. Core type resolution and managed signature checks still apply.
-Private serialized fixtures and fresh Windows parsing/generation must pass before
-any installation retry. Expected raw classification is 44,629 resolved, 175 tagged
-getterless empty setters and 26,618 tagged VOID-getter/empty-setter rows, with zero
-exceptions; this is an acceptance target, not a measured result.
+### Bounded accessor correction
+After relationship checks, a getter plus empty setter with a resolved VOID getter
+has no inferable property type: tag and omit its wrapper, preserving both methods
+and the original property slot. A resolved non-VOID getter retains getter-only
+output and suppresses only the setter association. Original metadata setters and
+exact method contexts remain available for reference checks. Null type resolution
+and malformed spans remain errors. Named writes and interface setter references
+to a suppressed setter fail explicitly, including an implementing suppressed
+setter targeting an ordinary interface setter. Stable method semantics skip
+omitted wrappers. Core type resolution and managed signature checks still apply.
+
+The current clean Mac build passed with 41 warnings and zero errors. The actual
+Core/Lib DLLs decode as neutral unsigned net6 assemblies2022.1.0.0 with embedded
+informational version2022.1.0-rust-property.2; Core's Lib/Stable reference versions
+match official dependency identities. All 106 temporary authored checks against
+those DLLs passed: serialized v39 rows, widths/ownership/spans, preserved slots
+and methods, managed getter-only/indexer output, invalid resolution, VOID versus
+pointer-to-VOID, stable semantics, named-write rejection, both interface directions
+and an extra unassociated getter pairing. Sixteen serialized V29 payload cases
+exercise local/base property indices and generic constructor substitution for
+base declarations. Generic local-index resolution remains an explicit unsupported
+boundary. Binary/image maps are controlled scaffolding, not retail registration;
+parameter caches are not injected. These checks do not prove a full managed PE
+round trip, full interop generation or gameplay. No permanent test was added.
+
+A fresh current Windows build and parser scan are pending. Expected raw
+classification is 44,629 resolved, 175 tagged getterless empty setters and 26,618
+tagged VOID-getter/empty-setter rows, with zero exceptions; this is an acceptance
+target, not a measured result. Full native generation must also pass before the
+corrected empty loader can meet its offline menu/exit/rollback gate.
 
 57 temporary recipe checks passed for actual SDK availability/caller-policy
 distinction and mocked download failure preservation/retry; both scripts parse.
