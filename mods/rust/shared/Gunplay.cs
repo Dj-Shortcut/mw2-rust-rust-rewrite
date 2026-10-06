@@ -267,7 +267,7 @@ namespace Shortcut.RustMod
             }
 
             bool ready = walking && equip == 0 && reload == 0 && recovery == 0;
-            if (ready && !input.Fire) release = false;
+            if (walking && !input.Fire) release = false;
             if (ready && input.Aim) aim = Math.Min(p.AdsTicks, aim + 1);
             else aim = Math.Max(0, aim - 1);
             double aimFraction = (double)aim / p.AdsTicks;

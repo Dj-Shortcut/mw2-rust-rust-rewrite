@@ -24,8 +24,8 @@ together; discard failed candidates, then settle that same tick with no input/un
 
 Host-confirmed walking/sprinting/skating/unavailable mode and moving/airborne
 facts govern handling. Fire, aim and reload are boolean requests only.
-Sprinting/skating/unavailable cancel reload and ADS; firing needs trigger release
-and a bounded recovery after returning to walking. Native survival remains Rust's.
+Sprinting/skating/unavailable cancel reload and ADS; returning to walking applies recovery.
+Walking releases count during equip/reload/recovery; blocked semi edges are consumed. Rust owns survival.
 Cancellation precedes reload transfer; timers/completion then precede requests.
 Valid reload uses a rising edge and precedes fire. Ammo moves only when
 reload completes, limited to magazine space and available reserve; no free ammo.
