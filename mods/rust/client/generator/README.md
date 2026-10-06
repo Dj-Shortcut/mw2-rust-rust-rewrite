@@ -51,6 +51,13 @@ If fetching only this folder, `fetch-generator.ps1 -Commit <40-character reposit
 commit> -Destination <new absolute folder>` downloads immutable reviewable source,
 records the commit, and performs no build or installation. Keep that fetch script
 and commit tied to the reviewed repository revision.
+Patch application pins LF output per invocation, independent of user/global Git
+line-ending settings. The first native Windows attempt stopped at the source-hash
+gate because Git converted patched source to CRLF; the failed directory is preserved.
+A private clean-archive reproduction matched the observed CRLF hash under adverse
+Git settings (0/8 source hashes matched); the corrected invocation matched all eight
+pinned source hashes while preserving the caller settings. Recipe syntax passed.
+A fresh corrected Windows build remains required.
 The build verifies the source archive, patch, resulting eight source files, package
 source configuration and four separate locks. It restores the original framework
 graph in locked mode, then builds net6 with SDK9/C#13. Keep upstream assembly-version

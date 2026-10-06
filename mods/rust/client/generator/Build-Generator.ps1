@@ -85,8 +85,9 @@ try {
     if ($LASTEXITCODE -ne 0 -or $sdkVersion -cne $inputs.sdkVersion) { throw "Expected SDK $($inputs.sdkVersion); got $sdkVersion" }
     if (Test-Path -LiteralPath (Join-Path $source '.git')) { throw 'Source archive unexpectedly contains Git state.' }
     Run $GitPath @('-C', $source, 'init', '--quiet')
-    Run $GitPath @('-C', $source, 'apply', '--check', '--whitespace=error-all', $patch)
-    Run $GitPath @('-C', $source, 'apply', '--whitespace=error-all', $patch)
+    # Keep the pinned source bytes independent of Windows/user Git line-ending settings.
+    Run $GitPath @('-c', 'core.autocrlf=false', '-c', 'core.eol=lf', '-C', $source, 'apply', '--check', '--whitespace=error-all', $patch)
+    Run $GitPath @('-c', 'core.autocrlf=false', '-c', 'core.eol=lf', '-C', $source, 'apply', '--whitespace=error-all', $patch)
     foreach ($entry in $inputs.patchedFiles.PSObject.Properties) { Assert-Hash (Join-Path $source $entry.Name) $entry.Value }
     foreach ($entry in $inputs.lockFiles.PSObject.Properties) {
         $project = $entry.Name -replace '\.lock\.json$', ''

@@ -37,7 +37,10 @@ Checked owner/accessor/parameter relationships passed; full byte geometry is pen
 [Correction source/build](../mods/rust/client/generator/README.md) preserves indices/methods;
 omits only noninferable wrappers; invalid relationships and output references fail.
 Clean Mac source build passed (41 nullable/source-link warnings/0 errors), 54 DLL fixture checks
-and two original-DLL reproductions; corrected retail parsing/runtime remain pending.
+and two original-DLL reproductions. The first Windows source build stopped before
+restore/build at a post-patch hash mismatch: observed bytes matched CRLF conversion
+of the expected LF file. Per-invocation Git LF settings correct that build route;
+fresh native build and corrected retail parsing/runtime remain pending.
 Upstream #548 closed without merge; its closure establishes no current approval.
 Review any generator correction/licence before retry; only passing empty-loader
 generation/menu/normal-exit/rollback permits a log-only Load probe.
