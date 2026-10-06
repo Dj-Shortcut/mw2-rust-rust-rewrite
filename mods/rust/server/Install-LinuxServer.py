@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime
 import gzip
 import hashlib
@@ -19,6 +20,7 @@ import subprocess
 import sys
 import tempfile
 import tarfile
+import time
 import urllib.request
 import zipfile
 
@@ -26,6 +28,7 @@ STEAM_URL = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar
 RELEASE_API = "https://api.github.com/repos/OxideMod/Oxide.Rust/releases/tags/"
 DEFAULT_RELEASE = "2.0.7801"
 DEFAULT_STEAM_TIMEOUT = 14400
+PROCESS_CLEANUP_TIMEOUT = 5
 MAX_ARCHIVE = 64 * 1024 * 1024
 MAX_EXPANDED = 256 * 1024 * 1024
 MIN_RAM = 12 * 1024**3
@@ -446,22 +449,80 @@ def overlay_oxide(archive: Path, root: Path) -> None:
                 raise ValueError("Expected regular framework DLL is missing after overlay.")
 
 
+@contextlib.contextmanager
+def deferred_interruptions():
+    previous = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM, signal.SIGHUP})
+    try:
+        yield
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous)
+
+
+def finish_process_group(process: subprocess.Popen) -> None:
+    # The launcher is still unreaped: its PID cannot be reused for another group.
+    kill_error = None
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except OSError as error:
+        kill_error = error
+    try:
+        process.wait(timeout=PROCESS_CLEANUP_TIMEOUT)
+    except subprocess.TimeoutExpired as error:
+        if kill_error is not None:
+            raise RuntimeError("Cannot stop or reap the SteamCMD process group; installation cannot continue.") from kill_error
+        raise RuntimeError("SteamCMD launcher did not exit after group cleanup; installation cannot continue.") from error
+    if kill_error is not None:
+        raise RuntimeError("Cannot stop the SteamCMD process group; installation cannot continue.") from kill_error
+    deadline = time.monotonic() + PROCESS_CLEANUP_TIMEOUT
+    while True:
+        try:
+            os.killpg(process.pid, 0)  # Observation only; no destructive signal after reaping.
+        except ProcessLookupError:
+            return
+        except OSError as error:
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Cannot verify SteamCMD process-group cleanup; installation cannot continue.") from error
+        if time.monotonic() >= deadline:
+            raise RuntimeError("SteamCMD process group remains after cleanup; installation cannot continue.")
+        time.sleep(0.05)
+
+
 def run_process(arguments: list[str], cwd: Path, logfile: Path, timeout: int = DEFAULT_STEAM_TIMEOUT) -> None:
     with logfile.open("xb") as log:
-        process = subprocess.Popen(arguments, cwd=cwd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        process = None
+        failure = None
         try:
-            code = process.wait(timeout=timeout)
-        except BaseException:
-            try:
-                # Stop the complete installer group, including bootstrap/client children.
-                # No server/world has been started; partial downloads are intentionally retained.
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            process.wait()
+            process = subprocess.Popen(arguments, cwd=cwd, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+            deadline = time.monotonic() + timeout
+            # Observe exit without reaping, so all group signals precede PID reuse.
+            while True:
+                event = os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOWAIT | os.WNOHANG)
+                if event is not None and event.si_pid == process.pid:
+                    break
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(arguments, timeout)
+                time.sleep(min(0.05, remaining))
+            if event.si_code != os.CLD_EXITED:
+                raise RuntimeError("SteamCMD launcher terminated by signal " + str(event.si_status) + "; inspect retained log.")
+            if event.si_status != 0:
+                raise RuntimeError("SteamCMD failed with exit code " + str(event.si_status) + "; inspect retained log.")
+        except BaseException as error:
+            failure = error
             raise
-        if code != 0:
-            raise RuntimeError("SteamCMD failed with exit code " + str(code) + "; inspect retained log.")
+        finally:
+            # Clean on success, nonzero exit, timeout and interruption before overlay.
+            if process is not None:
+                try:
+                    with deferred_interruptions():
+                        finish_process_group(process)
+                except BaseException as cleanup_error:
+                    if failure is not None:
+                        raise RuntimeError("SteamCMD cleanup failed after " + type(failure).__name__ + ": " +
+                                           str(failure) + "; " + str(cleanup_error)) from cleanup_error
+                    raise
 
 
 def steam_build(root: Path) -> str:
@@ -481,12 +542,11 @@ def steam_build(root: Path) -> str:
 
 def write_manifest(root: Path, manifest: dict) -> None:
     manifest["updated_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    staging = root / ".mod-bootstrap"
-    no_symlinks(staging)
+    no_symlinks(root)
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix="manifest-", suffix=".tmp",
-                                         dir=staging, delete=False) as output:
+                                         dir=root, delete=False) as output:
             temporary = Path(output.name)
             json.dump(manifest, output, indent=2, allow_nan=False)
             output.write("\n")
@@ -503,13 +563,18 @@ def write_manifest(root: Path, manifest: dict) -> None:
 def install(root: Path, release: str, steam_timeout: int = DEFAULT_STEAM_TIMEOUT) -> dict:
     steam_timeout = timeout_argument(str(steam_timeout))
     preflight(root)
-    root.mkdir(mode=0o700)  # Atomic refusal if the destination appeared during preflight.
     staging = root / ".mod-bootstrap"
-    staging.mkdir(mode=0o700)
-    manifest = {"status": "preparing", "stage": "downloads", "root": str(root),
+    manifest = {"status": "preparing", "stage": "initialization", "root": str(root),
                 "app_id": 258550, "branch": "public", "oxide_release": release,
                 "steam_timeout_seconds": steam_timeout, "runtime_verified": False, "world_started": False}
+    root_created = False
     try:
+        # Record ownership before pending catchable signals can interrupt mkdir's return.
+        with deferred_interruptions():
+            root.mkdir(mode=0o700)  # Atomic refusal if the destination appeared during preflight.
+            root_created = True
+        staging.mkdir(mode=0o700)
+        manifest["stage"] = "downloads"
         write_manifest(root, manifest)
         metadata_file = staging / "oxide-release.json"
         download(RELEASE_API + release, metadata_file, 1024 * 1024)
@@ -541,11 +606,13 @@ def install(root: Path, release: str, steam_timeout: int = DEFAULT_STEAM_TIMEOUT
         write_manifest(root, manifest)
         return manifest
     except BaseException as error:
-        manifest.update(status="failed", error=type(error).__name__ + ": " + str(error))
-        try:
-            write_manifest(root, manifest)
-        except (OSError, ValueError) as manifest_error:
-            print("Failed to record failure manifest: " + str(manifest_error), file=sys.stderr)
+        if root_created:
+            manifest.update(status="failed", error=type(error).__name__ + ": " + str(error))
+            try:
+                with deferred_interruptions():
+                    write_manifest(root, manifest)
+            except (OSError, ValueError) as manifest_error:
+                print("Failed to record failure manifest: " + str(manifest_error), file=sys.stderr)
         raise
 
 

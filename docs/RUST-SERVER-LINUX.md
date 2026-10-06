@@ -1,7 +1,6 @@
 # Linux Rust server installation preparation
 
-Design for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266).
-Source target: `mods/rust/server/Install-LinuxServer.py`.
+Design for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266): `mods/rust/server/Install-LinuxServer.py`.
 Design published first; installer source and bounded Mac checks now exist.
 See [commands and evidence](../mods/rust/server/LINUX.md); no Linux installation or playable server is verified.
 
@@ -26,8 +25,10 @@ Reject archive traversal, links/special entries, duplicates and unreasonable siz
 Retain executable SteamCMD permissions; safely overwrite only installed regular
 files during the intended Oxide overlay. Never overwrite old worlds/configs.
 SteamCMD timeout: `--steam-timeout-seconds` 60–86400, default 14400 (4 hours).
-Record release/hashes/build/stages/timeout via unique atomic temporary manifests;
-failure preserves partial data for inspection. `installed-unverified` proves
+Guard fresh-root/staging initialization; failure recording needs only the owned root.
+Record release/hashes/build/stages/timeout with unique atomic temporaries; preserve failures.
+Clean tracked process groups on every exit before overlay; bounded uncertainty refuses.
+`installed-unverified` proves
 files/recording only, not dependency/version compatibility or startup.
 SteamCMD may create its normal per-user Steam cache/logs outside the new root.
 
