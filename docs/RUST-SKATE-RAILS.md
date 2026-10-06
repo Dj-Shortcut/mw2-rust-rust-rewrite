@@ -34,15 +34,15 @@ Integrate drag until release; consume remaining time once, with no extra zero-du
 Allow at most capture→travel→release→ordinary continuation per public call;
 continuation cannot capture again and airborne jump edges cannot fire twice.
 Endpoint release keeps momentum; ordinary world queries determine later support.
-Same-ID 0.25s recapture cooldown advances once per successful public step, including
-the legacy empty-catalog overload; normalize tiny roundoff. Release starts a fresh cooldown.
+Same-ID 0.25s cooldown follows elapsed contact/travel time, including legacy calls.
+Release starts a fresh timer; age only post-release time, even after bail; normalize roundoff.
 Failed queries or invalid candidates preserve the original state and empty events.
 Append grinding/capture/release enum values; keep existing numeric values unchanged.
 No saved-state or packet deserialization contract is introduced.
 
 ## Verification and native limits
-Root compiles the actual DLL against genuine framework references and preserves
-all 69 existing and 88 rail scenarios pass. Ignored probes cover definition bounds/copying, actual
+Root compiled the actual DLL against genuine framework references without errors/warnings.
+All 69 existing and 118 rail scenarios pass. Ignored probes cover bounds/copying, actual
 collider identity, capture directions/rejections, snap/travel/exit obstruction,
 endpoints/remainder, jump edges, stale rails, cooldown and late-query atomic failure.
 No permanent tests, game files, offsets or probes ship. Record results in [TODO](../TODO.md).

@@ -150,16 +150,11 @@ namespace Shortcut.RustMod
             bool clear;
             if (!Clear(world, state.Position, MountedHull, out clear, out error)) return false;
             if (!clear) return Fail("The rider space is blocked.", out error);
-            double cooldown = Math.Max(0, state.CooldownSeconds - dt);
-            if (cooldown <= 1e-12) cooldown = 0;
-            var working = new SkateState(state.Position, state.Velocity, state.GroundNormal, state.Yaw,
-                state.Spin, state.Flip, state.TravelSign, state.PreviousJump, state.Mode,
-                state.ActiveRail, state.RailProgress, state.RailSpeed, cooldown > 0 ? state.CooldownRailId : 0, cooldown);
             SkateState candidate;
             SkateEvents pending;
-            bool success = working.Mode == SkateMode.Grinding
-                ? TryGrinding(working, input, dt, world, rails, out candidate, out pending, out error)
-                : TryOrdinary(working, input, dt, world, rails, true, out candidate, out pending, out error);
+            bool success = state.Mode == SkateMode.Grinding
+                ? TryGrinding(state, input, dt, world, rails, out candidate, out pending, out error)
+                : TryOrdinary(state, input, dt, world, rails, true, out candidate, out pending, out error);
             if (!success) return false;
             if (!Valid(candidate)) return Fail("Skate movement exceeds the allowed bounds.", out error);
             if (!Clear(world, candidate.Position, MountedHull, out clear, out error)) return false;
@@ -236,6 +231,7 @@ namespace Shortcut.RustMod
                         SkateState captured = null;
                         var contact = new SkateState(position, velocity, normal, yaw, spin, flip, sign, input.Jump, mode,
                             default(SkateRail), 0, 0, state.CooldownRailId, state.CooldownSeconds);
+                        contact = AdvanceCooldown(contact, dt - remainingTime * (1 - hit.Fraction));
                         if (allowCapture && !TryCapture(contact, hit, world, rails, out captured, out error)) return false;
                         if (captured != null)
                         {
@@ -292,7 +288,7 @@ namespace Shortcut.RustMod
             { velocity = default(SkateVector); spin = 0; flip = 0; }
             var candidate = new SkateState(position, velocity, normal, yaw, spin, flip, sign, input.Jump, mode,
                 default(SkateRail), 0, 0, state.CooldownRailId, state.CooldownSeconds);
-            next = candidate;
+            next = AdvanceCooldown(candidate, dt);
             events = pending;
             return true;
         }
@@ -373,10 +369,14 @@ namespace Shortcut.RustMod
                     state.TravelSign, input.Jump, impactSpeed > 4 ? SkateMode.Bailed : SkateMode.Airborne,
                     default(SkateRail), 0, 0, state.ActiveRail.Id, RailRecaptureDelay);
                 events = SkateEvents.RailReleased | SkateEvents.Blocked;
-                if (stopped.Mode == SkateMode.Bailed) events |= SkateEvents.Bailed;
+                double unused = Math.Max(0, dt - impactTime);
+                if (stopped.Mode == SkateMode.Bailed)
+                {
+                    events |= SkateEvents.Bailed;
+                    stopped = AdvanceCooldown(stopped, unused);
+                }
                 else
                 {
-                    double unused = Math.Max(0, dt - impactTime);
                     if (unused > 0)
                     {
                         SkateEvents freeEvents;
@@ -396,8 +396,18 @@ namespace Shortcut.RustMod
             if (!RailSupport(world, end, state.ActiveRail.Id, out supported, out error)) return false;
             if (!supported)
                 return ContinueReleased(moving, input, 0, 0, world, rails, out next, out events, out error);
-            next = moving;
+            next = AdvanceCooldown(moving, dt);
             return true;
+        }
+
+        private static SkateState AdvanceCooldown(SkateState state, double elapsed)
+        {
+            double cooldown = Math.Max(0, state.CooldownSeconds - elapsed);
+            if (cooldown <= 1e-12) cooldown = 0;
+            return new SkateState(state.Position, state.Velocity, state.GroundNormal, state.Yaw,
+                state.Spin, state.Flip, state.TravelSign, state.PreviousJump, state.Mode,
+                state.ActiveRail, state.RailProgress, state.RailSpeed,
+                cooldown > 0 ? state.CooldownRailId : 0, cooldown);
         }
 
         private static double RailTravelTime(double speed, double deceleration, double distance)
