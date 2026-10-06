@@ -1,6 +1,6 @@
-# Small existing-Rust server mod
+# Loadout and damage component for existing Rust
 
-Active direction since 5 October 2026: [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266).
+Component: [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266). Full goal: [MW2 gunplay and skate](RUST-MW2-SKATE.md).
 The standalone Rust/Bevy rewrite and its automatic loop are parked.
 Setup and [plugin sources](../mods/rust/plugins/README.md) exist; no playable mod is verified.
 

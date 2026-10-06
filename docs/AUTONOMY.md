@@ -1,12 +1,12 @@
 # Standing project authorization
 
-On 5 October 2026 the owner parked the standalone Rust/Bevy rewrite and its
-automatic loop. Active scope is the small existing-Rust PC server mod in
-[RUST-SERVER-MOD.md](RUST-SERVER-MOD.md) / issue #266; do not resume paused rewrite
-issues without a new owner direction. The owner authorizes its implementation,
-debugging and verification. Use open-source code and original authored content;
-retain licences. Keep installed game/server files outside GitHub. All
-player-facing text must remain English. Preserve the historical rewrite work.
+The standalone Rust/Bevy rewrite and its automatic loop remain parked since
+5 October 2026; do not resume paused issues without a new owner direction.
+On 6 October the owner clarified the full existing-Rust PC mod goal: MW2-inspired
+gunplay and skateboarding ([RUST-MW2-SKATE.md](RUST-MW2-SKATE.md), issue #275). Issue #266
+covers the loadout/damage component only. Implementation, debugging and verification
+are authorized. Use open-source code and original authored content; retain licences.
+Keep game/server files outside GitHub, player text English and historical rewrite work.
 
 Continue from `TODO.md` and open tasks without repeating content confirmations.
 The authorization includes project GitHub issues and coordination comments,

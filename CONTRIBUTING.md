@@ -1,8 +1,9 @@
 # Contributing
 
-Welcome! Current work is a small server mod for the existing Rust PC game:
-permission-controlled weapon loadouts and configurable firearm PvP damage.
-Read [the mod plan](docs/RUST-SERVER-MOD.md) and [TODO.md](TODO.md) before
+Welcome! The goal is an existing-Rust PC mod with MW2-inspired gunplay and
+skateboarding. Current source supplies the permission-controlled loadout/PvP
+component only; full gunplay/skating and their client route remain unfinished.
+Read [full acceptance](docs/RUST-MW2-SKATE.md), [the component plan](docs/RUST-SERVER-MOD.md) and [TODO.md](TODO.md) before
 contributing. The standalone Rust/Bevy game is parked; its source and historical
 verification remain available. Coordinate documentation, setup and focused mod
 work through issues and PRs. [Plugin source](mods/rust/plugins/README.md) is
@@ -44,8 +45,8 @@ files or public API changes in the issue. Use your own branch or worktree;
 do not push to another contributor's branch. Keep unrelated fixes and broad
 formatting changes out of your PR.
 
-Useful contributions include documented mod/setup bug fixes, English command
-feedback, bounded loadout/damage improvements and reproducible server reports.
+Useful contributions include documented component fixes, English feedback,
+full-mod feasibility/design work and reproducible server/client reports.
 Standalone gameplay/art work is parked. Describe the specific behavior you
 intend to deliver rather than claiming an entire roadmap category.
 
