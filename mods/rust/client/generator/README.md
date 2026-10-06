@@ -1,8 +1,9 @@
 # Bounded property-signature generator correction
 
 Source for [issue #289](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/289).
-The current accessor correction builds on Mac; the previous revision also built on actual Windows.
-Actual Windows metadata loaded with the previous revision; the current Windows build, full property coverage, complete interop generation and installation remain unfinished.
+The accessor correction (.2) builds on Mac and actual Shadow Windows.
+Its full metadata-property scan and Core initialization pass; managed assembly output
+is blocked by additional VOID getters. Complete interop generation and installation remain unfinished.
 No playable mod is available. This supports the [offline loader gate](../../../../docs/RUST-CLIENT-LOADER.md).
 
 ## Observed failure and behavior
@@ -61,8 +62,8 @@ Git settings (0/8 source hashes matched); the corrected invocation matched all e
 pinned source hashes while preserving the caller settings. Recipe syntax passed.
 The previous correction (.1) Windows build completed with 41 upstream/archive warnings and
 zero errors; its stage manifest has the expected Core/Lib assembly identities.
-Actual corrected LoadFromFile returned true with unchanged retail hashes. The full
-property scan remains blocked; complete loader generation is unverified.
+Actual corrected LoadFromFile returned true with unchanged retail hashes. That revision
+blocked on paired empty setters; complete loader generation is unverified.
 The build verifies the source archive, patch, resulting nine source files, package
 source configuration and four separate locks. It restores the original framework
 graph in locked mode, then builds net6 with SDK9/C#13. Keep upstream assembly-version
@@ -115,11 +116,33 @@ boundary. Binary/image maps are controlled scaffolding, not retail registration;
 parameter caches are not injected. These checks do not prove a full managed PE
 round trip, full interop generation or gameplay. No permanent test was added.
 
-A fresh current Windows build and parser scan are pending. Expected raw
-classification is 44,629 resolved, 175 tagged getterless empty setters and 26,618
-tagged VOID-getter/empty-setter rows, with zero exceptions; this is an acceptance
-target, not a measured result. Full native generation must also pass before the
-corrected empty loader can meet its offline menu/exit/rollback gate.
+Actual Windows verification of .2 passed: clean pinned build: 41 warnings, 0 errors,
+loaded Core/Lib net6/.2 identities, unchanged retail inputs, and all 71,422 raw
+property calls (44,629 resolved, 175 getterless empty setters tagged, 26,618
+VOID-getter/empty-setter rows tagged,0 exceptions). Full Core initialization
+completed with 162 assemblies; AttributeInjector PreProcess/Process returned without
+exception once. First BuildAssemblies failed with four type failures, each caused by
+`Property type cannot be void`. The resolved count includes 22,588 additional raw
+VOID getters: 22,574 without setters, 14 with one-parameter setters. None is getterless.
+Four type failures are not a count of all invalid properties. No generated library
+was written, loader installed or retry attempted on the mutated context.
+
+### Proposed remaining VOID-getter correction
+Resolve every present getter after both accessor-owner and parameter-span checks.
+For exact raw VOID, tag and omit the entire wrapper regardless of setter presence
+or count; retain both original method contexts and property slots. Preserve the
+existing VOID/empty-setter reason; use `getter returns void` for newly covered
+shapes. Do not derive a replacement type from the setter. A managed explicit-interface
+getter must have a non-VOID return signature before it is queued for wrapper creation
+or added as a MethodImplementation, including concrete generic targets. This checks
+the implementing method itself and does not discard independently usable shared methods.
+Pointer-to-VOID remains eligible; unresolved eligible types and malformed relationships remain errors.
+Keep managed VOID rejection and named-attribute/interface reference guards.
+Getterless setter-value VOID and class/value-type aliases are outside this change.
+
+Implementation, new authored fixtures and a fresh native build remain pending.
+Full generation must pass before the corrected empty loader can meet its offline
+menu/exit/rollback gate.
 
 57 temporary recipe checks passed for actual SDK availability/caller-policy
 distinction and mocked download failure preservation/retry; both scripts parse.
