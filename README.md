@@ -9,14 +9,16 @@ Rust zelf levert de wereld, survival, bouwen en de bestaande TC-regels.
 Deze mod heeft een Rust-pc-server met Oxide nodig; een Xbox/Nitrado-console-
 server is een ander product. Alle spelerstekst blijft Engels.
 
-**Status: servervoorbereidingsbroncode met beperkte PowerShell/Linux-controles;
-nog geen geïmplementeerde of op een echte server geverifieerde plugin.** De eerste
-stap is een echte Windows-testserver op een toegestane host. Shadow Gaming mag
-geen server hosten. Er wordt geen bestaande wereld gewist, geen publieke
-poort ingericht en geen extra server gehuurd. Zie [het modplan](docs/RUST-SERVER-MOD.md),
+**Status: servervoorbereiding en lokaal gecompileerde pluginbron zijn aanwezig;
+een echte Rust/Oxide-serverstart, pluginload en speelbare demo zijn nog niet geverifieerd.**
+De [pluginbron en begrensde controles](mods/rust/plugins/README.md) staan in deze repo.
+De volgende stap vereist een geschikte Windows- of Linux-testhost met bestuurbare
+toegang. Shadow Gaming mag geen server hosten. Een huurhost vereist eerst de keuze
+en het concrete kostenakkoord van de eigenaar. Zie [het modplan](docs/RUST-SERVER-MOD.md),
 [TODO.md](TODO.md) en [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266).
 Een gewone serverplugin levert geen MW2-characters/animaties of Skate-physics.
-[Servervoorbereiding en verificatiegrenzen](mods/rust/server/README.md).
+Servervoorbereiding en verificatiegrenzen: [Windows](mods/rust/server/README.md)
+en [Linux](mods/rust/server/LINUX.md).
 
 Onderstaande rewritebroncode, controles en handleidingen blijven bewaard als
 historisch werk. De rewrite-roadmap en bijbehorende automatische loop zijn
