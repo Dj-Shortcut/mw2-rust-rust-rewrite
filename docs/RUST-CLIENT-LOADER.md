@@ -40,7 +40,7 @@ The corrected Windows build passed with 41 warnings/0 errors; Core/Lib stay outs
 Patched LoadFromFile returned true with unchanged retail hashes; original crash case passes.
 All 71,422 RawPropertyType metadata getters were invoked: 44,622 resolved, 175 tagged getterless empty setters,
 26,625 getter-plus-empty-setter exceptions, all classified by the explicit no-value guard.
-Full property coverage, interop generation and runtime remain unfinished; no loader retry yet.
+Raw getter scan:26,618 VOID,seven non-VOID,null0/errors0. [Next bounded design](../mods/rust/client/generator/README.md#next-bounded-accessor-correction-design-not-implemented); full generation/runtime and loader retry remain pending.
 Upstream #548 closed without merge; its closure establishes no current approval.
 Review corrections/licences before retry; only passing empty-loader generation/menu/exit/rollback permits a log-only Load probe.
 That callback proves no Unity frame hooks, input or native game adapters.

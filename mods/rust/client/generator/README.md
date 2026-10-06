@@ -97,6 +97,25 @@ were tagged, and 26,625 getter-plus-empty-setter cases threw the explicit
 "Property setter has no value parameter" guard. A second scan classified all
 26,625 exceptions under that prefix. Full property coverage has not passed;
 these cases require a documented correction before any loader retry.
+A separate raw getter-type scan over those 26,625 rows resolved every type:
+26,618 returned VOID, seven returned non-VOID, and none returned null or threw.
+These counts describe metadata APIs only; no game getter was executed.
+
+### Next bounded accessor correction (design, not implemented)
+After the existing relationship checks, getter plus empty setter with a resolved
+VOID getter has no inferable property type: tag and omit its wrapper, preserving
+both underlying methods and the original property slot. With a resolved non-VOID
+getter, retain getter-only output and suppress only the setter association.
+Retain the original metadata setter and exact method context for reference checks.
+Null type resolution and malformed spans remain errors. Named writes and interface
+setter references to a suppressed setter must fail explicitly. Existing omitted
+wrapper reference guards remain; stable method semantics must describe only emitted
+associations. Core type resolution and managed signature checks still apply.
+Private serialized fixtures and fresh Windows parsing/generation must pass before
+any installation retry. Expected raw classification is 44,629 resolved, 175 tagged
+getterless empty setters and 26,618 tagged VOID-getter/empty-setter rows, with zero
+exceptions; this is an acceptance target, not a measured result.
+
 57 temporary recipe checks passed for actual SDK availability/caller-policy
 distinction and mocked download failure preservation/retry; both scripts parse.
 
