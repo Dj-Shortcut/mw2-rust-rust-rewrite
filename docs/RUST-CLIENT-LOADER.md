@@ -57,13 +57,45 @@ setters, none getterless. No output libraries or installation were produced.
 The [remaining bounded correction](../mods/rust/client/generator/README.md#remaining-void-getter-correction)
 omits these wrappers after relationship validation, retains methods/slots and rejects
 managed VOID interface getters before association. Its .3 source builds on Mac with
-41 warnings and zero errors; all 182 authored DLL checks pass. Fresh native .3 build,
-full managed PE round trip, interop generation/runtime and loader retry remain open.
-Upstream #548 closed without merge; its closure establishes no current approval.
+41 warnings and zero errors; all 182 authored DLL checks pass.
+Actual .3 Windows build also passed (41 warnings, zero errors), with verified pinned
+DLL identities. Genuine LoadFromFile returned true against unchanged retail inputs.
+All 71,422 raw-property calls completed with zero exceptions: 22,041 typed,
+175 getterless empty setters, 26,618 VOID/empty-setter wrappers and 22,588 additional
+VOID-getter wrappers. Core initialized with 162 assemblies; AttributeInjector ran
+once without exception. First managed BuildAssemblies failed at the explicit
+interface getter guard with two encountered aggregate type causes:
+`Interface getter has no value type`. Each assembly stops at its first failed type;
+this is not a complete count of incompatible types. No output libraries, interop,
+bootstrap installation or retry on the mutated failed context occurred.
+Full managed PE round trip, interop generation/runtime and loader retry remain open.
+[Upstream #548](https://github.com/SamboyCoding/Cpp2IL/pull/548) closed without merge; its closure establishes no current approval.
 Review corrections/licences before retry; only passing empty-loader generation/menu/exit/rollback permits a log-only Load probe.
 That callback proves no Unity frame hooks, input or native game adapters.
+## Interface diagnosis before another correction
+
+Read-only checks found matching parsed/header counts and zero row-size remainder
+in six metadata sections (methods, parameters, types, properties, interface offsets
+and generic containers). Three known system/Unity getters return their expected
+managed/raw types. These controls narrow the diagnosis; binary index-width and
+independent serialized-byte checks remain open.
+
+Leaf method names are reused. Six initial candidates were narrowed to one method
+in each encountered failing type using its managed full name, with the complete
+module/declaring-type/assembly tuple checked against the preserved exception.
+Both source returns are raw VOID; their computed interface targets are nonVOID.
+Shared nonzero native pointers do not establish intentional stripping or signature
+compatibility. `Overrides` reconstructs edges from vtable entries, interface offsets
+and slot lookup; it is not a copied native MethodImplementation table.
+
+Before changing source, verify the exact vtable/offset/slot relationship, target
+slot uniqueness, original and instantiated signatures, and independently decoded
+return indices/type bits. Preserve the current rejection while the mismatch is
+unexplained. Do not guess a value type, discard incompatible edges or interpret
+wrapper omission as permission to generate invalid interface metadata. Private
+retail names, indices, addresses, files and transcripts remain outside publication.
+
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.
 The owner tests after source completion and full verification; choose/rent no host without owner choice and concrete cost approval.
-

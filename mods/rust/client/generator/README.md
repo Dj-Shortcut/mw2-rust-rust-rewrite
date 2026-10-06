@@ -1,9 +1,12 @@
 # Bounded property-signature generator correction
 
 Source for [issue #289](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/289).
-The .3 correction builds on Mac and passes 182 authored temporary checks.
-Actual Shadow Windows .2 verification reached Core initialization and exposed additional
-VOID getters during managed output; the fresh .3 native generation gate is pending.
+The .3 correction builds on Mac and actual Shadow Windows and passes 182 authored
+temporary checks. Actual .3 raw-property scanning and Core initialization pass;
+first managed assembly generation fails with two encountered interface-getter
+value-type errors. This count is not a complete incompatible-type census.
+[Actual evidence and next diagnosis](../../../../docs/RUST-CLIENT-LOADER.md#interface-diagnosis-before-another-correction)
+retain the rejection pending vtable/slot/signature verification.
 Complete interop generation and installation remain unfinished.
 No playable mod is available. This supports the [offline loader gate](../../../../docs/RUST-CLIENT-LOADER.md).
 
@@ -153,10 +156,14 @@ setters and pointer-to-VOID, and reject malformed accessors, unresolved getter t
 missing managed getter signatures and model-only interface getter associations.
 No parameter cache or retail bytes were supplied to these authored fixtures.
 
-Fresh Windows .3 build, full raw-property scan, Core initialization, managed assembly
-output and interop generation remain pending. Arithmetic targets for the raw scan
-are 22,041 typed, 175 getterless-empty omissions, 26,618 old VOID/empty omissions
-and 22,588 new VOID omissions, with zero exceptions; these are not measured .3 results.
+Actual Windows .3 build passed with 41 warnings and zero errors. The full raw scan
+measured 22,041 typed, 175 getterless-empty omissions, 26,618 VOID/empty omissions
+and 22,588 additional VOID omissions, with zero exceptions across 71,422 rows.
+Core initialized with 162 assemblies and AttributeInjector ran once. First managed
+assembly generation failed with two encountered interface-getter value-type errors;
+this is not a complete incompatible-type census. No output libraries or interop
+were produced, and the mutated failed context was not retried. Independent byte
+checks and exact vtable/slot/signature diagnosis remain open.
 Full native generation must pass before the corrected empty loader can meet its
 offline menu/exit/rollback gate.
 
