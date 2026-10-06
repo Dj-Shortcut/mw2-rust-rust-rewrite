@@ -77,23 +77,68 @@ That callback proves no Unity frame hooks, input or native game adapters.
 Read-only checks found matching parsed/header counts and zero row-size remainder
 in six metadata sections (methods, parameters, types, properties, interface offsets
 and generic containers). Three known system/Unity getters return their expected
-managed/raw types. These controls narrow the diagnosis; binary index-width and
-independent serialized-byte checks remain open.
+managed/raw types. Index widths agree with the registered type count and method
+row-size formula. Independent decoding of seven serialized method rows and binary
+type-bit records matches the parser's return indices, type bits and method tokens:
+two exact failure sources, three controls and two actual interface targets.
+This check still uses Cpp2IL's selected registration and PE address mapping; it is
+not an independent registration locator.
 
 Leaf method names are reused. Six initial candidates were narrowed to one method
 in each encountered failing type using its managed full name, with the complete
 module/declaring-type/assembly tuple checked against the preserved exception.
 Both source returns are raw VOID; their computed interface targets are nonVOID.
-Shared nonzero native pointers do not establish intentional stripping or signature
+The preliminary candidates share some nonzero native pointers; this does not establish intentional stripping or signature
 compatibility. `Overrides` reconstructs edges from vtable entries, interface offsets
 and slot lookup; it is not a copied native MethodImplementation table.
 
-Before changing source, verify the exact vtable/offset/slot relationship, target
-slot uniqueness, original and instantiated signatures, and independently decoded
-return indices/type bits. Preserve the current rejection while the mismatch is
-unexplained. Do not guess a value type, discard incompatible edges or interpret
+Both failed sources have one applicable vtable/interface candidate, one target
+slot match and exact target-definition identity. Neither target is a concrete
+generic method context; both interface reflection records report IsGenericType=false.
+Direct serialized vtable-word, interface-type-index and offset comparisons also
+match for both candidates; this metadata-byte check does not use binary registration.
+Both targets are ordinary method contexts with present declaring definitions and
+empty interface-offset arrays. Consequently, the target filter from merged
+[Cpp2IL #567](https://github.com/SamboyCoding/Cpp2IL/pull/567) leaves both pairs;
+its separate source-side BaseMethod change has not been evaluated here.
+
+No proven mapping correction follows from these checks. Registration provenance
+and any separate interop-source emission contract remain to be assessed before
+changing source. Preserve the current rejection while the mismatch is unexplained. Do not guess a value type, discard incompatible edges or interpret
 wrapper omission as permission to generate invalid interface metadata. Private
 retail names, indices, addresses, files and transcripts remain outside publication.
+
+## Proposed interop-only source models
+
+Design only; this API and its offline consumer are not implemented or verified.
+The proposed explicitly selected `BuildInteropSourceModels` entry point supplies
+in-memory metadata to the pinned official interop generator. Default
+`BuildAssemblies`, registered DLL formats and `DoOutput` retain strict behavior.
+The alternate route omits the whole synthetic explicit-interface MethodImpl and
+property construction phase for every edge. It retains original type flags,
+interface rows, constraints, method signatures/order, native attributes and
+eligible original properties/semantics. It does not modify raw VOID returns.
+
+The [be.788 manager](https://github.com/BepInEx/BepInEx/blob/5b766a3b7f6c164d4798924a93f3acf4db769d06/Runtimes/Unity/BepInEx.Unity.IL2CPP/Il2CppInteropManager.cs)
+passes assembly models directly to the generator. The
+[pinned metadata consumer](https://github.com/BepInEx/Il2CppInterop/blob/dbda1cb353b0f4253345dc45136d170b9e50a5a0/Il2CppInterop.Generator/MetadataAccess/AssemblyMetadataAccess.cs)
+keeps those objects; its wrapper passes do not consume MethodImpl rows, remove
+interface/abstract flags and do not copy original InterfaceImpl rows. Source
+interfaces still support naming, constraints and awaiter generation.
+
+This deliberately loses synthesized explicit-interface property APIs and their
+semantics, and can alter generated method names, collision ordinals and rename
+keys. It does not restore either contradictory value type or prove those native
+calls safe. These input models must never be exported or installed as repaired
+normal dummy DLLs. The existing BepInEx caller still selects strict generation;
+a separate isolated offline consumer must opt in and prohibit dummy export.
+
+Verify strict and alternate routes in fresh contexts: preserved source methods,
+signatures/tokens, valid original properties/interfaces/constraints and existing
+malformed/unresolved/named-write rejection; no synthesized edge/property in the
+alternate model; exact interop consumer output and its documented API losses.
+Fresh full native generation and generated-output validation must pass before
+installation. Empty offline menus, normal exit and rollback remain later gates.
 
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.

@@ -162,8 +162,14 @@ and 22,588 additional VOID omissions, with zero exceptions across 71,422 rows.
 Core initialized with 162 assemblies and AttributeInjector ran once. First managed
 assembly generation failed with two encountered interface-getter value-type errors;
 this is not a complete incompatible-type census. No output libraries or interop
-were produced, and the mutated failed context was not retried. Independent byte
-checks and exact vtable/slot/signature diagnosis remain open.
+were produced, and the mutated failed context was not retried. Seven independent
+serialized method/type-bit comparisons pass; their registration/PE mapping still
+comes from Cpp2IL. Exact vtable/offset/slot diagnosis identifies one candidate and one matching target definition per failure; neither target
+is a concrete generic method context and interface reflection reports IsGenericType=false. Both candidate table
+rows also match directly decoded metadata bytes. Upstream #567 leaves these pairs
+because both targets have empty interface-offset arrays. Registration provenance
+and a separately reviewed interop-source contract remain open; no signature or
+override was changed by this diagnostic work.
 Full native generation must pass before the corrected empty loader can meet its
 offline menu/exit/rollback gate.
 
@@ -177,3 +183,15 @@ Every bootstrap attempt uses direct EAC-disabled RustClient.exe offline only;
 no server connection or Steam/EAC launch with the folder bootstrap present.
 Only complete empty-loader generation, responsive menus, normal exit and verified
 rollback permit a later log-only Load probe; that proves no native adapters.
+
+## Proposed explicit interop-source API
+
+Design only. [The separate source-model contract](../../../../docs/RUST-CLIENT-LOADER.md#proposed-interop-only-source-models)
+adds an explicitly selected in-memory interop input API while normal assembly
+generation and output remain strict. It omits all synthetic explicit-interface
+MethodImpl/property construction, preserving original metadata signatures and
+eligible original property semantics. Synthetic property APIs and semantic-based
+names can differ. It is not a return-type correction or a normal dummy-DLL export.
+The existing BepInEx default caller remains unchanged; a deliberate isolated
+offline consumer, fresh fixture/interop/native verification and output validation
+are required before installation. No such source mode is implemented yet.
