@@ -2,17 +2,17 @@
 
 Active direction since 5 October 2026: [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266).
 The standalone Rust/Bevy rewrite and its automatic loop are parked.
-Setup sources and bounded Linux PowerShell checks exist; no playable mod is verified.
+Setup and [plugin sources](../mods/rust/plugins/README.md) exist; no playable mod is verified.
 
 ## Player flow and boundaries
 
 Use the existing Steam PC Rust client and an Oxide/uMod Rust PC server.
 Stock Rust supplies terrain, survival, building, inventory and TC rules.
-Planned `/loadout <name>` gives only the requesting player a configured kit,
+Source `/loadout <name>` gives only the requesting player a configured kit,
 with explicit permission, cooldown and a connected/alive/awake/non-wounded check.
 Preserve inventory: reserve sufficient empty slots, prevent stacking/swapping,
 and remove only newly created kit items if delivery fails. Hooks limit atomicity.
-Planned firearm PvP damage uses a finite positive bounded Bullet factor, default 1,
+Source firearm PvP damage uses a finite positive bounded Bullet factor, default 1,
 and a separate attacker permission. Use the shot's weapon, not a later held item.
 NPCs, buildings/TCs, raids and non-Bullet damage retain stock behavior.
 No new character/weapon assets, MW2 animations or Skate physics in this scope.

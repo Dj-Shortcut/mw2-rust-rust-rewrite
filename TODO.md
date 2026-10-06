@@ -11,12 +11,14 @@ rewrite-implementatie of automatische rewrite-loop starten.
 - [x] P1-bronfixes: vooroudercontrole stopt ook bij een zelfverwijzende schijfroot; de launcher accepteert gewone scalaire saved-configinstellingen en weigert conflicterende beschermde waarden. Zeven tijdelijke providerasserties en 32 configasserties op eigen fixtures slagen. Dit bewijst geen native Windows-hang, echte Rust-configsave of serverrestart.
 - [ ] Geschikte eigen Windows/Linux-pc of toegestane huurhost kiezen met startflag-, Oxide/plugin-, console- en netwerktoegang; concrete huurkosten eerst door de eigenaar laten goedkeuren. [Hostingvoorwaarden en echte acceptatie](docs/RUST-SERVER-HOSTING.md) zijn vastgelegd; lokale Mac-brontoegang is bevestigd, een server nog niet.
 - [ ] Echte Rust-server starten, passende Oxide-versie en listeners controleren; beoogde client verbinden en EAC/startmodus vastleggen (voor de Shadow-demo: EAC-disabled client en `-insecure`). Hosting/RAM en bestuurbare servertoegang moeten daarvoor beschikbaar zijn.
-- [ ] Self-only configureerbare wapenloadouts: permissie, valide levende speler, cooldown, volledige capaciteitscontrole en behoud van bestaande inventory.
-- [ ] Configureerbare PvP-kogelschade: standaardfactor 1, aparte permissie; geen verandering aan NPC's, andere schadesoorten, gebouwen, raids of TC's.
-- [ ] Plugin met echte serverreferenties compileren en laden; de volledige flow en weigeringen zelf op een echte Rust/Oxide-server controleren, inclusief twee clients voor PvP.
+- [x] Loadout-broncode: self-only `/loadout`, aparte permissie, levende/verbonden/wakkere/niet-gewonde speler, begrensde config, lege main/belt-slots, geen stacking/swapping en cooldown na volledige uitgifte. UID-begrensde cleanup en herintrede-/eigendomscontroles zijn aanwezig; echte inventory-/hookflow nog niet bewezen. [Pluginbron en installatie](mods/rust/plugins/README.md).
+- [x] PvP-Bullet-broncode: begrensde factor 0.1–4 (standaard 1), aparte aanvallerpermissie en vastgelegde vuurwapenprefab; uitsluitend verbonden verschillende menselijke spelers en Bullet-component. NPC-/gebouw-/TC-/raid-/andere schade blijft buiten de wijziging; echte PvP is nog niet bewezen.
+- [x] Plugin lokaal op macOS/arm64 compileren tegen echte Steam-serverreferenties (app258550/depot258552/manifest8588463972864888654), officiële Oxide2.0.7801 en .NET SDK8.0.425: geen fouten/waarschuwingen. 93 tijdelijke controles van echte productiehelpers/configschema slagen; onafhankelijke bronreview uitgevoerd. Geen nep-Rust-API, permanente tests of runtimebewijs.
+- [ ] Plugin werkelijk laden; volledige flow en weigeringen zelf op een echte Rust/Oxide-server controleren, inclusief cleanup/hooks en twee clients voor PvP.
 - [ ] Pas daarna een geverifieerde mod-demo met installatie-, start- en verwijderinstructies leveren. Carbon, MW2-assets en skate-physics vallen buiten deze eerste mod.
 
-**Modstatus: begrensd gecontroleerde servervoorbereiding, geen werkende plugin of release.**
+**Modstatus: servervoorbereiding en lokaal gecompileerde pluginbron aanwezig; echte server-/speelverificatie en release ontbreken.**
+De eigenaar wil het bronwerk afgerond voordat hij hosting bestelt; huur niets zonder zijn keuze en concrete kostenakkoord.
 Shadow Gaming Neo heeft 16 GB RAM en staat serverhosting niet toe. Volgens het
 supportantwoord van de eigenaar ondersteunt Host Havoc de vereiste `-insecure`
 startflag niet. Een geschikte andere host en bestuurbare toegang ontbreken nog;
