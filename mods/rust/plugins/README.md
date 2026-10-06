@@ -31,7 +31,10 @@ Default configuration:
 
 Cooldown: 1–3600 seconds. Factor: finite 0.1–4. Configure 1–16 lowercase kit names, each with 1–24 firearm/cartridge entries, bounded by the actual item stack size and a hard amount limit of 2048. Unknown fields, unparseable values, invalid names/items and unsupported ammunition disable both features. Items use stock creation defaults; attachments, skins and weapon tuning are not configured.
 Only a permitted attacker's recorded firearm hit against a different connected human has its positive Bullet component scaled. Factor 1 passes through. NPCs, buildings/TCs, raids, self-hits and other damage components retain stock rules; other plugins may independently affect damage.
-Edit config, then `oxide.reload ShortcutLoadouts`. To remove, `oxide.unload ShortcutLoadouts`, remove its `.cs` from `oxide/plugins/`, and optionally revoke the two permissions. Previously granted stock items remain; no world/save migration is added.
+Edit config, then `oxide.reload ShortcutLoadouts`.
+For temporary unloading, use `oxide.unload ShortcutLoadouts`; stored permission grants remain and take effect again on reload.
+For permanent removal, while loaded, list `oxide.show perm shortcutloadouts.use` and `oxide.show perm shortcutloadouts.damage`. Revoke both permissions from every previously granted user/group with `oxide.revoke user <SteamID64> <permission>` and `oxide.revoke group <group> <permission>`; repeat both listings until no grants remain.
+Then `oxide.unload ShortcutLoadouts` and remove its `.cs` from `oxide/plugins/`. Previously granted stock items remain; no world/save migration is added.
 
 ## Reproduce source verification
 
