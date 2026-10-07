@@ -68,6 +68,17 @@ third_party/minecraftoss/ — five crates of MinecraftOSS, a Rust Minecraft
   Apache-2.0 or redistribute it as release content until MinecraftOSS confirms
   the applicable licence.
 
+mods/rust/client/generator/interop/pointer-byref.patch — a two-predicate
+  correction to BepInEx/Il2CppInterop, source revision
+  dbda1cb353b0f4253345dc45136d170b9e50a5a0.
+  https://github.com/BepInEx/Il2CppInterop
+  The modified library source remains LGPL-3.0-only; full LGPL/GPL texts and
+  modification attribution are in that directory's UPSTREAM-LICENSE and
+  MODIFICATIONS-LICENSE. The separate project-authored recipe/configuration
+  remains Apache-2.0. The recipe stages the original upstream source archive,
+  exact patch and build inputs alongside its Generator candidate; no upstream
+  DLL, generated client assembly or proprietary game file is committed here.
+
 Bundled inherited/generated data with open provenance:
 
 crates/fx_iw4/data/fx_random_table.bin

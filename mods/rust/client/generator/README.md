@@ -13,6 +13,11 @@ failed after only three complete PE round trips. [Actual generation and rejected
 partial validation](../../../../docs/RUST-CLIENT-LOADER.md#actual-windows-generation-and-output-validation)
 record the current continuation point. Complete validation and installation
 remain unfinished.
+A separate [Il2CppInterop pointer-byref correction](interop/README.md) now supplies
+a pinned LGPL patch and locked stage-only recipe. Actual Linux source/recipe builds
+and authored original-versus-patched generator checks pass; this does not repair
+or approve the preserved native candidate. Fresh complete native output validation
+remains required before any installation.
 No playable mod is available. This supports the [offline loader gate](../../../../docs/RUST-CLIENT-LOADER.md).
 
 ## Observed failure and behavior

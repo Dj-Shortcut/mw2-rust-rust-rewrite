@@ -217,6 +217,33 @@ installation or loader retry follows from the alias diagnostic. Sidecar validity
 full runtime closure, native calls, offline menus/exit/rollback and full mod
 acceptance remain separate open gates.
 
+## Pointer-byref generator source correction, 7 October 2026
+
+The [separate pinned Il2CppInterop recipe](../mods/rust/client/generator/interop/README.md)
+implements the two-predicate design from #295. Direct pointer elements use existing
+byref storage-address handling in ordinary methods and the shared unstrip helper;
+no pointer-object temporary or constructor copyback is emitted. Original source
+projects, version 1.5.3.0 and dependency boundary remain intact. Only Generator is
+staged, with complete LGPL corresponding source; nothing is installed in Rust.
+
+Actual Linux x64 SDK8.0.425 source and recipe builds pass with 4 upstream warnings
+and 0 errors. Fifteen temporary recipe guard cases and an automatic-CRLF Git-clone
+hash check pass. Actual original/patched Generator DLLs produce 108 ordinary methods
+and 64 unstrip invokers on authored metadata models; each path covers 32 ref/out
+pointer cases. All 108 unaffected control outputs retain normalized IL, locals,
+signatures and flags. Independent serialized metadata decoding finds 8 pointer-owned
+constructors in the original PE reads and 0 in patched reads. Four authored PE
+round trips preserve complete method/body inventory and normalized IL/locals;
+4,247 original and 4,218 patched assertions pass, with zero fixture-build warnings/errors.
+
+The minimal authored corlib is declared metadata scaffolding; generated IL/native
+calls are not executed and external Runtime import resolution is not attempted.
+This cloud run has neither the private native fixtures nor Mac/Shadow control.
+It does not trace the private rejected caller, validate sidecars or regenerate the
+191 retail assemblies. The rejected 3/191 candidate stays rejected. Fresh complete
+native generation/output validation, loader/menu/exit/rollback and mod gameplay
+remain open; no owner intermediate playtest or server rental is requested.
+
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.
