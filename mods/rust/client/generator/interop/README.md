@@ -1,4 +1,4 @@
-# Pointer byref generation repair
+# Pointer byref and nested method generation repair
 
 Source for the separate Il2CppInterop generator correction defined in merged
 [PR #295](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/295), tracked in
@@ -6,6 +6,11 @@ Source for the separate Il2CppInterop generator correction defined in merged
 The existing [Cpp2IL recipe](../README.md) addresses source-model generation;
 it does not apply this correction. This directory supplies a pinned patch and
 source-build recipe; no DLL or client installation is published here.
+
+The nested-method traversal correction in [issue #303](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/303)
+/ [merged design PR #304](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/304) is implemented and verified on authored models.
+Actual SDK8.0.425 source builds and isolated baseline/candidate generator checks pass on macOS.
+Fresh Windows generation, full output acceptance and the loader remain unverified.
 
 ## Observed failure
 
@@ -36,9 +41,39 @@ method generation. Function-pointer and modifier-wrapped signatures are outside
 this correction. Do not loosen member resolution, suppress errors or
 rewrite the failed candidate DLLs.
 
+## Nested method traversal correction
+
+A fresh native candidate was rejected on an unresolved imported member after
+107 complete assembly round trips. A separate passive original-only diagnosis
+found an empty nested owner; the exact bound Unity library contains an eligible
+managed callee and nine source-only callers. These source observations do not
+establish the generated caller's emitter or the earlier failure's reread phase.
+
+Pinned Pass79 restores nested types, but Pass80 methods only visited top-level
+types and Pass81 consumes that method queue. The additional Pass80 change keeps
+the complete original global top-level phase as the queue prefix, then walks the
+source nested tree in stable order using an explicit stack. It reuses the old
+per-type method block unchanged, preserving eligibility, signatures, attributes,
+properties, InternalCall handling and managed queue behavior.
+
+Each descendant requires its exact mapped parent and an already-registered target
+context. Prefer the original full-name registration and verify target ownership.
+For a newly cloned child registered under a renamed output parent, use the unique
+source-name child within that parent and its existing target-definition context.
+Missing mappings are reported and skipped; ambiguous/mismatched registrations or
+cyclic ownership fail. No orphan promotion, global simple-name search, new type
+context or traversal of generated delegate types is added.
+
+Type and field restoration remain unchanged. Pass81 still replaces failed body
+translation with its NotSupportedException fallback. A restored method definition
+or resolved MemberRef does not prove successful body restoration; field/getter,
+local/signature and unsupported-operation dependencies require separate checks.
+The prior pointer-byref hunks are unchanged. No native fix or output acceptance
+is claimed by this source correction.
+
 ## Build and verification contract
 
-The recipe pins the source archive, two-file patch, SDK 8.0.425 and complete
+The recipe pins the source archive, three-file patch, SDK 8.0.425 and complete
 Generator/Common restore locks. It preserves upstream projects, global SDK policy,
 assembly identities and dependency boundaries; only packaging is disabled during
 the build. It stages only the netstandard2.1 Generator replacement, version 1.5.3.0.
@@ -53,11 +88,58 @@ controls and the unstrip call site. Inspect emitted IL and serialized MemberRefs
 compare unchanged controls with the original generator, and require strict PE round
 trips. Temporary fixtures remain ignored; no permanent tests are introduced here.
 
+For nested restoration, use actual baseline/candidate passes in isolated processes
+with authored nested-call, deep-owner, same-name, renamed-parent and existing-method
+controls. Preserve the old top-level queue prefix and exclusion/parameter/generic/
+property/InternalCall outcomes. Check translated field/getter routes and negative
+body dependencies, distinguishing usable bodies from fallback throws. Require
+strict authored PE round trips and imported-member closure before native repetition.
+
 Then generate a fresh native candidate outside the game and require the complete
 191-assembly reference/member/signature/roundtrip and sidecar checks. Retain all
 original pins and failed evidence. Later loader/menu/normal-exit/rollback checks and
 native gameplay adapters remain separate gates. Full MW2/skate mod acceptance and
 two-client server flows are still unfinished; the owner tests after those gates.
+
+
+## Authored nested-method verification
+
+Both actual Generator builds use the original SDK8.0.425, projects, global policy
+and complete restore locks. The macOS source builds pass with four upstream
+warnings and zero errors. An explicit local feed of69 archived packages matches
+both full locked dependency graphs through the SDK's NuGet content-hash reader.
+The complete PowerShell build/staging recipe did not finish on macOS because its
+NuGet service-index request failed; these results are source compilation only.
+The fresh Windows recipe and corresponding-source staging remain a separate gate.
+
+One authored fixture is compiled against the baseline and run in two fresh CLR9.0.20
+processes. Only Generator changes; the fixture, Common, vendor dependencies and
+metadata-only official Runtime/framework references have identical pinned bytes.
+Both modes pass32/32 checks and three strict authored PE round trips. The twelve
+original top-level queued methods remain the exact global prefix. The candidate's
+live queue assertion appends fourteen eligible nested methods in the explicit
+expected owner/sibling/depth order; twelve bodies translate successfully and two
+negative cases retain the existing exception fallback. The tail is asserted by
+source-object identity, while the prefix and28 unchanged native-sentinel/getter/
+top-level control fingerprints are exported and independently compared.
+
+Checks cover deeper calls, same names in distinct owners/assemblies, renamed
+parents, existing-method skips, constructor/abstract/no-body/array exclusions,
+In/Out parameter metadata and a generic identity. The field-shaped marshaller
+uses the actual Pass40-created parent IntPtr getter: its three-instruction body
+and exact owner/signature resolve again after strict serialization. Missing-field
+and unsupported-operation fallback bodies are checked separately. The existing
+native method body is an authored sentinel, not a Pass50/native-call execution.
+
+The baseline reproduces exactly nine missing imported methods. Both first written
+and strict rebuilt/reread PE boundaries require that exact baseline set; the
+candidate requires zero misses at both boundaries. Ordinary in-memory modules
+do not enumerate serialized import rows, so the fixture also checks CIL operands
+before serialization. Unexpected unresolved references remain fatal. All fourteen
+baseline and fifteen candidate file obligations pass before/final checks;52 root
+input checks also remain unchanged. No inspected/generated retail DLL is CLR-loaded
+and no native Unity call is executed. These results do not accept the rejected
+native output, sidecars, installed loader or full mod.
 
 ## Build separately
 
@@ -81,7 +163,7 @@ any distributed candidate. No Common/Runtime replacement is staged; the manifest
 records the built Common identity only. Do not install the candidate until the
 full native generation, output and loader gates above pass.
 
-## Verified scope
+## Verified pointer-only scope (prior version)
 
 Actual Linux x64 source builds and the final PowerShell recipe completed with
 SDK 8.0.425: four upstream warnings, zero errors. Locked restore covers both

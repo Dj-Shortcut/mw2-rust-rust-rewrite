@@ -19,3 +19,291 @@
 +                        if (newParam.Definition!.IsOut && newParam.ParameterType is ByReferenceTypeSignature && !newParam.ParameterType.GetElementType().IsValueTypeLike())
                          {
                              var elementType = newParam.ParameterType.GetElementType();
+--- a/Il2CppInterop.Generator/Passes/Pass80UnstripMethods.cs
++++ b/Il2CppInterop.Generator/Passes/Pass80UnstripMethods.cs
+@@ -27,115 +27,182 @@
+                 var processedType = processedAssembly.TryGetTypeByName(unityType.FullName);
+                 if (processedType == null) continue;
+
+-                foreach (var unityMethod in unityType.Methods)
++                ProcessType(context, unityType, processedType, imports, ref methodsUnstripped, ref methodsIgnored);
++            }
++        }
++
++        // Append nested work only after the complete original top-level phase.
++        foreach (var unityAssembly in context.UnityAssemblies.Assemblies)
++        {
++            var processedAssembly = context.TryGetAssemblyByName(unityAssembly.Name);
++            if (processedAssembly == null) continue;
++
++            var visited = new HashSet<TypeDefinition>(new SourceTypeIdentityComparer());
++            var pending = new Stack<(TypeDefinition Type, TypeDefinition? Parent, TypeRewriteContext? ParentContext)>();
++            var topLevelTypes = unityAssembly.ManifestModule!.TopLevelTypes;
++            for (var i = topLevelTypes.Count - 1; i >= 0; i--)
++                pending.Push((topLevelTypes[i], null, null));
++
++            while (pending.Count != 0)
++            {
++                var (unityType, sourceParent, parentContext) = pending.Pop();
++                if (!visited.Add(unityType) || !ReferenceEquals(unityType.DeclaringType, sourceParent))
++                    throw new InvalidOperationException($"Invalid source type ownership: {unityType.Name}");
++
++                var processedType = sourceParent == null
++                    ? processedAssembly.TryGetTypeByName(unityType.FullName)
++                    : parentContext == null ? null : GetNestedTypeContext(processedAssembly, unityType, parentContext);
++                if (processedType != null)
+                 {
+-                    var isICall = (unityMethod.ImplAttributes & MethodImplAttributes.InternalCall) != 0;
+-                    if (unityMethod.IsConstructor) continue;
+-                    if (unityMethod.IsAbstract) continue;
+-                    if (!unityMethod.HasMethodBody && !isICall) continue; // CoreCLR chokes on no-body methods
+-
+-                    var processedMethod = processedType.TryGetMethodByUnityAssemblyMethod(unityMethod);
+-                    if (processedMethod != null) continue;
+-
+-                    var returnType = ResolveTypeInNewAssemblies(context, unityMethod.Signature!.ReturnType, imports);
+-                    if (returnType == null)
++                    if (!ReferenceEquals(processedType.AssemblyContext, processedAssembly) ||
++                        !ReferenceEquals(processedType.NewType.DeclaringType, parentContext?.NewType))
++                        throw new InvalidOperationException($"Mapped type owner mismatch: {unityType.FullName}");
++                    if (sourceParent != null)
++                        ProcessType(context, unityType, processedType, processedAssembly.Imports,
++                            ref methodsUnstripped, ref methodsIgnored);
++                }
++                else if (sourceParent != null)
++                {
++                    Logger.Instance.LogTrace("Skipped unmapped nested method owner {UnityType}", unityType.FullName);
++                }
++
++                for (var i = unityType.NestedTypes.Count - 1; i >= 0; i--)
++                    pending.Push((unityType.NestedTypes[i], unityType, processedType));
++            }
++        }
++
++        Logger.Instance.LogInformation("Restored {UnstrippedMethods} methods", methodsUnstripped);
++        Logger.Instance.LogInformation("Failed to restore {IgnoredMethods} methods", methodsIgnored);
++    }
++
++    private static void ProcessType(RewriteGlobalContext context, TypeDefinition unityType,
++        TypeRewriteContext processedType, RuntimeAssemblyReferences imports,
++        ref int methodsUnstripped, ref int methodsIgnored)
++    {
++        foreach (var unityMethod in unityType.Methods)
++        {
++            var isICall = (unityMethod.ImplAttributes & MethodImplAttributes.InternalCall) != 0;
++            if (unityMethod.IsConstructor) continue;
++            if (unityMethod.IsAbstract) continue;
++            if (!unityMethod.HasMethodBody && !isICall) continue; // CoreCLR chokes on no-body methods
++
++            var processedMethod = processedType.TryGetMethodByUnityAssemblyMethod(unityMethod);
++            if (processedMethod != null) continue;
++
++            var returnType = ResolveTypeInNewAssemblies(context, unityMethod.Signature!.ReturnType, imports);
++            if (returnType == null)
++            {
++                Logger.Instance.LogTrace("Method {UnityMethod} has unsupported return type {UnityMethodReturnType}", unityMethod.ToString(), unityMethod.Signature.ReturnType.ToString());
++                methodsIgnored++;
++                continue;
++            }
++
++            var newAttributes = (unityMethod.Attributes & ~MethodAttributes.MemberAccessMask) | MethodAttributes.Public;
++            var newMethod = new MethodDefinition(unityMethod.Name,
++                newAttributes,
++                MethodSignatureCreator.CreateMethodSignature(newAttributes, returnType, unityMethod.Signature.GenericParameterCount));
++            newMethod.CilMethodBody = new();
++            var hadBadParameter = false;
++            foreach (var unityMethodParameter in unityMethod.Parameters)
++            {
++                var convertedType =
++                    ResolveTypeInNewAssemblies(context, unityMethodParameter.ParameterType, imports);
++                if (convertedType == null)
++                {
++                    hadBadParameter = true;
++                    Logger.Instance.LogTrace("Method {UnityMethod} has unsupported parameter type {UnityMethodParameter}", unityMethod.ToString(), unityMethodParameter.ToString());
++                    break;
++                }
++
++                newMethod.AddParameter(convertedType, unityMethodParameter.Name, unityMethodParameter.Definition?.Attributes ?? default);
++            }
++
++            if (hadBadParameter)
++            {
++                methodsIgnored++;
++                continue;
++            }
++
++            foreach (var unityMethodGenericParameter in unityMethod.GenericParameters)
++            {
++                var newParameter = new GenericParameter(unityMethodGenericParameter.Name.MakeValidInSource());
++                newParameter.Attributes = unityMethodGenericParameter.Attributes;
++                foreach (var genericParameterConstraint in unityMethodGenericParameter.Constraints)
++                {
++                    if (genericParameterConstraint.IsSystemValueType() || genericParameterConstraint.IsInterface())
++                        continue;
++
++                    if (genericParameterConstraint.IsSystemEnum())
+                     {
+-                        Logger.Instance.LogTrace("Method {UnityMethod} has unsupported return type {UnityMethodReturnType}", unityMethod.ToString(), unityMethod.Signature.ReturnType.ToString());
+-                        methodsIgnored++;
++                        newParameter.Constraints.Add(new GenericParameterConstraint(imports.Module.Enum().ToTypeDefOrRef()));
+                         continue;
+                     }
+
+-                    var newAttributes = (unityMethod.Attributes & ~MethodAttributes.MemberAccessMask) | MethodAttributes.Public;
+-                    var newMethod = new MethodDefinition(unityMethod.Name,
+-                        newAttributes,
+-                        MethodSignatureCreator.CreateMethodSignature(newAttributes, returnType, unityMethod.Signature.GenericParameterCount));
+-                    newMethod.CilMethodBody = new();
+-                    var hadBadParameter = false;
+-                    foreach (var unityMethodParameter in unityMethod.Parameters)
+-                    {
+-                        var convertedType =
+-                            ResolveTypeInNewAssemblies(context, unityMethodParameter.ParameterType, imports);
+-                        if (convertedType == null)
+-                        {
+-                            hadBadParameter = true;
+-                            Logger.Instance.LogTrace("Method {UnityMethod} has unsupported parameter type {UnityMethodParameter}", unityMethod.ToString(), unityMethodParameter.ToString());
+-                            break;
+-                        }
+-
+-                        newMethod.AddParameter(convertedType, unityMethodParameter.Name, unityMethodParameter.Definition?.Attributes ?? default);
+-                    }
+-
+-                    if (hadBadParameter)
+-                    {
+-                        methodsIgnored++;
+-                        continue;
+-                    }
+-
+-                    foreach (var unityMethodGenericParameter in unityMethod.GenericParameters)
+-                    {
+-                        var newParameter = new GenericParameter(unityMethodGenericParameter.Name.MakeValidInSource());
+-                        newParameter.Attributes = unityMethodGenericParameter.Attributes;
+-                        foreach (var genericParameterConstraint in unityMethodGenericParameter.Constraints)
+-                        {
+-                            if (genericParameterConstraint.IsSystemValueType() || genericParameterConstraint.IsInterface())
+-                                continue;
+-
+-                            if (genericParameterConstraint.IsSystemEnum())
+-                            {
+-                                newParameter.Constraints.Add(new GenericParameterConstraint(imports.Module.Enum().ToTypeDefOrRef()));
+-                                continue;
+-                            }
+-
+-                            var newType = ResolveTypeInNewAssemblies(context, genericParameterConstraint.Constraint?.ToTypeSignature(),
+-                                imports);
+-                            if (newType != null)
+-                                newParameter.Constraints.Add(new GenericParameterConstraint(newType.ToTypeDefOrRef()));
+-                        }
+-
+-                        newMethod.GenericParameters.Add(newParameter);
+-                    }
+-
+-                    if (isICall)
+-                    {
+-                        var delegateType =
+-                            UnstripGenerator.CreateDelegateTypeForICallMethod(unityMethod, newMethod, imports);
+-                        processedType.NewType.NestedTypes.Add(delegateType);
+-
+-                        processedType.NewType.Methods.Add(newMethod);
+-
+-                        var delegateField = UnstripGenerator.GenerateStaticCtorSuffix(processedType.NewType,
+-                            delegateType, unityMethod, imports);
+-                        UnstripGenerator.GenerateInvokerMethodBody(newMethod, delegateField, delegateType,
+-                            processedType, imports);
+-                    }
+-                    else
+-                    {
+-                        Pass81FillUnstrippedMethodBodies.PushMethod(unityMethod, newMethod, processedType, imports);
+-                        processedType.NewType.Methods.Add(newMethod);
+-                    }
+-
+-                    if (unityMethod.IsGetMethod)
+-                    {
+-                        var property = GetOrCreateProperty(unityMethod, newMethod);
+-                        property.GetMethod = newMethod;
+-                    }
+-                    else if (unityMethod.IsSetMethod)
+-                    {
+-                        var property = GetOrCreateProperty(unityMethod, newMethod);
+-                        property.SetMethod = newMethod;
+-                    }
+-
+-                    var paramsMethod = context.CreateParamsMethod(unityMethod, newMethod, imports,
+-                        type => ResolveTypeInNewAssemblies(context, type, imports));
+-                    if (paramsMethod != null) processedType.NewType.Methods.Add(paramsMethod);
+-
+-                    methodsUnstripped++;
++                    var newType = ResolveTypeInNewAssemblies(context, genericParameterConstraint.Constraint?.ToTypeSignature(),
++                        imports);
++                    if (newType != null)
++                        newParameter.Constraints.Add(new GenericParameterConstraint(newType.ToTypeDefOrRef()));
+                 }
+-            }
+-        }
+-
+-        Logger.Instance.LogInformation("Restored {UnstrippedMethods} methods", methodsUnstripped);
+-        Logger.Instance.LogInformation("Failed to restore {IgnoredMethods} methods", methodsIgnored);
++
++                newMethod.GenericParameters.Add(newParameter);
++            }
++
++            if (isICall)
++            {
++                var delegateType =
++                    UnstripGenerator.CreateDelegateTypeForICallMethod(unityMethod, newMethod, imports);
++                processedType.NewType.NestedTypes.Add(delegateType);
++
++                processedType.NewType.Methods.Add(newMethod);
++
++                var delegateField = UnstripGenerator.GenerateStaticCtorSuffix(processedType.NewType,
++                    delegateType, unityMethod, imports);
++                UnstripGenerator.GenerateInvokerMethodBody(newMethod, delegateField, delegateType,
++                    processedType, imports);
++            }
++            else
++            {
++                Pass81FillUnstrippedMethodBodies.PushMethod(unityMethod, newMethod, processedType, imports);
++                processedType.NewType.Methods.Add(newMethod);
++            }
++
++            if (unityMethod.IsGetMethod)
++            {
++                var property = GetOrCreateProperty(unityMethod, newMethod);
++                property.GetMethod = newMethod;
++            }
++            else if (unityMethod.IsSetMethod)
++            {
++                var property = GetOrCreateProperty(unityMethod, newMethod);
++                property.SetMethod = newMethod;
++            }
++
++            var paramsMethod = context.CreateParamsMethod(unityMethod, newMethod, imports,
++                type => ResolveTypeInNewAssemblies(context, type, imports));
++            if (paramsMethod != null) processedType.NewType.Methods.Add(paramsMethod);
++
++            methodsUnstripped++;
++        }
++    }
++
++    private static TypeRewriteContext? GetNestedTypeContext(AssemblyRewriteContext processedAssembly,
++        TypeDefinition unityType, TypeRewriteContext parentContext)
++    {
++        var registered = processedAssembly.TryGetTypeByName(unityType.FullName);
++        if (registered != null) return registered;
++
++        var newType = parentContext.NewType.NestedTypes.SingleOrDefault(it => it.Name == unityType.Name);
++        if (newType == null) return null;
++        var processedType = processedAssembly.GetContextForNewType(newType);
++        if (processedType.OriginalType != null)
++            throw new InvalidOperationException($"Nested source owner registration mismatch: {unityType.FullName}");
++        return processedType;
++    }
++
++    private sealed class SourceTypeIdentityComparer : IEqualityComparer<TypeDefinition>
++    {
++        public bool Equals(TypeDefinition? left, TypeDefinition? right) => ReferenceEquals(left, right);
++        public int GetHashCode(TypeDefinition type) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(type);
+     }
+
+     private static PropertyDefinition GetOrCreateProperty(MethodDefinition unityMethod, MethodDefinition newMethod)

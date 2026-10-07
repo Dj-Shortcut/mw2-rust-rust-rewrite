@@ -11,7 +11,7 @@
   },
   "targetFramework": "netstandard2.1",
   "assemblyVersion": "1.5.3.0",
-  "patchSha256": "8a050f5a2b938da717a5073f5134c578b04f8df2c00126a14c8d75d8658e2dca",
+  "patchSha256": "0d1bdde1afd8764075552b69ee8bd7c61546d1fd6e5780f66c25cac76bf5956e",
   "nugetConfigSha256": "33aa39ee926a9e2651ae39549df08dddc8e43d11896cf14d0465bc869d56b4c2",
   "lockFiles": {
     "Il2CppInterop.Generator.lock.json": "fb9e87b184ca48f4593695a921820e178b36835842808d621ab50abf531df2cb",
@@ -19,7 +19,8 @@
   },
   "patchedFiles": {
     "Il2CppInterop.Generator/Extensions/ILGeneratorEx.cs": "d64c700d0e7ace6302041d51a7e8a93b596aa585763f905b1adfc217094f18be",
-    "Il2CppInterop.Generator/Passes/Pass50GenerateMethods.cs": "acd33747e927a20c0e8f78af6a7d995b77408494dfa5e9df3793f10d6eb23b16"
+    "Il2CppInterop.Generator/Passes/Pass50GenerateMethods.cs": "acd33747e927a20c0e8f78af6a7d995b77408494dfa5e9df3793f10d6eb23b16",
+    "Il2CppInterop.Generator/Passes/Pass80UnstripMethods.cs": "413ef1bdd2d89bceabaf150552e46427cf9f42973a883d396938d030990abf35"
   },
   "preservedFiles": {
     "global.json": "2a99f94f1002fd18c866ea6d2a0bbb4ffa7679001646507f38b9b17003d7d8e1",

@@ -287,7 +287,7 @@ assemblies, sidecars, runtime closure, the replacement build or the loader.
 The old rejected candidate remains rejected. Fresh native generation and complete
 output acceptance remain required before installation or a playtest.
 
-## Nested method restoration design
+## Nested method restoration
 
 [Issue #303](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/303) follows the preserved fresh-output rejection in #289.
 The actual Windows original-member diagnostic captured a missing static method on an empty
@@ -298,14 +298,24 @@ walks only top-level types and the following body pass uses only its earlier que
 This identifies a source traversal gap; the actual generated caller and earlier failure phase
 are not attributed by this source-only read.
 
-Planned correction: retain all existing top-level work as the original global prefix, then
-visit source nested owners through their mapped parent and registered target context.
-Reuse method eligibility/signature/body emission; preserve exclusions, field restoration,
-prior pointer-byref behavior and strict output guards. Missing parents must not create orphans.
-No candidate DLL rewriting, resolver relaxation or installed-file edit is planned.
-Actual-generator authored reproductions and unchanged controls precede any native rebuild.
-A restored definition whose body falls back to throwing is not usable method-body proof.
-Source correction, authored verification and native regeneration remain pending.
+The source correction retains all existing top-level work as the original global prefix,
+then visits source nested owners through their mapped parent and registered target context.
+It reuses method eligibility/signature/body emission; exclusions, field restoration,
+prior pointer-byref hunks and strict output guards remain unchanged. Missing parents create
+no new context or orphan. No candidate DLL rewriting, resolver relaxation or installed-file edit.
+
+Actual SDK8.0.425 source builds pass with four upstream warnings/zero errors and unchanged
+projects, SDK policy and complete locks. Isolated actual-generator authored baseline/candidate
+processes each pass32 checks and three strict PE round trips. The twelve-method original
+queue prefix and28 exported controls remain identical; a live assertion verifies the exact
+fourteen-method nested tail. Twelve candidate bodies translate; two negative cases preserve
+the exception fallback and are not counted as successful translations. The actual parent
+getter route and its strict reread binding pass. The baseline reproduces nine missing methods;
+both actual serialized boundaries require zero candidate misses. Input hashes remain preserved.
+These are macOS source/authored checks, not complete recipe staging or native generation.
+[Detailed scope and build limits](../mods/rust/client/generator/interop/README.md#authored-nested-method-verification).
+Fresh Windows recipe/staging,193 output-pin preservation, full191-assembly original/member/
+roundtrip checks, sidecars and loader/menu/rollback acceptance remain pending. No playtest.
 
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
