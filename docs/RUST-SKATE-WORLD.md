@@ -1,7 +1,7 @@
 # Native Rust skate collision queries
 
 Part of [the full mod](RUST-MW2-SKATE.md); [task #285](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/285).
-Status: genuine-reference build passes; 127 temporary actual-DLL checks pass; native scene unverified.
+Status: prior adapter build/127 actual-DLL checks pass; rail wiring planned and unbuilt; native scene unverified.
 
 ## Boundary
 
@@ -32,9 +32,24 @@ Reject anchor/end/centre float spacing above Skin/8 and sweeps above 16m; 4096m 
 Near-unit normals are normalized, never flipped; zero-distance tangent/receding contacts are skipped.
 Selected normals also oppose the original core displacement, not only rounded native travel.
 
+## Planned trusted rail wiring
+
+[Task #301](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/301) uses the immutable [SkateRailBinding](RUST-SKATE-RAIL-BINDING.md) from #298/PR #300.
+Keep the old constructor through Empty; add a non-null binding overload and an exact Rails catalog getter.
+After collider/self/Rust Verify checks, map each non-self signed GetInstanceID() through Resolve
+into a four-argument contact. Self/unbound contacts stay 0; penetration never captures.
+Existing bounded selection, ambiguity handling and final revocation checks remain.
+The host passes this world's exact Rails catalog to SkateMotion.TryStep with this same world.
+Close/rebuild the world and snapshot before bound collider transform/scale/enabled-state changes,
+removal/replacement, or rail geometry/revision changes. Registration belongs to the live host,
+never client packets or persistence; never reuse it across scenes or runtime sessions.
+The overload does not register/validate rail geometry or detect stale host snapshots.
+Root plans genuine-reference compilation and catalog/bound/unbound/signed-key/self/ambiguity/revocation probes.
+No production host creates/ticks this world yet; planned wiring is not native scene or gameplay proof.
+
 ## Verification and remaining acceptance
 
-Original net48/C#7.3 source builds against genuine server Mono/Unity references: 0 errors/warnings.
+Prior net48/C#7.3 adapter source builds against genuine server Mono/Unity references: 0 errors/warnings.
 Actual DLL linkage confirms three Physics queries, both Rust Verify overloads and the fixed mask.
 127 compiled mapping/filter/buffer/precision/core-atomicity cases pass; native calls executed: 0.
 The original normal-rounding defect was reproduced in its compiled DLL, then corrected.
