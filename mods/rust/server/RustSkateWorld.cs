@@ -15,6 +15,7 @@ namespace Shortcut.RustMod
         private readonly ulong playerId;
         private readonly BoxCollider mountedProbe;
         private readonly BoxCollider standingProbe;
+        private readonly SkateRailBinding railBinding;
         private readonly int serverThread;
         private readonly Collider[] overlaps = new Collider[SkateWorldQuery.Capacity];
         private readonly RaycastHit[] casts = new RaycastHit[SkateWorldQuery.Capacity];
@@ -24,15 +25,25 @@ namespace Shortcut.RustMod
 
         public RustSkateWorld(BasePlayer rider, BaseEntity board, Guid boardLease,
                               BoxCollider mountedProbe, BoxCollider standingProbe)
+            : this(rider, board, boardLease, mountedProbe, standingProbe, SkateRailBinding.Empty)
+        { }
+
+        public RustSkateWorld(BasePlayer rider, BaseEntity board, Guid boardLease,
+                              BoxCollider mountedProbe, BoxCollider standingProbe,
+                              SkateRailBinding railBinding)
         {
+            if (railBinding == null) throw new ArgumentNullException(nameof(railBinding));
             this.rider = rider;
             this.board = board;
             this.boardLease = boardLease;
             playerId = ReferenceEquals(rider, null) ? 0 : rider.userID;
             this.mountedProbe = mountedProbe;
             this.standingProbe = standingProbe;
+            this.railBinding = railBinding;
             serverThread = Thread.CurrentThread.ManagedThreadId;
         }
+
+        public SkateRailSet Rails { get { return railBinding.Rails; } }
 
         // Revocation is idempotent and safe without accessing a Unity object.
         // A lease is host fencing metadata; it does not authenticate a rider.
@@ -66,13 +77,16 @@ namespace Shortcut.RustMod
                     {
                         if (IsClosed) return false;
                         RaycastHit nativeHit = casts[i];
+                        if (!Finite(nativeHit.point)) return false;
+                        Collider collider = nativeHit.collider;
                         Transform colliderTransform;
                         bool self;
-                        if (!Finite(nativeHit.point) || !TryCollider(nativeHit.collider, out colliderTransform) ||
+                        if (!TryCollider(collider, out colliderTransform) ||
                             !TrySelf(colliderTransform, riderRoot, boardRoot, out self)) return false;
                         if (!self && !GamePhysics.Verify(nativeHit, center, rider)) return false;
+                        long railId = self ? 0 : railBinding.Resolve(collider.GetInstanceID());
                         contacts[i] = new SkateWorldContact(nativeHit.distance,
-                            ToSkate(nativeHit.normal), self);
+                            ToSkate(nativeHit.normal), self, railId);
                     }
                     if (!SkateWorldQuery.TrySelect(query, contacts, count, out result)) return false;
                 }
