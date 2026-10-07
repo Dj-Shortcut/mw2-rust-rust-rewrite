@@ -13,6 +13,9 @@ failed after only three complete PE round trips. [Actual generation and rejected
 partial validation](../../../../docs/RUST-CLIENT-LOADER.md#actual-windows-generation-and-output-validation)
 record the current continuation point. Complete validation and installation
 remain unfinished.
+A separate [pointer-byref Il2CppInterop source correction](interop/README.md) supplies
+a locked generator build with authored behavior verification. Native repaired-output
+and loader acceptance remain open.
 No playable mod is available. This supports the [offline loader gate](../../../../docs/RUST-CLIENT-LOADER.md).
 
 ## Observed failure and behavior

@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "dbda1cb353b0f4253345dc45136d170b9e50a5a0",
+  "sourceUrl": "https://codeload.github.com/BepInEx/Il2CppInterop/zip/dbda1cb353b0f4253345dc45136d170b9e50a5a0",
+  "sourceSha256": "96d223a475c885ef08118a3adaee0c2ed5d65edd83fbea9987e5a305f1123ac5",
+  "sdkVersion": "9.0.318",
+  "windowsSdk": {
+    "name": "dotnet-sdk-win-x64.zip",
+    "rid": "win-x64",
+    "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/9.0.318/dotnet-sdk-9.0.318-win-x64.zip",
+    "hash": "d961a84ebcbc316f06c98d16958422f7bb1b3a1f29b5d6011cabf59984390690ff669c3dd9b739554ad00771d6393dbbde6bdb14da81faa7fe499f59501864b6"
+  },
+  "windowsGit": {
+    "version": "2.56.0.2",
+    "url": "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.2/MinGit-2.56.0.2-64-bit.zip",
+    "sha256": "da35e72aa21c005a5a0d298cfbae110bc1609a815730ea0dde84b01a1b3cd3be"
+  },
+  "targetFramework": "netstandard2.1",
+  "commonTargetFramework": "netstandard2.0",
+  "assemblyVersion": "1.5.3.0",
+  "patchSha256": "fe80dd264660b957351841ef1dacd58b3e04e19a88d20d4190eab386f14d03ea",
+  "patchedFiles": {
+    "Il2CppInterop.Generator/Extensions/ILGeneratorEx.cs": "d64c700d0e7ace6302041d51a7e8a93b596aa585763f905b1adfc217094f18be",
+    "Il2CppInterop.Generator/Passes/Pass50GenerateMethods.cs": "acd33747e927a20c0e8f78af6a7d995b77408494dfa5e9df3793f10d6eb23b16"
+  },
+  "lockFiles": {
+    "Il2CppInterop.Generator.lock.json": "fb9e87b184ca48f4593695a921820e178b36835842808d621ab50abf531df2cb",
+    "Il2CppInterop.Common.lock.json": "ebdfed018aca2845c645f6f1de9d16d0f5ca6cbb779146c608dce402f3eed7b0"
+  },
+  "nugetConfigSha256": "fd6836e883aa6bf334e587a02ff7239f68713f4baac6d749f743a2b489b1769c",
+  "upstreamLicenseSha256": "5eecce16e59e24ddd9d3712012517a033f2cd0459ace22b43d5659d4624abff0",
+  "modificationsLicenseSha256": "5eecce16e59e24ddd9d3712012517a033f2cd0459ace22b43d5659d4624abff0",
+  "modificationNoticeSha256": "88f1f679ba4eb021fe6bfacd62c8f6368ae72d25e36aaf9ec8048761593cf36d",
+  "modificationLicense": "LGPL-3.0-only",
+  "officialDependencies": {
+    "Il2CppInterop.Generator.dll": {
+      "sha256": "95364bf2686f50d114784e482a0e78c472f6a649d07ea31a075328b2b756899d",
+      "identity": "Il2CppInterop.Generator, Version=1.5.3.0, Culture=neutral, PublicKeyToken=null",
+      "publicKeyTokenHex": "",
+      "targetFramework": ".NETStandard,Version=v2.1",
+      "definitionFlags": 0
+    },
+    "Il2CppInterop.Common.dll": {
+      "sha256": "070e04f2276a8963a6d2a7eb52d43b644f3ae9aa3816c34541124d3862f1b37f",
+      "identity": "Il2CppInterop.Common, Version=1.5.3.0, Culture=neutral, PublicKeyToken=null",
+      "publicKeyTokenHex": "",
+      "targetFramework": ".NETStandard,Version=v2.0",
+      "definitionFlags": 0
+    },
+    "AsmResolver.dll": {
+      "sha256": "64b50030b34654f12805ec4d2848551e431c5f0bcd65cd70d6fe2845f715fb12",
+      "identity": "AsmResolver, Version=6.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "publicKeyTokenHex": "",
+      "targetFramework": ".NETCoreApp,Version=v6.0",
+      "definitionFlags": 0
+    },
+    "AsmResolver.PE.dll": {
+      "sha256": "6ba6d56bf5fd3dd18233b56606a7ed1d42b8c93977b5375716771bf13ea36a1e",
+      "identity": "AsmResolver.PE, Version=6.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "publicKeyTokenHex": "",
+      "targetFramework": ".NETCoreApp,Version=v6.0",
+      "definitionFlags": 0
+    },
+    "AsmResolver.PE.File.dll": {
+      "sha256": "8246433a1a6fb4c012c1814acee8a4ff24f3a4fac593569f6a1e343e68c9d8ee",
+      "identity": "AsmResolver.PE.File, Version=6.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "publicKeyTokenHex": "",
+      "targetFramework": ".NETCoreApp,Version=v6.0",
+      "definitionFlags": 0
+    },
+    "AsmResolver.DotNet.dll": {
+      "sha256": "045bcdf32427f9bd39bee2620c470372583935c8e89b360931e467dd191d46d1",
+      "identity": "AsmResolver.DotNet, Version=6.0.0.0, Culture=neutral, PublicKeyToken=null",
+      "publicKeyTokenHex": "",
+      "targetFramework": ".NETCoreApp,Version=v6.0",
+      "definitionFlags": 0
+    },
+    "0Harmony.dll": {
+      "sha256": "6c898933b52149e8bcf6722305c7e4d94add47c9e53b364096f91721624c0877",
+      "identity": "0Harmony, Version=2.10.2.0, Culture=neutral, PublicKeyToken=null",
+      "publicKeyTokenHex": "",
+      "targetFramework": ".NETStandard,Version=v2.0",
+      "definitionFlags": 0
+    }
+  }
+}

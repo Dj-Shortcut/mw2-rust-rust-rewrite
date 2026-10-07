@@ -217,6 +217,37 @@ installation or loader retry follows from the alias diagnostic. Sidecar validity
 full runtime closure, native calls, offline menus/exit/rollback and full mod
 acceptance remain separate open gates.
 
+## Pointer byref generator correction
+
+An independent native Windows passive metadata read confirmed an invalid imported
+constructor whose declaring type is an unmanaged pointer. All four pinned inputs
+were preserved. It establishes the rejected metadata shape; exact caller attribution
+and a fresh repaired native generation remain pending.
+
+The separate [Il2CppInterop source correction](../mods/rust/client/generator/interop/README.md)
+changes two byref predicates to the existing value-like classification. Pointer
+ref/out arguments keep their signatures and use the argument-address path instead
+of object marshalling. Ordinary reference/string/generic/value paths and strict
+member validation remain unchanged; the shared unstrip consumer is covered.
+
+The complete new recipe was executed on macOS: four upstream warnings, zero errors,
+20/20 input rechecks, unchanged prepared source and staged Generator, and no cleanup
+failures. Generator/Common identities, frameworks, definition flags and full
+assembly-reference bindings match the official baseline. Only the Generator is
+staged, with LGPL terms and the dated modification notice; no game installation.
+
+Original and patched built generators each pass 86 authored temporary checks,
+including ref/out, static/instance and nested pointers, unchanged controls, actual
+shared-helper/unstrip emission and strict authored PE method/signature/local/IL
+round trips. All 48 control fingerprints match and all nine fixture inputs are
+preserved. The exact Generator DLL built by the recipe passes the same checks.
+These fixture processes used macOS CLR 9.0.20; they do not prove Windows CLR 6.0.7,
+complete generated-member closure, sidecar validity or native calls.
+
+Native Windows recipe execution, caller attribution, fresh generation and all
+191 complete assembly audits remain open. No failed DLL is rewritten or installed.
+The later empty-loader/menu/normal-exit/rollback and full gameplay gates remain open.
+
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.
