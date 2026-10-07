@@ -526,7 +526,7 @@ namespace Shortcut.RustMod
             return true;
         }
 
-        private static bool Valid(SkateState state)
+        internal static bool Valid(SkateState state)
         {
             return state != null && Coordinate(state.Position) && Vector(state.Velocity) &&
                 Math.Abs(state.Velocity.Y) <= MaximumFallSpeed &&

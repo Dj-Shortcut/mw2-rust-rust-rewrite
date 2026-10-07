@@ -32,7 +32,7 @@ Bail stops the core until the host performs a safe dismount or authorized remoun
 Dismount prefers either side, never teleports through a blocking sweep or into air.
 Finite input/state/query checks, bounded speed/coordinates, and `0 < dt <= 0.05`
 reject NaN/infinity, invalid traces and oversized steps atomically. Tuning is provisional.
-[Rail capture/travel source](RUST-SKATE-RAILS.md) is present; native rails, rider animation and fall damage remain unverified.
+[Rail capture/travel source](RUST-SKATE-RAILS.md) and [board/rider pose](RUST-SKATE-POSE.md) are present; native rails, rider animation and fall damage remain unverified.
 There is no saved-state format or network protocol; adapters must not deserialize state
 from an untrusted client. Runtime cleanup/death/rejoin remains the host's responsibility.
 
