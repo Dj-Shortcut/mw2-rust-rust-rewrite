@@ -244,6 +244,27 @@ It does not trace the private rejected caller, validate sidecars or regenerate t
 native generation/output validation, loader/menu/exit/rollback and mod gameplay
 remain open; no owner intermediate playtest or server rental is requested.
 
+## Actual Windows passive caller diagnosis
+
+The preserved diagnostic now has an observed native Windows result on the exact
+CLR6.0.7 host. Its passive metadata/CIL reader visited and decoded all 513,677
+expected method bodies in the rejected assembly: 7,513,644 instructions, one use
+of the rejected pointer-owned constructor, no truncated caller output or errors.
+The static caller has six parameters, ending in an out pointer-byref parameter.
+Its signature and local pattern match the authored out-pointer reproduction;
+precise emitting-pass attribution still needs the caller instruction window.
+Raw names, tokens, signatures, offsets and candidate bytes remain private.
+
+The helper reports completed scanning and all four pinned inputs preserved.
+Its outer process exited normally with code 0, no timeout or kill, complete streams,
+193 before/final file checks, unchanged host inventory and no cleanup/hash errors.
+Process-tree termination is not independently established. The inspected generated
+assembly was never CLR-loaded and no generated/native method was invoked.
+This diagnoses one rejected member in one assembly; it does not validate all 191
+assemblies, sidecars, runtime closure, the replacement build or the loader.
+The old rejected candidate remains rejected. Fresh native generation and complete
+output acceptance remain required before installation or a playtest.
+
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.

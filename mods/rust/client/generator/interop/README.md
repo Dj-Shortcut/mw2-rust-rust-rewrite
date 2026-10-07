@@ -14,8 +14,10 @@ An actual native Windows audit rejected a generated imported member after only
 confirmed an instance constructor taking `IntPtr` whose declaring type is an
 unmanaged pointer. All four pinned inputs remained unchanged before and after
 that read. This is rejected generated metadata, not accepted output or gameplay.
-The exact native emitting caller remains unconfirmed; the authored generator
-reproduction below is a separate check.
+A later passive native scan found one constructor use in a static caller ending
+in an out pointer-byref parameter. Its signature/local pattern matches the authored
+reproduction, while precise emitting-pass attribution remains unconfirmed. The
+authored generator reproduction below is a separate check.
 Game files, candidate assemblies, raw metadata and diagnostic logs stay outside
 GitHub.
 
@@ -108,3 +110,10 @@ structural/behavioral checks do not establish full CIL/dependency/native validit
 The cloud session has no private retail/native fixtures or Mac/Shadow control.
 No fresh 191-assembly native generation, sidecar audit, loader install or gameplay
 follows from these source checks. All those acceptance gates remain open.
+
+A separate observed Windows passive caller diagnostic decoded all 513,677 expected
+method bodies in the rejected assembly and found one use of the invalid constructor,
+with no scan error or truncation. All four original pins and 193 wrapper file checks
+remained unchanged; the child exited normally with complete streams. This read-only
+result concerns the rejected assembly, not the patched Generator or a fresh full
+candidate. It does not supply native regeneration, output, sidecar or loader approval.
