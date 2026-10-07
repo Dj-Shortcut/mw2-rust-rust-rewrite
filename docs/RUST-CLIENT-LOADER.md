@@ -317,6 +317,30 @@ These are macOS source/authored checks, not complete recipe staging or native ge
 Fresh Windows recipe/staging,193 output-pin preservation, full191-assembly original/member/
 roundtrip checks, sidecars and loader/menu/rollback acceptance remain pending. No playtest.
 
+## Current Windows preservation export
+
+On 7 October 2026, the passive exporter completed on Shadow Windows in the
+preserved PowerShell7.4.20 process with normal exit0. All1935 current file pins,
+12 complete inventories and seven known historical anchors passed before/final
+checks. The preserved1457/1517 checkpoints and old193 generated files remain
+unchanged. Root independently read the three complete report digests from
+Windows, transferred all three original reports to the Mac, and verified their
+bytes and full contents. The complete historical1517-hash map is unavailable;
+this authenticates the current union and known anchors, not every historical hash.
+
+The reviewed build-only package copies all1935 file records and12 inventories
+unchanged, then adds the three authenticated export reports and their inventory:
+1938 pins and13 inventories. Its ten source payload files match canonical
+PR [#306](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/306).
+Package preparation and source review do not establish a new Windows build.
+The separate all191 original-member check has reviewed source and a successful
+root compilation; it has not executed natively.
+
+Fresh Windows recipe/staging and generation,193 new output-pin checks, all191
+original MemberRef checks before any strict PE roundtrip, sidecars and
+loader/menu/exit/rollback acceptance remain pending. Prior rejected outputs stay
+rejected. No installation, game launch or owner playtest follows from this export.
+
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.
