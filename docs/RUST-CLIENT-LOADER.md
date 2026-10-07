@@ -68,7 +68,8 @@ interface getter guard with two encountered aggregate type causes:
 `Interface getter has no value type`. Each assembly stops at its first failed type;
 this is not a complete count of incompatible types. No output libraries, interop,
 bootstrap installation or retry on the mutated failed context occurred.
-Full managed PE round trip, interop generation/runtime and loader retry remain open.
+That .3 attempt produced no interop output. Complete output validation, runtime
+and loader retry remain open; the later .4 generation is recorded below.
 [Upstream #548](https://github.com/SamboyCoding/Cpp2IL/pull/548) closed without merge; its closure establishes no current approval.
 Review corrections/licences before retry; only passing empty-loader generation/menu/exit/rollback permits a log-only Load probe.
 That callback proves no Unity frame hooks, input or native game adapters.
@@ -156,9 +157,65 @@ strict VOID rejection before association, omitted synthetic APIs, original
 properties/indexers, constraints/native metadata and context-reuse rejection.
 Selected passes and two CIL inspections do not prove the complete runner, PE
 validity, native type resolution or native invocation; generic target identity
-coverage is bounded. No .4 Windows generation or loader retry has occurred.
-Fresh full native generation and generated-output validation must pass before
-installation. Empty offline menus, normal exit and rollback remain later gates.
+coverage is bounded. Actual Windows offline generation is recorded below;
+complete generated-output validation must pass before installation. Empty offline
+menus, normal exit and rollback remain later gates.
+
+## Actual Windows generation and output validation
+
+The pinned .4 recipe at `8ba5811230582c265e80cff185971c43f228a840`
+built on Shadow Windows with 41 warnings and 0 errors. Its separate offline
+consumer built with 7 warnings and 0 errors. A private observer confirmed the
+staged CoreCLR 6.0.7 startup and expected zero-argument rejection. This proves
+that host startup only; generated assemblies were never CLR-loaded.
+
+The first full attempt stopped before source construction because the isolated
+caller had not registered the official x86_64 instruction-set handler. The caller
+bootstrap was corrected to register the official instruction sets and binary readers.
+After that correction, a fresh process passed source-model
+checks for 162 assemblies, 32,404 types, 710,535 methods and 22,041 typed original
+properties, with 49,381 source properties omitted. The exact official interop
+consumer wrote 191 DLLs and two database sidecars, logging zero warnings/errors.
+Completion and those counters do not establish complete restoration coverage.
+The original strict reread then failed on `unresolved-generated-assembly-reference`
+before type traversal; zero strict PE round trips completed. The child exited
+normally with code 1, with no timeout/kill and complete redirected streams.
+Final 549 input hash checks, 522 archive-entry comparisons and inventories matched.
+The candidate and its failure evidence remain private, outside the game.
+
+A passive metadata audit inspected all 191 DLLs and 1,172 assembly references.
+Its 182 unresolved references all use the unsigned neutral `Il2CppInterop.Runtime`
+version `0.0.0.0`, against the exact official `1.5.3.0` dependency. No other
+unresolved assembly identity was found in that scan. The pinned official
+[generator deliberately emits this zero-version reference](https://github.com/BepInEx/Il2CppInterop/tree/dbda1cb353b0f4253345dc45136d170b9e50a5a0).
+The exact-version diagnostic therefore needs a narrowly scoped resolver alias;
+this finding alone does not approve generated types, members or CIL.
+
+An independently reviewed existing-output diagnostic accepts only that unsigned
+neutral zero-version identity against the exact path, SHA256 and identity of the
+pinned official dependency. Every other assembly comparison and all original
+type/member/CIL checks remain strict. It traverses existing DLL metadata and
+attempts in-memory PE round trips without rewriting the candidate. Eight authored
+identity boundary cases pass locally. The first native wrapper failed before
+build/host on a report-hash transcription error; its correction reached a build
+failure because the SDK selected an incompatible package-copy dependency before
+the pinned reference. After isolating that search, the native build and exact
+CoreCLR host ran, but the diagnostic failed on
+`unresolved-generated-member-reference` during the fourth assembly's original
+imported-member traversal. Three assemblies completed both traversals and strict
+PE round trips. Before rejection the primary traversal counters reached 2,692
+types, 102,616 methods and 5,971 properties; 2,658,443 type-resolution and 923,802
+member-resolution visits are repeated visits, not unique metadata rows. The sole
+pinned runtime alias resolved once. The child exited normally with code 1, with
+no timeout/kill and complete streams. The diagnostic rechecked 422 files and
+three inventories unchanged; wrapper final checks likewise preserved 3,749 input
+hashes and inventories with no reported cleanup/recheck failures. This is a
+failed partial audit, not complete validation of the 191-library set. The exact
+member/signature context and the cause of its rejection remain to be diagnosed.
+The public .4 recipe and stock BepInEx caller remain unchanged. No regeneration,
+installation or loader retry follows from the alias diagnostic. Sidecar validity,
+full runtime closure, native calls, offline menus/exit/rollback and full mod
+acceptance remain separate open gates.
 
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.

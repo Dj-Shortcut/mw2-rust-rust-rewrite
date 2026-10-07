@@ -7,8 +7,12 @@ first managed assembly generation fails with two encountered interface-getter
 value-type errors. This count is not a complete incompatible-type census.
 [Actual evidence and next diagnosis](../../../../docs/RUST-CLIENT-LOADER.md#interface-diagnosis-before-another-correction)
 retain the strict rejection. The .4 [explicit source-model API](#explicit-interop-source-api)
-builds on Mac and passes 230 authored cases; full native interop generation and
-installation remain unfinished.
+builds on Mac and actual Shadow Windows and passes 230 authored cases. A separate
+private consumer wrote 191 interop DLLs and two sidecars; full output validation
+failed after only three complete PE round trips. [Actual generation and rejected
+partial validation](../../../../docs/RUST-CLIENT-LOADER.md#actual-windows-generation-and-output-validation)
+record the current continuation point. Complete validation and installation
+remain unfinished.
 No playable mod is available. This supports the [offline loader gate](../../../../docs/RUST-CLIENT-LOADER.md).
 
 ## Observed failure and behavior
@@ -216,5 +220,25 @@ resolution in the authored builder fixture uses an authored corlib binding;
 raw fields remain independently asserted. Selected consumer passes and two
 Pass20 CIL inspections establish bounded metadata behavior, not a complete
 runner, generated PE validity, native resolution/calls or gameplay. Generic
-argument and constraint-target identity coverage is incomplete. No .4 Windows
-build, full native generation, installation or Rust retry has occurred.
+argument and constraint-target identity coverage is incomplete.
+
+The actual Shadow Windows .4 recipe built with 41 warnings and 0 errors; its
+separate offline consumer built with 7 warnings and 0 errors and ran under the
+staged exact CoreCLR 6.0.7 host. After an official instruction-set/binary-reader
+bootstrap correction, fresh source-model guards passed and the official consumer
+wrote 191 DLLs and two sidecars. Original strict output reread rejected the
+generator's intentional unsigned neutral Runtime zero-version reference. A
+passive audit found no other unresolved assembly identity in 1,172 references.
+A narrowly scoped path/hash/identity-pinned alias diagnostic then ran, completed
+only three PE round trips, and rejected an unresolved imported member during the
+fourth assembly's original traversal. Both failed processes exited normally with
+code 1 and preserved checked input hashes/inventories. The candidate stays private
+and rejected; do not repeat generation or install it as a validated result.
+
+Next, diagnose the exact member/signature rejection without weakening the
+resolver guards or rewriting candidate files. Complete 191-library metadata/PE
+validation, passive sidecar validity and runtime/native closure remain open.
+The public recipe and stock BepInEx caller remain unchanged. No candidate
+installation or Rust retry has occurred; responsive empty offline menus, normal
+exit and verified rollback remain later gates, followed by full mod acceptance.
+See the [full actual evidence and limits](../../../../docs/RUST-CLIENT-LOADER.md#actual-windows-generation-and-output-validation).
