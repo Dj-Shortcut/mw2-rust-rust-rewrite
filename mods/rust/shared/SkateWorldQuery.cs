@@ -20,9 +20,14 @@ namespace Shortcut.RustMod
         public readonly double Distance;
         public readonly SkateVector Normal;
         public readonly bool Self;
+        public readonly long RailId;
 
         public SkateWorldContact(double distance, SkateVector normal, bool self)
-        { Distance = distance; Normal = normal; Self = self; }
+            : this(distance, normal, self, 0) { }
+
+        // RailId comes only from a trusted host binding of the actual hit collider; zero is ordinary.
+        public SkateWorldContact(double distance, SkateVector normal, bool self, long railId)
+        { Distance = distance; Normal = normal; Self = self; RailId = railId; }
     }
 
     public static class SkateWorldQuery
@@ -46,7 +51,9 @@ namespace Shortcut.RustMod
             double length = delta.Length;
             if (!Finite(originalLength) || originalLength > MaximumDistance ||
                 !Finite(length) || length > MaximumDistance) return false;
-            if (originalLength > 0 && length == 0) return false;
+            // Start and end may round to the same native point, as in a rail seat snap; that sub-precision
+            // move is checked as a zero-distance overlap. Any larger move collapsing to zero is refused.
+            if (originalLength > Precision && length == 0) return false;
             SkateVector direction = default(SkateVector);
             double distance;
             if (!TryScalar(length, out distance)) return false;
@@ -62,12 +69,14 @@ namespace Shortcut.RustMod
             bool found = false;
             double nearest = double.MaxValue;
             SkateVector normal = default(SkateVector);
+            long railId = 0;
+            bool ambiguous = false;
             for (int i = 0; i < count; ++i)
             {
                 SkateWorldContact contact = contacts[i];
                 double squared = contact.Normal.LengthSquared;
                 if (!Finite(contact.Distance) || contact.Distance < 0 || contact.Distance > query.Distance ||
-                    !Finite(squared) || Math.Abs(squared - 1) > 0.001) return false;
+                    !Finite(squared) || Math.Abs(squared - 1) > 0.001 || contact.RailId < 0) return false;
                 SkateVector unit = contact.Normal * (1 / Math.Sqrt(squared));
                 double entering = SkateVector.Dot(unit, query.Direction);
                 if (!Finite(entering)) return false;
@@ -77,14 +86,21 @@ namespace Shortcut.RustMod
                     if (contact.Distance == 0) continue;
                     return false;
                 }
-                if (!found || contact.Distance < nearest ||
-                    (contact.Distance == nearest && Earlier(unit, normal)))
-                { found = true; nearest = contact.Distance; normal = unit; }
+                if (!found || contact.Distance < nearest)
+                {
+                    found = true; nearest = contact.Distance; normal = unit;
+                    railId = contact.RailId; ambiguous = false;
+                    continue;
+                }
+                if (contact.Distance != nearest) continue;
+                // Equal-distance blockers with different identities are an ordinary contact.
+                if (contact.RailId != railId) ambiguous = true;
+                if (Earlier(unit, normal)) normal = unit;
             }
             if (found)
             {
                 if (SkateVector.Dot(query.OriginalDelta, normal) > 0.000001) return false;
-                hit = new SkateHit(true, false, nearest / query.Distance, normal, 0);
+                hit = new SkateHit(true, false, nearest / query.Distance, normal, ambiguous ? 0 : railId);
             }
             return true;
         }
