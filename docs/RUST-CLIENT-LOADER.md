@@ -244,6 +244,28 @@ It does not trace the private rejected caller, validate sidecars or regenerate t
 native generation/output validation, loader/menu/exit/rollback and mod gameplay
 remain open; no owner intermediate playtest or server rental is requested.
 
+## Actual Windows pointer-generator build
+
+The separate pointer/byref source build completed on Shadow Windows on 7 October
+2026. The bounded process exited normally with code 0, confirmed root exit and
+complete captured streams, no timeout, and no recheck or cleanup failures. All
+1,347 input hashes and 15 build/staging output hashes were unchanged; the output
+inventory was unchanged. These are build outputs, not the 191 generated game
+assemblies. Independent process-tree termination is not established.
+
+The actual staged Generator SHA256 is
+`364e6baa9c6ad50456a45aa056d97879ec759c9404ec3a98d2864bbea33c591e`,
+with informational/product version 1.5.3. The native observation digest was read
+back as `1729fdaa5c6a70ed5088c776783c6dca6c1cbec2188ece7df5fffe254d124795`.
+The result and digest were read from the live Windows console; the full report
+has not been copied to the Mac. No Windows warning count is inferred from the
+separate Linux build.
+
+This establishes native source-build/staging completion only. Fresh generation,
+complete metadata and sidecar acceptance, runtime/loader checks and mod gameplay
+remain open. No candidate was accepted, installed or launched, and the earlier
+3/191 candidate remains rejected.
+
 ## Actual Windows passive caller diagnosis
 
 The preserved diagnostic now has an observed native Windows result on the exact

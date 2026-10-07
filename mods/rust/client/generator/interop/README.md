@@ -111,6 +111,17 @@ The cloud session has no private retail/native fixtures or Mac/Shadow control.
 No fresh 191-assembly native generation, sidecar audit, loader install or gameplay
 follows from these source checks. All those acceptance gates remain open.
 
+A subsequent actual Shadow Windows source build completed with normal exit 0,
+confirmed root exit and complete streams. All 1,347 input and 15 build/staging
+output hashes were preserved, the output inventory was unchanged, and no
+recheck/cleanup failures were reported. The actual staged Generator SHA256 is
+`364e6baa9c6ad50456a45aa056d97879ec759c9404ec3a98d2864bbea33c591e`,
+with product version 1.5.3. The result and observation digest were read from the
+live Windows console; the full report has not been copied to the Mac. See the
+[native build result and exact limits](../../../../../docs/RUST-CLIENT-LOADER.md#actual-windows-pointer-generator-build).
+This proves source-build/staging completion only; no fresh generation, candidate
+acceptance, installation or game start followed from this build.
+
 A separate observed Windows passive caller diagnostic decoded all 513,677 expected
 method bodies in the rejected assembly and found one use of the invalid constructor,
 with no scan error or truncation. All four original pins and 193 wrapper file checks
