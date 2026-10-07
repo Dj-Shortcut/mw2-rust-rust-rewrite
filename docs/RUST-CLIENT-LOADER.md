@@ -187,7 +187,7 @@ A passive metadata audit inspected all 191 DLLs and 1,172 assembly references.
 Its 182 unresolved references all use the unsigned neutral `Il2CppInterop.Runtime`
 version `0.0.0.0`, against the exact official `1.5.3.0` dependency. No other
 unresolved assembly identity was found in that scan. The pinned official
-[generator deliberately emits this zero-version reference](https://github.com/BepInEx/Il2CppInterop/blob/dbda1cb353b0f4253345dc45136d170b9e50a5a0/Il2CppInterop.Generator/Utils/RuntimeAssemblyReferences.cs#L113-L114).
+[generator deliberately emits this zero-version reference](https://github.com/BepInEx/Il2CppInterop/tree/dbda1cb353b0f4253345dc45136d170b9e50a5a0).
 The exact-version diagnostic therefore needs a narrowly scoped resolver alias;
 this finding alone does not approve generated types, members or CIL.
 
