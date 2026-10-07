@@ -1,0 +1,21 @@
+--- a/Il2CppInterop.Generator/Extensions/ILGeneratorEx.cs
++++ b/Il2CppInterop.Generator/Extensions/ILGeneratorEx.cs
+@@ -162,7 +162,7 @@
+         var imports = enclosingType.AssemblyContext.Imports;
+         if (originalType is ByReferenceTypeSignature)
+         {
+-            if (newType.GetElementType().IsValueType())
++            if (newType.GetElementType().IsValueTypeLike())
+             {
+                 body.AddLoadArgument(argumentIndex);
+                 body.Add(OpCodes.Conv_I);
+--- a/Il2CppInterop.Generator/Passes/Pass50GenerateMethods.cs
++++ b/Il2CppInterop.Generator/Passes/Pass50GenerateMethods.cs
+@@ -123,6 +123,6 @@
+                         // TODO: create a default instance for Il2CppSystem.ValueType wrapped value type
+                         // NOTE(Kas): out parameters of value type are passed directly as a pointer to the il2cpp method
+                         // since we don't need to perform any additional copies
+-                        if (newParam.Definition!.IsOut && newParam.ParameterType is ByReferenceTypeSignature && !newParam.ParameterType.GetElementType().IsValueType())
++                        if (newParam.Definition!.IsOut && newParam.ParameterType is ByReferenceTypeSignature && !newParam.ParameterType.GetElementType().IsValueTypeLike())
+                         {
+                             var elementType = newParam.ParameterType.GetElementType();

@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "dbda1cb353b0f4253345dc45136d170b9e50a5a0",
+  "sourceUrl": "https://codeload.github.com/BepInEx/Il2CppInterop/zip/dbda1cb353b0f4253345dc45136d170b9e50a5a0",
+  "sourceSha256": "96d223a475c885ef08118a3adaee0c2ed5d65edd83fbea9987e5a305f1123ac5",
+  "sdkVersion": "8.0.425",
+  "windowsSdk": {
+    "name": "dotnet-sdk-win-x64.zip",
+    "rid": "win-x64",
+    "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/8.0.425/dotnet-sdk-8.0.425-win-x64.zip",
+    "hash": "f0b6f15bf6f1a0507205c0cb102ab99e1dee875c4682c8ed94665be1d580186a06b21455e83b3a01a0ff7f4cd887b67420f2e2fe09ed985534a4cea488ae1af9"
+  },
+  "targetFramework": "netstandard2.1",
+  "assemblyVersion": "1.5.3.0",
+  "patchSha256": "8a050f5a2b938da717a5073f5134c578b04f8df2c00126a14c8d75d8658e2dca",
+  "nugetConfigSha256": "33aa39ee926a9e2651ae39549df08dddc8e43d11896cf14d0465bc869d56b4c2",
+  "lockFiles": {
+    "Il2CppInterop.Generator.lock.json": "fb9e87b184ca48f4593695a921820e178b36835842808d621ab50abf531df2cb",
+    "Il2CppInterop.Common.lock.json": "ebdfed018aca2845c645f6f1de9d16d0f5ca6cbb779146c608dce402f3eed7b0"
+  },
+  "patchedFiles": {
+    "Il2CppInterop.Generator/Extensions/ILGeneratorEx.cs": "d64c700d0e7ace6302041d51a7e8a93b596aa585763f905b1adfc217094f18be",
+    "Il2CppInterop.Generator/Passes/Pass50GenerateMethods.cs": "acd33747e927a20c0e8f78af6a7d995b77408494dfa5e9df3793f10d6eb23b16"
+  },
+  "preservedFiles": {
+    "global.json": "2a99f94f1002fd18c866ea6d2a0bbb4ffa7679001646507f38b9b17003d7d8e1",
+    "Directory.Build.props": "6665d65ff56192833bf51da6c74d267d6525b02a663a0a23ae92dae76c33e4fb",
+    "Il2CppInterop.Generator/Il2CppInterop.Generator.csproj": "5158ee08936dcaf0630656bd620229f42a83592a6448ebe3aa3e25705f200b46",
+    "Il2CppInterop.Common/Il2CppInterop.Common.csproj": "c5791ca7339a6a104902f8b01885afafaa3b638baa692a5138dd75d7ead739a3",
+    "LICENSE": "5eecce16e59e24ddd9d3712012517a033f2cd0459ace22b43d5659d4624abff0"
+  },
+  "licenceFiles": {
+    "UPSTREAM-LICENSE": "5eecce16e59e24ddd9d3712012517a033f2cd0459ace22b43d5659d4624abff0",
+    "MODIFICATIONS-LICENSE": "566f371aefeb70d539691a95ad51cfc7d2293acde7bfe9320d45381bd9437d33"
+  }
+}

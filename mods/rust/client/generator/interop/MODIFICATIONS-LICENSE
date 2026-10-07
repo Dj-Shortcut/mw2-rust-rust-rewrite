@@ -1,0 +1,25 @@
+Il2CppInterop generator pointer-byref correction
+
+Copyright (c) 2026 Dj-Shortcut/mw2-rust-rust-rewrite contributors
+SPDX-License-Identifier: LGPL-3.0-only
+
+The modifications in pointer-byref.patch to the pinned Il2CppInterop library
+are distributed under the same LGPL-3.0-only terms as that library, not under
+the repository-wide Apache-2.0 licence or the separate Cpp2IL MIT licence.
+UPSTREAM-LICENSE retains the upstream LGPL 3 and incorporated GPL 3 texts.
+
+Upstream: https://github.com/BepInEx/Il2CppInterop
+Source commit: dbda1cb353b0f4253345dc45136d170b9e50a5a0
+Modified files:
+  Il2CppInterop.Generator/Extensions/ILGeneratorEx.cs
+  Il2CppInterop.Generator/Passes/Pass50GenerateMethods.cs
+Modification: classify direct pointer elements as value-like when generating
+byref argument marshalling and selecting out-argument temporaries. All other
+upstream files, project properties and assembly identities are unchanged.
+
+The project-authored build recipe, configuration, lock manifests and explanatory
+documentation remain under the repository's Apache-2.0 licence. The build stages
+the pinned original source archive, modification patch and complete build recipe
+under corresponding-source; keep these files with any distributed Generator DLL
+so recipients can reconstruct and modify the library. The archive and patch,
+together, are the corresponding source of the staged modified generator.
