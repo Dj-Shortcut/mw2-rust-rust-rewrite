@@ -11,8 +11,8 @@
   },
   "targetFramework": "net6.0",
   "assemblyVersion": "2022.1.0.0",
-  "informationalVersion": "2022.1.0-rust-property.3",
-  "patchSha256": "a37c138a7e846c4d4f9ea3a9259e1ec98bfff907a1391b1d28015ed9b882caa4",
+  "informationalVersion": "2022.1.0-rust-property.4",
+  "patchSha256": "bcc91a3547d7a1c20916efdd5eac50c3758f3b589c48f2c128171cb2b2b62f3c",
   "lockFiles": {
     "Cpp2IL.Core.lock.json": "c10ee49a5d8e1c850d01aec7b59f6799f16d5d3568357061fa0a94394b377137",
     "LibCpp2IL.lock.json": "4c10813fcf1b1f7a37fcebeb2be5d7e23979462ca13f55c5692ddafb9ecf638e",
@@ -34,6 +34,7 @@
     "Cpp2IL.Core/Utils/AsmResolver/AsmResolverAssemblyPopulator.cs": "2e15cda15d1fa5a4d779c8fc8a73260d4cc23d80b8619b80a06f4e461690416c",
     "Cpp2IL.Core/Utils/V29AttributeUtils.cs": "2221ed772a586b0729d3a856e74faa01ad2f322c9f9647271ec83d9cb439a81c",
     "LibCpp2IL/Metadata/Il2CppMetadata.cs": "8416e0d60c8736bcd33c17ac8e838a7a671e7168057f6398ed8dafa34445050a",
-    "LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs": "ec8a1f934ca96568fc4b535d7cf872f899e0ecfe5b58141ab2d64b57af5a7dba"
+    "LibCpp2IL/Metadata/Il2CppPropertyDefinition.cs": "ec8a1f934ca96568fc4b535d7cf872f899e0ecfe5b58141ab2d64b57af5a7dba",
+    "Cpp2IL.Core/OutputFormats/AsmResolverDummyDllOutputFormat.cs": "d0ff3df26e82d8cb8c6ac988d19bf2b6e0f98e84425752f9f48a336a93366649"
   }
 }
