@@ -287,6 +287,26 @@ assemblies, sidecars, runtime closure, the replacement build or the loader.
 The old rejected candidate remains rejected. Fresh native generation and complete
 output acceptance remain required before installation or a playtest.
 
+## Nested method restoration design
+
+[Issue #303](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/303) follows the preserved fresh-output rejection in #289.
+The actual Windows original-member diagnostic captured a missing static method on an empty
+nested marshalling type;193 generated files and1517 outer input checks remain preserved.
+The exact bound official Unity archive independently contains that eligible managed method
+and nine source-only call sites. Pinned type restoration is recursive, while method restoration
+walks only top-level types and the following body pass uses only its earlier queue.
+This identifies a source traversal gap; the actual generated caller and earlier failure phase
+are not attributed by this source-only read.
+
+Planned correction: retain all existing top-level work as the original global prefix, then
+visit source nested owners through their mapped parent and registered target context.
+Reuse method eligibility/signature/body emission; preserve exclusions, field restoration,
+prior pointer-byref behavior and strict output guards. Missing parents must not create orphans.
+No candidate DLL rewriting, resolver relaxation or installed-file edit is planned.
+Actual-generator authored reproductions and unchanged controls precede any native rebuild.
+A restored definition whose body falls back to throwing is not usable method-body proof.
+Source correction, authored verification and native regeneration remain pending.
+
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.
