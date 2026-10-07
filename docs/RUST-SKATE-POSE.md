@@ -19,9 +19,9 @@ Metres, Y-up, yaw zero faces +Z, as in the core. `BoardPosition` is the core pos
 `BoardForward`, `BoardUp` and `BoardRight` are a unit basis with right = up x forward
 (Unity's convention). `BoardRotation` is the matching quaternion (x, y, z, w with w >= 0),
 so `rotation * (0,0,1)` is forward under Unity's `Quaternion * Vector3`.
-Grounded and bailed boards follow the ground normal with the nose along the yaw.
+Grounded boards follow the (renormalized) ground normal with the nose along the yaw.
 Airborne boards turn by yaw plus spin about world up, then roll by flip about
-their long axis; positive flip rolls up toward right. Grinding boards stay level.
+their long axis; positive flip rolls up toward right. Grinding and bailed boards stay level (a bail keeps no contact normal).
 
 ## Rider
 
@@ -30,7 +30,7 @@ goofy puts the right foot at the nose and faces board left.
 Feet sit 0.21m either side of the centre, 0.01m above the board position along its up.
 During a flip they hold 0.12m above the unflipped board instead of following it.
 Pushing (grounded, push held, no brake) puts the back foot on the ground beside the
-toe edge, 0.25m behind centre, with the hip over the front foot.
+toe edge, 0.25m behind centre and 0.15m below along world up, with the hip over the front foot.
 `Hip` is the feet centre plus world up times 0.95m minus 0.4m per unit crouch.
 Crouch: landing 0.7, trick or trick input in air 0.6, plain air 0.45, grind 0.35,
 brake 0.3, riding 0.15, bail 0. `Lean` is steer x 20 degrees, scaled by speed up

@@ -56,7 +56,7 @@ namespace Shortcut.RustMod
             bool airborne = state.Mode == SkateMode.Airborne;
             double heading = airborne ? Yaw(state.Yaw + state.Spin) : state.Yaw;
             var levelForward = Forward(heading);
-            var up = state.Mode == SkateMode.Grounded || state.Mode == SkateMode.Bailed ? state.GroundNormal : Up;
+            var up = state.Mode == SkateMode.Grounded ? Unit(state.GroundNormal) : Up;
             var forward = Unit(levelForward - up * SkateVector.Dot(levelForward, up));
             var right = Cross(up, forward);
             var boardUp = up;
@@ -76,7 +76,7 @@ namespace Shortcut.RustMod
             bool bailed = state.Mode == SkateMode.Bailed;
             bool pushing = state.Mode == SkateMode.Grounded && input.Push && !input.Brake;
             if (pushing)
-                back = state.Position - forward * PushFootBack + right * (side * PushFootSide) - up * 0.15;
+                back = state.Position - forward * PushFootBack + right * (side * PushFootSide) - Up * 0.15;
 
             double crouch;
             if (bailed) crouch = 0;
