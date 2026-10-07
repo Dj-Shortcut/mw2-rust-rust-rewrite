@@ -1,7 +1,7 @@
 # Shared skateboard rail contract
 
 [Issue #281](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/281) extends the [skate source](RUST-SKATE-CORE.md) for the [full mod](RUST-MW2-SKATE.md).
-Original C#7.3 source implements bounded rail math and preserves existing calls and enum values. Native rail gameplay remains missing.
+Original C#7.3 source implements bounded rail math and preserves existing calls and enum values. Native rail gameplay remains missing; see the [collider binding](RUST-SKATE-RAIL-BINDING.md).
 
 ## Trusted contacts and definitions
 
