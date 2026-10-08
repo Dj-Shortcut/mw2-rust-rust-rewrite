@@ -337,8 +337,9 @@ unchanged, then adds the three authenticated export reports and their inventory:
 1938 pins and13 inventories. Its ten source payload files match canonical
 PR [#306](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/306).
 The build-only package was subsequently executed; its authenticated result is recorded below.
-The separate all191 original-member check has reviewed source and a successful
-root compilation; it has not executed natively.
+At that export checkpoint, the separate all191 original-member check had reviewed
+source and a successful root compilation, but had not executed natively. Its later
+native results are recorded below.
 
 Later [fresh generation/output pinning](#actual-windows-authenticated-preparation-and-fresh-generation)
 is recorded below. All191 original MemberRef checks before any strict PE roundtrip,
@@ -425,11 +426,82 @@ and exited 1 before the original-member scan. The visible console reported 2500
 before/final hash checks, 2019 prior checks, all 193 old generated files preserved
 and no hash recheck failures; nevertheless, the generation directory and its
 generated subdirectory both failed baseline and final inventory comparisons.
-Equal hash counters do not establish complete inventory acceptance. This receipt
-is partial: the complete native result has not been transferred, and the proposed
-wrapper correction has not been rerun on Windows. All 191 original-member checks,
-strict PE roundtrips, sidecar validation, loader approval and full MW2/skate
-acceptance remain pending; this result does not authorize an owner playtest.
+Equal hash counters do not establish complete inventory acceptance.
+At that checkpoint, the receipt was partial: the complete native result had not
+been transferred, and the proposed wrapper correction had not run on Windows.
+All 191 original-member checks, strict PE roundtrips, sidecar validation, loader
+approval and full MW2/skate acceptance remained pending. The later corrected run
+is recorded below; the earlier failure does not authorize an owner playtest.
+
+## Actual Windows original-member audit and automatic handoff
+
+Later on 8 October 2026, the Windows diagnosis confirmed root-prefix casing and
+an incorrectly included inventory root as the earlier inventory mismatch causes.
+All 13 diagnosis checks passed and 201 before/final input hashes remained equal.
+The corrected wrapper passed inventory preflight and preserved all 2505
+before/final input checks, 2019 prior inputs and 193 old generated files.
+The child preserved 431 files and four inventories, with no preservation or
+cleanup failures, but exited normally with code 1 at
+`original-module-member-reference-count-limit`. It read metadata for all 191
+original assemblies; no original members were scanned or resolved and no strict
+PE roundtrip ran. Root exit and drained streams were confirmed; independent
+full-process-tree termination remains unproven. At that checkpoint, the private
+count-limit correction was preparation only and had not run on Windows; its later
+native result is recorded below.
+
+Root subsequently completed both package-download and result-upload transfers
+without owner intervention, read both ZIP hashes from the live Windows console,
+and authenticated the full returned failure reports on the Mac. The return ZIP
+contains ten entries with zero CRC errors; its saved observation, child summary,
+stdout and preservation records agree. The native audit used the earlier
+owner-copied identical package; the newly downloaded copy was not executed.
+Both temporary transfer listeners and tunnels closed with exit 0.
+
+| authenticated handoff artifact | SHA256 |
+| --- | --- |
+| source package ZIP | `34817f779bc6b55f3c8a3ebb304d5eef5a556b715ffec0f1798d65579a2d4331` |
+| complete result ZIP | `26d73e1c3302f8e73ad2e9f4f358bee72e03a92245178e4c54a108e991825ab5` |
+
+This handoff requires an active Codex session, an awake Mac and reachable Shadow;
+no scheduler or persistent remote agent was installed. Complete original-member
+resolution, strict PE roundtrips, sidecars, loader and full two-client MW2/skate
+acceptance remain pending. No candidate acceptance, installation, game launch or
+owner playtest follows from the preserved failure.
+
+## Subsequent Windows count-limit correction and partial member audit
+
+Root subsequently downloaded, freshly extracted and ran the reviewed count-limit
+package on Shadow Windows, then returned its complete reports to the Mac without
+requiring the owner to transfer files. Diagnosis again passed 13 checks with 201
+hashes preserved.
+The child exited normally with code 1 at `unresolved-generated-member-reference`.
+It read metadata from all 191 original assemblies and completed member traversal
+for 109. It scanned 901696 of 964336 expected original MemberRef rows and resolved
+901695. The failure occurred in the next assembly; complete original-member
+acceptance remains rejected. No strict PE roundtrip ran.
+
+All 2506 wrapper before/final checks, 2019 prior inputs and 193 old generated
+files were preserved. Inner checks preserved 431 files/four inventories;
+six report-artifact hashes also matched, with no preservation or cleanup failure.
+The child had no timeout or kill; root exit and drained streams were confirmed,
+while independent full-process-tree termination remains unproven.
+
+Root read both ZIP hashes from live Windows and authenticated the returned
+archive: 11 entries, zero CRC errors, matching observation/summary/stdout and
+preservation records. Both temporary transfer listeners and tunnels closed with
+exit 0. This demonstrates downloading a new package, running it natively and
+returning its result within an active Codex session, with an awake Mac and
+reachable Shadow; it establishes no scheduler or persistent remote agent.
+
+| authenticated count-limit handoff artifact | SHA256 |
+| --- | --- |
+| source package ZIP | `1258b4cb792a6adc2e5477f1f2eb597ac55bf014e9d8c8fd57027971f4047c88` |
+| complete result ZIP | `41616de75e18fb82f066624b1b6d9b099099c0f5b678da451c4f71176ab3111c` |
+
+Full original-member validation, strict PE roundtrips, sidecars, loader/menu/
+exit/rollback and full two-client MW2/skate acceptance remain pending. The
+preserved partial audit approves no candidate, installation, game launch or
+owner playtest.
 
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
