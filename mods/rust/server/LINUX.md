@@ -1,6 +1,6 @@
 # Linux Rust/Oxide installation preparation
 
-Source for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266). No native Linux installation/startup or playable server has been verified. The standalone rewrite remains parked.
+Source for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266). A native Linux installation is verified; server/client acceptance remains incomplete. The standalone rewrite remains parked.
 
 ## Preview without installing
 
@@ -11,7 +11,7 @@ python3 mods/rust/server/Install-LinuxServer.py --root /srv/rust-new --plan
 ```
 
 Use an absolute Linux destination without spaces, traversal or shell punctuation. The plan prints intentions only; it does not establish that the target path, resources or packages exist on the chosen host.
-No provider is chosen or paid for. The owner requires source work before rental and approves the chosen host and concrete costs separately; see the [hosting gate](../../../docs/RUST-SERVER-HOSTING.md).
+The owner selected and created a DigitalOcean Linux test host on 8 October 2026 after approving concrete costs. Future rentals still require separate owner choice and cost approval; see the [hosting gate](../../../docs/RUST-SERVER-HOSTING.md).
 
 ## Install later on a permitted Linux host
 
@@ -20,7 +20,7 @@ RAM is bounded by host `MemAvailable` and active v1/v2 cgroup limits minus usage
 SteamCMD needs its 32-bit runtime dependencies. Exact distro/package preparation is a chosen-host step; this source never runs sudo, a package manager or services. [Ubuntu24.04 SteamCMD](https://packages.ubuntu.com/noble/steamcmd) and [32-bit GCC runtime](https://packages.ubuntu.com/noble/lib32gcc-s1) describe relevant packages, not complete Rust compatibility.
 
 ```sh
-python3 mods/rust/server/Install-LinuxServer.py --root /srv/rust-new --oxide-release 2.0.7801
+python3 mods/rust/server/Install-LinuxServer.py --root /srv/rust-new --oxide-release 2.0.7815
 ```
 
 SteamCMD install/validation allows 14400 seconds (4 hours) by default; `--steam-timeout-seconds` accepts 60–86400 for the chosen host. Exceeding it stops the process group and retains partial files; existing-root refusal still applies, with no resume mode.
@@ -36,10 +36,60 @@ Linux server console input is noninteractive: screen/tmux show output. Real `oxi
 For Shadow's EAC-disabled client, later startup needs explicit current `-insecure` plus a reviewed **UDP game-port** route for F1 direct join. Query exposure is only for separately required discovery. The Windows loopback launcher is not a Linux/remote-client launcher.
 After a real install, record actual server startup, matching framework, listeners, intended-client join, save/restart and the [plugin acceptance](../../../docs/RUST-SERVER-PLUGIN.md). No playable/ready claim before those results.
 
+## Native installation evidence
+
+On 8 October 2026, the unchanged reviewed installer completed on Ubuntu 24.04.5 LTS x86_64/Python 3.12.3 as a dedicated nonroot `rust` user in a fresh directory outside Git. Preflight measured approximately 15.1 GiB available RAM and 307 GiB free disk. Official Ubuntu packages supplied the 32-bit GCC/C++ runtime.
+
+SteamCMD reported app258550/public fully installed, build 25797215. Installer exit 0, final `installed-unverified` manifest and no remaining installer processes were read back. Official stable Oxide 2.0.7815 Linux archive matched its publisher SHA256 `05bb6955ce40071f83bf82142dd7bb9cfeb033d569a3eb33fb730d6f2f31c713`; framework files were overlaid successfully. This verifies this successful native installation, not all Linux interruption/cleanup failure paths.
+
+The CLI explicitly selected `--oxide-release 2.0.7815`; the source default remains 2.0.7801. Steam public builds evolve independently: choose a matching official framework when repeating installation. Private game files, manifests, credentials and operational probes remain outside the published repository. Installation itself proves no runtime; subsequent startup/control evidence is recorded separately below.
+
+## Native startup and control evidence
+
+On 8 October 2026, the selected nonroot Linux server reached
+`Server startup complete`: Rust protocol 2634.289.1, changeset 167231,
+Unity 6000.3.15x1-13 and Steam build 25797215. Authenticated loopback WebRCON
+returned Oxide.Rust 2.0.7815. An intentionally wrong credential failed its
+handshake; the server logged an incorrect-password attempt, and the valid
+credential subsequently worked.
+
+Measured listeners: game 127.0.0.1:28015/UDP,
+RCON 127.0.0.1:28016/TCP and query 0.0.0.0:28017/UDP.
+The active host firewall denied inbound traffic except SSH, including IPv6.
+The query listener therefore was not claimed to bind loopback.
+`app.port` returned -1 and `app.info` confirmed Rust+ disabled.
+No Shadow/direct-client route was opened or verified.
+
+Private startup used explicit `-insecure`, identity `mod-demo`,
+Procedural Map/seed 12345/size 1500 and four-player limit. Password only in
+`server.cfg` did not enable RCON on the initial attempt. The successful
+startup passed the credential to Rust at process launch through a private
+wrapper that read a restricted credential file; the secret was never entered
+in a shell command or committed. Startup arguments may be visible to the
+same host account/root: protect that account and log/config directories.
+The wrapper and selected-host service are private operational probes,
+not a published/reusable Linux launcher.
+
+Authenticated `server.save` reported Saving complete for 3394 entities and
+produced a real save file. `quit` saved again; process and game/query/RCON
+listeners disappeared. Systemd recorded SIGKILL, not normal exit 0; its cause
+has not been established. A separate start with the same identity/build
+loaded 3394 entities and the existing navmesh, reached startup complete and
+answered authenticated RCON with the plugin loaded again. This establishes
+the observed save/reload sequence, not a clean-exit guarantee, player-state
+persistence or general crash recovery.
+
+Unchanged ShortcutLoadouts 0.1.0 compiled/loaded on this host. Its generated
+default config, permission registration, rejected unknown-field config byte
+preservation, restored original bytes, reload and temporary unload/load
+were checked. See [plugin runtime scope](../../../docs/RUST-SERVER-PLUGIN.md).
+Client joins, player inventory/cooldown/PvP and full MW2/skate acceptance remain
+open. Do not use these server checks as a playtest-ready claim.
+
 ## Source evidence
 
 On macOS arm64/Python3.14.6: source compiles; actual CLI plan and Mac install refusal pass. 82 regression and 93 cgroup/timeout/manifest assertions pass, plus 59 initialization/signal/manifest/group checks using owned IO/processes. Background helpers stop after success/nonzero/signal/timeout exits and unrelated groups survive. Darwin zombie-only signaling denial is a real rejected path; one observation-failure check uses an explicit syscall seam. These checks do not prove native Linux cleanup. These are narrower than native Linux/SteamCMD execution.
-Actual current official SteamCMD archive and publisher-hash-verified Oxide2.0.7801 archive pass production inspection/unpacking in ignored local folders. No SteamCMD, Rust or plugin process was run. Dependencies, binaries, own fixtures and probes stay ignored; no permanent tests added.
+Actual current official SteamCMD archive and publisher-hash-verified Oxide2.0.7801 archive pass production inspection/unpacking in ignored local folders. In those earlier Mac archive probes, no SteamCMD, Rust or plugin process was run. Dependencies, binaries, own fixtures and probes stay ignored; no permanent tests added.
 See [design and remaining gates](../../../docs/RUST-SERVER-LINUX.md).
 
 Sources: [Facepunch server setup and Linux control](https://wiki.facepunch.com/rust/Creating-a-server), [Oxide installation](https://docs.oxidemod.com/guides/owners/install-oxide), [official pinned Oxide release](https://github.com/OxideMod/Oxide.Rust/releases/tag/2.0.7801), [kernel cgroup v2](https://docs.kernel.org/admin-guide/cgroup-v2.html), [kernel memory v1](https://docs.kernel.org/admin-guide/cgroup-v1/memory.html).

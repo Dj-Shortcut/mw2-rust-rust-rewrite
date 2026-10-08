@@ -47,4 +47,4 @@ Accept the later plugin after permission/cooldown/config/inventory failure flows
 two-client firearm damage, unchanged excluded targets, reload and removal pass
 on recorded real Rust/Oxide versions. Carbon needs separate verification.
 Mac source access works; [Windows startup](../mods/rust/server/README.md) and
-[Linux installation](../mods/rust/server/LINUX.md) need native hosts; none is selected. See the [hosting gate](RUST-SERVER-HOSTING.md).
+[Linux installation](../mods/rust/server/LINUX.md) need native hosts. The selected Linux host now has verified installation, startup, authenticated loopback control, save/reload and bounded plugin checks. Shadow join and real player/two-client acceptance remain open. See the [hosting gate](RUST-SERVER-HOSTING.md).

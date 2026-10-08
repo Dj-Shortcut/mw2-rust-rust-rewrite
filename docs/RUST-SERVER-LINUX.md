@@ -2,7 +2,7 @@
 
 Design for [issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266): `mods/rust/server/Install-LinuxServer.py`.
 Design published first; installer source and bounded Mac checks now exist.
-See [commands and evidence](../mods/rust/server/LINUX.md); no Linux installation or playable server is verified.
+See [commands and evidence](../mods/rust/server/LINUX.md): the reviewed installer completed natively on Ubuntu 24.04.5 x86_64 as a dedicated nonroot user, using the recorded Steam public build and publisher-digest-verified Oxide 2.0.7815. Server/client and playable-mod acceptance remain incomplete.
 
 ## Command and failure contract
 
@@ -44,7 +44,10 @@ No VPS order before owner choice/concrete costs approval and source milestone.
 
 Verify genuine production planning and helper refusal/IO cases in ignored
 Mac probes; no mock game API or claim of native Linux installation.
-Review/source/publish/asset gates precede source publication. Actual Linux
-dependencies, full installation/start, matching `oxide.version`, listeners,
-save/restart, intended-client join and plugin/two-client acceptance remain open.
+Review/source/publish/asset gates precede source publication. Native Ubuntu dependencies and one successful full installation are verified.
+Subsequent native startup, matching authenticated `oxide.version`, listener/firewall
+readback, real save/reload and bounded plugin config/reload/unload checks are
+recorded in the [Linux evidence](../mods/rust/server/LINUX.md#native-startup-and-control-evidence).
+The quit process ended with SIGKILL; clean exit 0 is not claimed. Shadow join,
+player-state persistence and plugin/two-client/full-mod acceptance remain open.
 See [hosting gate](RUST-SERVER-HOSTING.md) and [mod scope](RUST-SERVER-MOD.md).
