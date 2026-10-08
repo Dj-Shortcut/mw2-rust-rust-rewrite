@@ -431,6 +431,29 @@ wrapper correction has not been rerun on Windows. All 191 original-member checks
 strict PE roundtrips, sidecar validation, loader approval and full MW2/skate
 acceptance remain pending; this result does not authorize an owner playtest.
 
+## Owner direction, 8 October 2026: loader work paused
+
+The owner chose the server-only mod on 8 October 2026. Do not start another
+generator, interop, validation or loader attempt without a new owner direction.
+The preserved private candidates and evidence stay where they are, unapproved.
+
+An independent report, [Il2CppInspectorRedux #79](https://github.com/LukeFZ/Il2CppInspectorRedux/issues/79),
+describes the same failure on the same Rust build (Unity 6000.3.15x1-13,
+metadata39): setter-only properties whose setter has no parameters, first seen
+in builds dated from 18 September 2026, all with obfuscated names. Its reporter
+suspects the game's obfuscator; that cause is not established there or here.
+It is consistent with our own count of 49,206 raw VOID getters among 71,422
+properties, and with the three passing getter controls being system/Unity ones.
+Earlier sections of this document diagnose the reader; none considers obfuscation.
+
+Upstream offers no ready correction: the `RawPropertyType` expression is
+unchanged at Cpp2IL development head, 146 commits after the pinned
+`558ddd9`; BepInEx be.788 and Il2CppInterop 1.5.3 remain the latest builds.
+Not checked: whether names in the 191 generated libraries are unreadable, and
+the exact cause of the last `unresolved-generated-member-reference` rejection.
+If names are obfuscated and change per game build, weapon/camera/input adapters
+would need relocating after each update; that maintenance cost drove the decision.
+
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.

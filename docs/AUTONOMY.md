@@ -8,6 +8,12 @@ covers the loadout/damage component only. Implementation, debugging and verifica
 are authorized. Use open-source code and original authored content; retain licences.
 Keep game/server files outside GitHub, player text English and historical rewrite work.
 
+On 8 October 2026 the owner chose the server-only (Oxide) mod. Client-loader,
+generator and interop work is paused; do not resume it without a new owner
+direction ([reason and limits](RUST-CLIENT-LOADER.md#owner-direction-8-october-2026-loader-work-paused)).
+Visible skateboarding and client recoil/ADS are deferred with it. The owner
+creates the DigitalOcean test host himself; agents order nothing.
+
 Continue from `TODO.md` and open tasks without repeating content confirmations.
 The authorization includes project GitHub issues and coordination comments,
 isolated feature branches, source commits, pushes and focused PRs. Integrate

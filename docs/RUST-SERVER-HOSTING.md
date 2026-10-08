@@ -21,6 +21,15 @@ approves concrete costs before any order. Shadow Gaming is excluded because
 [its rules prohibit hosting](https://support.shadow.tech/hc/en-us/articles/32731830348305-Rules-and-Restrictions-on-Shadow).
 Host Havoc declined the required startup flag in the owner's support exchange.
 
+On 8 October 2026 the owner chose DigitalOcean and will create the droplet
+himself (Ubuntu, 16 GB RAM intended); none is confirmed yet and agents order
+nothing. The owner reports that EAC Rust does not run on Shadow and that he
+plays only on an own test server, so `-insecure` stays required. A powered-off
+droplet is still billed; destroy it, optionally after a snapshot, when testing
+ends. Cloudflare and Vercel offer no suitable VM; Fly needs a separate UDP setup.
+The Shadow client then needs the UDP game port reachable over the internet:
+the loopback bind in the current launcher design does not provide that route.
+
 ## Require these capabilities before setup
 
 - Hosting is permitted, with sufficient available RAM and disk.

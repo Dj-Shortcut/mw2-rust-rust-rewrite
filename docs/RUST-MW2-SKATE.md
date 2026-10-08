@@ -5,6 +5,9 @@ Target is the existing Rust PC game with MW2-inspired gunplay and skateboarding.
 The standalone Rust/Bevy rewrite stays parked. This is a design, not implemented gameplay.
 [Issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266) supplies the [loadout/damage component](RUST-SERVER-MOD.md), not full product acceptance.
 Rust supplies the world, survival, building and TC rules; player text stays English.
+On 8 October 2026 the owner chose the server-only mod: the client route is
+[paused](RUST-CLIENT-LOADER.md#owner-direction-8-october-2026-loader-work-paused), so the visible board, rider pose and
+client recoil/ADS below are deferred. This document remains the full design, not current scope.
 
 ## Complete player flow
 
