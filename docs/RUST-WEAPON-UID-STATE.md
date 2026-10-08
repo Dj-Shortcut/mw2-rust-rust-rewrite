@@ -1,8 +1,8 @@
 # Weapon UID gunplay state
 
 Source slice of [the full mod](RUST-MW2-SKATE.md), [#312](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/312), part of [#275](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/275).
-New C#7.3 source uses the public [gunplay](RUST-GUNPLAY-CORE.md) API.
-This is a proposed contract; implementation and verification are not complete.
+C#7.3 [source](../mods/rust/shared/WeaponUidState.cs) and [net48 project](../mods/rust/shared/WeaponUidState.csproj) use the [gunplay](RUST-GUNPLAY-CORE.md) API.
+Source compiled against genuine Rust references; scoped actual-DLL verification passed.
 
 ## Fixed roster
 
@@ -24,10 +24,12 @@ Both branches retain confirmed selection, including its equip/release requiremen
 
 ## Publication
 
-One opaque candidate binds owner, epoch, original snapshot and tick.
+One opaque `WeaponUidCandidate` binds owner, epoch, original snapshot and tick.
+Read `Current`/`TryGetState`; stage with `TryPrepare` before native effects.
+Settle with `TryPublishApplied` or `TryPublishRejectedNoEffects` only after host confirmation.
 Applied publishes action; confirmed zero effects publishes fallback at the same tick.
 Foreign, stale, repeated and overlapping work publishes nothing.
-Unknown/partial effects close permanently; there is no restart/reconciliation API.
+`Invalidate` closes permanently for unknown/partial effects; no restart/reconciliation API.
 Historical states and candidate outputs authorize no native effect.
 
 ## Adapter and evidence limits
@@ -38,6 +40,9 @@ Fresh stock/selection changes after preparation require closure and native read-
 Reserve is an observed count: weapons can share it; never sum or allocate it.
 Only the selected weapon may request ammo changes; native stock must be revalidated.
 Source locks do not prove native/Rider atomicity, authentication or inventory ownership.
-Genuine-reference builds and ignored actual-DLL probes verify only this source boundary.
+Actual net48/C#7.3 builds: SDK8.0.425, genuine Rust mscorlib, zero warnings/errors.
+Mac net8 consumer of those exact production DLLs: 16 cases,25,923 assertions,exit0.
+Checks cover switching, stock, fallback, stale candidates, Rider composition and races.
+All source/reference/production/copy-local hashes preserved; source boundary only.
 No permanent tests, probes or binaries ship. Native ammo/firing, inventory lifecycle,
 client presentation, loader, server integration and complete two-client play remain open.
