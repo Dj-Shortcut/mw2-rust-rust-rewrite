@@ -261,7 +261,8 @@ The result and digest were read from the live Windows console; the full report
 has not been copied to the Mac. No Windows warning count is inferred from the
 separate Linux build.
 
-This establishes native source-build/staging completion only. Fresh generation,
+This pointer-build checkpoint establishes native source-build/staging only. Later
+authenticated fresh generation is recorded below;
 complete metadata and sidecar acceptance, runtime/loader checks and mod gameplay
 remain open. No candidate was accepted, installed or launched, and the earlier
 3/191 candidate remains rejected.
@@ -284,8 +285,9 @@ Process-tree termination is not independently established. The inspected generat
 assembly was never CLR-loaded and no generated/native method was invoked.
 This diagnoses one rejected member in one assembly; it does not validate all 191
 assemblies, sidecars, runtime closure, the replacement build or the loader.
-The old rejected candidate remains rejected. Fresh native generation and complete
-output acceptance remain required before installation or a playtest.
+The old rejected candidate remains rejected. Later authenticated fresh generation
+is recorded below; complete output acceptance remains required before installation
+or a playtest.
 
 ## Nested method restoration
 
@@ -314,9 +316,10 @@ getter route and its strict reread binding pass. The baseline reproduces nine mi
 both actual serialized boundaries require zero candidate misses. Input hashes remain preserved.
 These are macOS source/authored checks, not complete recipe staging or native generation.
 [Detailed scope and build limits](../mods/rust/client/generator/interop/README.md#authored-nested-method-verification).
-The later authenticated Windows recipe/staging result is recorded below.
-Fresh native generation,193 new output-pin checks, full191-assembly original/member/
-roundtrip checks, sidecars and loader/menu/rollback acceptance remain pending. No playtest.
+The later authenticated Windows recipe/staging and
+[fresh generation](#actual-windows-authenticated-preparation-and-fresh-generation) are recorded below.
+Full191-assembly original/member checks before strict roundtrips, sidecars and
+loader/menu/rollback acceptance remain pending. No playtest.
 
 ## Current Windows preservation export
 
@@ -337,10 +340,10 @@ The build-only package was subsequently executed; its authenticated result is re
 The separate all191 original-member check has reviewed source and a successful
 root compilation; it has not executed natively.
 
-Fresh native generation,193 new output-pin checks, all191
-original MemberRef checks before any strict PE roundtrip, sidecars and
-loader/menu/exit/rollback acceptance remain pending. Prior rejected outputs stay
-rejected. No installation, game launch or owner playtest follows from this export.
+Later [fresh generation/output pinning](#actual-windows-authenticated-preparation-and-fresh-generation)
+is recorded below. All191 original MemberRef checks before any strict PE roundtrip,
+sidecars and loader/menu/exit/rollback acceptance remain pending. Prior rejected
+outputs stay rejected. No installation, game launch or owner playtest follows from this export.
 
 ## Actual Windows nested-generator build and consumer preparation
 
@@ -368,13 +371,54 @@ The private generation-only consumer was rendered from the reviewed template
 by exactly two constant substitutions. Root compiled it on macOS with
 SDK8.0.425 against 33 pinned references: actual compiler exit 0, nine warnings,
 zero errors and all 5318 compiler/input files preserved. Independent source/render
-review passed. The compiled consumer has not executed.
+review passed. At this compilation checkpoint the consumer had not executed;
+its later authenticated fresh-generation run is recorded below.
 
-This establishes source-build/staging and consumer-compilation completion only.
-Fresh Windows generation, all 191 original MemberRef checks before any strict PE
-roundtrip, complete sidecar validation, loader/menu/exit/rollback and connected
-MW2/skate gameplay remain pending. Prior rejected outputs remain rejected.
+This checkpoint establishes source-build/staging and consumer compilation only.
+The later [authenticated fresh generation](#actual-windows-authenticated-preparation-and-fresh-generation)
+is recorded below. All191 original MemberRef checks before any strict PE roundtrip,
+complete sidecar validation, loader/menu/exit/rollback and connected MW2/skate
+gameplay remain pending. Prior rejected outputs remain rejected.
 No candidate approval, installation, game launch or owner playtest is implied.
+
+## Actual Windows authenticated preparation and fresh generation
+
+On 8 October 2026, copy-only preparation completed on Windows with normal exit0.
+All 229 planned consumer/host files were copied and final-checked; all 2019 prior
+inputs and 2057 total before/final checks, with complete inventories, stayed equal.
+Preparation did not execute the consumer or approve any loader/gameplay gate.
+
+The subsequent fresh generation completed with normal child exit0, confirmed root
+exit and fully drained streams, without timeout, kill or cleanup failure.
+All 2019 prior inputs and 2478 total before/final checks remained equal; 193 fresh
+generated files were pinned/preserved and the 197-artifact execution inventory
+passed before/final checks. Original input/output inventories were preserved.
+The exact custom Generator remains version 1.5.3 with SHA256
+`a962c0a467d9f70b855b013d4683b59c5bba8df241efa92c58601e73899d7688`.
+
+Root read the complete ZIP's SHA256 from Windows before transfer, then verified
+the original 72,096,854-byte archive and all 200 received files on the Mac.
+ZIP CRC errors are 0; all 193 generated files and 197 execution artifacts were
+individually rehashed. The original observation, manifest and external anchor form a matching digest
+chain inside the archive authenticated by its independently read Windows hash.
+Independent read-only review passed 2200 assertions/0 mismatches.
+
+| authenticated artifact | SHA256 |
+| --- | --- |
+| complete generation ZIP | `01f9294d4f9d6cdf5eb28d839a254c732d44091219243a15da0304ec30982e68` |
+| generation observation | `1a9fffa61a0331ebb2dc63dfb7e028365448b2a66e31a1c6ac2d92412f3bb46b` |
+| fresh output manifest | `a92b97ceb1b1b2a945a1a96dd81d04063788ac0b6ce2263f4ea110cd9157fb2c` |
+| external manifest anchor | `c9d65a2bb20f5982d67bac2f20a0908bd31673239f17a8c1487e101a38253484` |
+
+Generation diagnostics still report 4564 unrestored methods and 6695 failed IL
+bodies; these informational counters do not establish successful restoration.
+This proves preparation, fresh generation and byte-preserving transfer only.
+All 191 original MemberRef checks, strict PE roundtrips (0 completed), sidecar
+validation, candidate/loader approval, generated CLR/native-method execution,
+installation, game launch, loader/menu/exit/rollback and two-client MW2/skate
+acceptance remain unverified. Prior rejected candidates remain rejected.
+Complete historical 1517-hash equality and independent full-process-tree
+termination remain unproven. No owner playtest is implied.
 
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
