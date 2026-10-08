@@ -43,6 +43,8 @@ Record intended controller/Steam Input mappings and observed input; injected inp
 is not a physical-controller test. Source compilation and helper checks remain narrower.
 A small component, a green CI run or an unverified prototype is not the finished mod.
 Loadouts/Bullet scaling, [skate motion source](RUST-SKATE-CORE.md) and [gunplay source](RUST-GUNPLAY-CORE.md) exist; native MW2 gunplay/skating remain missing.
-Host access is also missing. Keep [TODO](../TODO.md) and component claims explicit.
+The owner-selected Linux host now runs Rust/Oxide with private control and bounded
+loadout-plugin checks. Shadow join, real player flows and full MW2/skate acceptance
+remain open. Keep [TODO](../TODO.md) and component claims explicit.
 Select/rent nothing without the owner's choice and concrete cost approval; source
 and architecture work precede rental. See the [hosting gate](RUST-SERVER-HOSTING.md).

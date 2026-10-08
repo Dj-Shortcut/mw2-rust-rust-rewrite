@@ -9,8 +9,11 @@ verification remain available. Coordinate documentation, setup and focused mod
 work through issues and PRs. [Plugin source](mods/rust/plugins/README.md) is
 implemented and locally compiled against genuine Rust/Oxide references.
 [Windows](mods/rust/server/README.md) and [Linux](mods/rust/server/LINUX.md)
-preparation have bounded source checks. Real server startup, plugin loading and
-client gameplay remain unverified; no playable mod release is ready yet.
+preparation have bounded source checks. Native Linux installation/startup,
+authenticated loopback control,
+save/reload and bounded plugin compile/load/config checks are now verified.
+Client gameplay and full mod acceptance remain unverified; no playable release
+is ready yet.
 
 ## Documentation first
 
