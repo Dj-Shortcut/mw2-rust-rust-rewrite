@@ -420,6 +420,17 @@ acceptance remain unverified. Prior rejected candidates remain rejected.
 Complete historical 1517-hash equality and independent full-process-tree
 termination remain unproven. No owner playtest is implied.
 
+Later on 8 October 2026, the original-member audit wrapper ran on Shadow Windows
+and exited 1 before the original-member scan. The visible console reported 2500
+before/final hash checks, 2019 prior checks, all 193 old generated files preserved
+and no hash recheck failures; nevertheless, the generation directory and its
+generated subdirectory both failed baseline and final inventory comparisons.
+Equal hash counters do not establish complete inventory acceptance. This receipt
+is partial: the complete native result has not been transferred, and the proposed
+wrapper correction has not been rerun on Windows. All 191 original-member checks,
+strict PE roundtrips, sidecar validation, loader approval and full MW2/skate
+acceptance remain pending; this result does not authorize an owner playtest.
+
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
 Shadow remains client-only; a permitted controllable testserver is still missing.
