@@ -425,11 +425,46 @@ and exited 1 before the original-member scan. The visible console reported 2500
 before/final hash checks, 2019 prior checks, all 193 old generated files preserved
 and no hash recheck failures; nevertheless, the generation directory and its
 generated subdirectory both failed baseline and final inventory comparisons.
-Equal hash counters do not establish complete inventory acceptance. This receipt
-is partial: the complete native result has not been transferred, and the proposed
-wrapper correction has not been rerun on Windows. All 191 original-member checks,
-strict PE roundtrips, sidecar validation, loader approval and full MW2/skate
-acceptance remain pending; this result does not authorize an owner playtest.
+Equal hash counters do not establish complete inventory acceptance.
+At that checkpoint, the receipt was partial: the complete native result had not
+been transferred, and the proposed wrapper correction had not run on Windows.
+All 191 original-member checks, strict PE roundtrips, sidecar validation, loader
+approval and full MW2/skate acceptance remained pending. The later corrected run
+is recorded below; the earlier failure does not authorize an owner playtest.
+
+## Actual Windows original-member audit and automatic handoff
+
+Later on 8 October 2026, the Windows diagnosis confirmed root-prefix casing and
+an incorrectly included inventory root as the earlier inventory mismatch causes.
+All 13 diagnosis checks passed and 201 before/final input hashes remained equal.
+The corrected wrapper passed inventory preflight and preserved all 2505
+before/final input checks, 2019 prior inputs and 193 old generated files.
+The child preserved 431 files and four inventories, with no preservation or
+cleanup failures, but exited normally with code 1 at
+`original-module-member-reference-count-limit`. It read metadata for all 191
+original assemblies; no original members were scanned or resolved and no strict
+PE roundtrip ran. Root exit and drained streams were confirmed; independent
+full-process-tree termination remains unproven. The private count-limit correction
+is preparation only and has not run on Windows.
+
+Root subsequently completed both package-download and result-upload transfers
+without owner intervention, read both ZIP hashes from the live Windows console,
+and authenticated the full returned failure reports on the Mac. The return ZIP
+contains ten entries with zero CRC errors; its saved observation, child summary,
+stdout and preservation records agree. The native audit used the earlier
+owner-copied identical package; the newly downloaded copy was not executed.
+Both temporary transfer listeners and tunnels closed with exit 0.
+
+| authenticated handoff artifact | SHA256 |
+| --- | --- |
+| source package ZIP | `34817f779bc6b55f3c8a3ebb304d5eef5a556b715ffec0f1798d65579a2d4331` |
+| complete result ZIP | `26d73e1c3302f8e73ad2e9f4f358bee72e03a92245178e4c54a108e991825ab5` |
+
+This handoff requires an active Codex session, an awake Mac and reachable Shadow;
+no scheduler or persistent remote agent was installed. Complete original-member
+resolution, strict PE roundtrips, sidecars, loader and full two-client MW2/skate
+acceptance remain pending. No candidate acceptance, installation, game launch or
+owner playtest follows from the preserved failure.
 
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
