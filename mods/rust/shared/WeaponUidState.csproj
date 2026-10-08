@@ -1,0 +1,31 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>../../../context/rust-weapon-uid-state-build/obj/</BaseIntermediateOutputPath>
+    <OutputPath>../../../context/rust-weapon-uid-state-build/bin/</OutputPath>
+  </PropertyGroup>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <NoStdLib>true</NoStdLib>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+    <BypassFrameworkInstallChecks>true</BypassFrameworkInstallChecks>
+    <FrameworkPathOverride>$(RustManagedPath)</FrameworkPathOverride>
+    <_TargetFrameworkDirectories>$(RustManagedPath)</_TargetFrameworkDirectories>
+    <_FullFrameworkReferenceAssemblyPaths>$(RustManagedPath)</_FullFrameworkReferenceAssemblyPaths>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="WeaponUidState.cs" />
+    <ProjectReference Include="Gunplay.csproj" />
+    <Reference Include="$(RustManagedPath)/mscorlib.dll"><Private>false</Private></Reference>
+  </ItemGroup>
+  <Target Name="RequireRealFrameworkReferences" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(RustManagedPath)/mscorlib.dll')"
+           Text="Set RustManagedPath to a genuine RustDedicated managed DLL folder. This library has no native adapter." />
+  </Target>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+</Project>
