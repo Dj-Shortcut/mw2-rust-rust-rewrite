@@ -1,4 +1,4 @@
-# Pointer byref and nested method generation repair
+# Pointer byref, nested method and generated callee repair
 
 Source for the separate Il2CppInterop generator correction defined in merged
 [PR #295](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/295), tracked in
@@ -10,7 +10,7 @@ source-build recipe; no DLL or client installation is published here.
 The nested-method traversal correction in [issue #303](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/303)
 / [merged design PR #304](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/304) is implemented and verified on authored models.
 Actual SDK8.0.425 source builds and isolated baseline/candidate generator checks pass on macOS.
-Fresh Windows generation, full output acceptance and the loader remain unverified.
+Those authored checks do not establish full native output acceptance or a working loader.
 
 ## Observed failure
 
@@ -71,9 +71,91 @@ local/signature and unsupported-operation dependencies require separate checks.
 The prior pointer-byref hunks are unchanged. No native fix or output acceptance
 is claimed by this source correction.
 
+## Generated callee closure correction
+
+A later complete-mode original-module audit stopped after 109 of 191 assembly
+round trips. The source declares an abstract interface method without a managed
+body; existing Pass80 deliberately skips abstract methods. A managed source caller
+still invokes that declaration. The old InlineMethod translator converted its
+owner and signature without checking whether the generated owner actually defines
+the method, leaving a dangling MemberRef. The source/metadata diagnosis identifies
+a missing pre-import target check. Do not ignore the unresolved reference or
+synthesize an abstract wrapper.
+
+The additional UnstripTranslator change checks a converted generated callee before
+importing its operand. Exact valid own raw-signature matches retain their existing
+route, including facade mappings. For other targets, identify the source declaration
+by its complete signature, preferring an own declaration over class ancestors. That
+exact owner's mapped output must define one matching raw declaration signature. A missing own abstract declaration
+cannot be redirected to a same-signature output base method. Missing, ambiguous or
+unprovable targets return translation failure; unchanged Pass81 replaces the whole
+caller body with its existing `NotSupportedException` fallback.
+
+Compare instance/static and calling-convention attributes, generic arity, return,
+parameters and sentinel types. Compose type arguments along each actual class base
+chain before comparison; leave method generic parameters open and preserve the
+translated MethodSpec arguments and opcode. Valid own references retain their
+original shape even when constructed generic arguments collapse overload signatures.
+Proven inherited references use the mapped declaration owner and
+its raw definition signature so that the serialized MemberRef resolves on that
+owner. Mapped generic-array signatures must remain ABI-equivalent; mismatches use
+the existing fallback. Constructors do not search ancestors; interface inheritance, invalid generic
+indices/arity and cyclic or ambiguous ownership fail closed when proof is absent.
+Existing external framework/runtime imports keep their original translation route.
+No eligibility rule, abstract wrapper, pointer/byref hunk or nested queue traversal
+is changed by this correction.
+
+The actual controlled macOS source build succeeds with SDK 8.0.425, complete
+upstream restore locks, four upstream warnings and zero errors. Its local feed
+contains 69 hash-checked archived packages. The public PowerShell recipe still
+fails its NuGet service-index restore with NU1301; that failed result is retained
+and is not a completed public recipe or Windows staging result. The exercised
+netstandard2.1 Generator SHA256 is
+`0077484259cd5c5b70d18a76b03825186974ca58cf0fe76c0bae6213dea0e4b9`.
+
+An ignored authored fixture uses actual context passes and Pass79/80/81/90 in
+fresh CLR 9.0.20 processes. Only Generator changes between baseline and candidate;
+fixture, Common, vendor dependencies and passive Runtime/framework inputs have
+identical pinned bytes. The regular baseline passes 36 checks on 25 cases, including
+exactly 19 allowed missing member/call descriptors representing 18 unresolved
+MemberRef rows. A separate fresh-process check reproduces the old translator's
+ArgumentException for a MethodSpec with two arguments and callee arity one. Its
+six checks require the exact exception chain and unchanged source/input/queue
+identities; its expected-failure receipt stays `complete=false` and is distinct
+from a passed full fixture. Candidate admission requires both pinned receipts.
+
+The candidate passes 37 checks covering all 26 cases and three strict authored PE
+round trips. Each written and strict rebuilt/reread boundary checks all 26 caller
+bodies and every actual MemberRef RID: all 14 rows resolve, with zero missing
+member/call descriptors and zero malformed owner/MethodSpec vectors. All 23 shared
+callee/caller/sentinel fingerprints are unchanged. The structural queue prefix
+matches regular baseline after omitting only the extra malformed-MethodSpec
+caller, whose own proof exactly matches the isolated old failure.
+
+Checks reproduce missing abstract/override/generic-sibling declarations and require
+the existing exact whole-body fallback; no missing own method is redirected to a
+base or surviving overload. Valid own/static/instance/generic and later-queued
+calls, ordinary framework imports, composed inherited generic bases and array ABI
+mapping retain their expected translated call shapes. Wrong signatures/arity/
+indices, effective base-slot mismatches, ambiguity, ancestor constructors, cycles
+and unprovable interface
+inheritance use the existing fallback. Its constructor identity is checked against
+the pinned process corelib in memory and exact System.Runtime 6 after the writer's
+scope rewrite; its instance Void(String) signature and four instructions remain
+exact. The written/read imported-member closure uses the unmodified resolver.
+
+All 14/14/16 negative/baseline/candidate file obligations pass before/final checks;
+the corresponding 44/44/46 external file checks remain unchanged. The fixture build
+has zero warnings/errors, and no run reports unexpected errors, timeouts or
+preservation failures. No generated retail DLL is CLR-loaded and no native Unity
+call is executed. The prior pointer/byref and nested traversal hunks remain
+unchanged. A fresh native 191-assembly generation, complete reference/signature/
+roundtrip and sidecar audit, Windows recipe/staging, loader and gameplay acceptance
+remain unverified gates.
+
 ## Build and verification contract
 
-The recipe pins the source archive, three-file patch, SDK 8.0.425 and complete
+The recipe pins the source archive, four-file patch, SDK 8.0.425 and complete
 Generator/Common restore locks. It preserves upstream projects, global SDK policy,
 assembly identities and dependency boundaries; only packaging is disabled during
 the build. It stages only the netstandard2.1 Generator replacement, version 1.5.3.0.
