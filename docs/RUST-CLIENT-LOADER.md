@@ -314,7 +314,8 @@ getter route and its strict reread binding pass. The baseline reproduces nine mi
 both actual serialized boundaries require zero candidate misses. Input hashes remain preserved.
 These are macOS source/authored checks, not complete recipe staging or native generation.
 [Detailed scope and build limits](../mods/rust/client/generator/interop/README.md#authored-nested-method-verification).
-Fresh Windows recipe/staging,193 output-pin preservation, full191-assembly original/member/
+The later authenticated Windows recipe/staging result is recorded below.
+Fresh native generation,193 new output-pin checks, full191-assembly original/member/
 roundtrip checks, sidecars and loader/menu/rollback acceptance remain pending. No playtest.
 
 ## Current Windows preservation export
@@ -332,14 +333,48 @@ The reviewed build-only package copies all1935 file records and12 inventories
 unchanged, then adds the three authenticated export reports and their inventory:
 1938 pins and13 inventories. Its ten source payload files match canonical
 PR [#306](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/pull/306).
-Package preparation and source review do not establish a new Windows build.
+The build-only package was subsequently executed; its authenticated result is recorded below.
 The separate all191 original-member check has reviewed source and a successful
 root compilation; it has not executed natively.
 
-Fresh Windows recipe/staging and generation,193 new output-pin checks, all191
+Fresh native generation,193 new output-pin checks, all191
 original MemberRef checks before any strict PE roundtrip, sidecars and
 loader/menu/exit/rollback acceptance remain pending. Prior rejected outputs stay
 rejected. No installation, game launch or owner playtest follows from this export.
+
+## Actual Windows nested-generator build and consumer preparation
+
+On 8 October 2026, root fully authenticated the existing Shadow Windows build
+without restarting it. The bounded child exited normally with code 0; root exit
+and complete captured streams were confirmed, with no timeout or kill and no
+preservation, output, source or cleanup failures. Actual build stdout reports
+four warnings/zero errors; stderr is empty. All 1938 prior file pins and 13
+inventories, all 1955 total before/final input checks and 193 old generated files
+remain unchanged. All 15 build/staging outputs and ten protected/patched/lock
+files were verified against the frozen public recipe. Independent process-tree
+termination and complete historical 1517-hash equality remain unproven.
+
+Root independently read the native hashes of all seven transferred files and
+the ZIP, transferred the original full observation/output/anchor reports,
+build manifest, stdout/stderr and Generator DLL to the Mac, and verified their
+digests, ZIP entries/CRC and complete reports. The measured Generator SHA256 is
+`a962c0a467d9f70b855b013d4683b59c5bba8df241efa92c58601e73899d7688`.
+A separate pure PE-metadata read confirms the unique informational version 1.5.3,
+assembly identity, target framework, flags and reference bindings against the
+native records without loading the inspected DLL. The built Common remains
+build evidence; the pinned official Common and Runtime remain unchanged.
+
+The private generation-only consumer was rendered from the reviewed template
+by exactly two constant substitutions. Root compiled it on macOS with
+SDK8.0.425 against 33 pinned references: actual compiler exit 0, nine warnings,
+zero errors and all 5318 compiler/input files preserved. Independent source/render
+review passed. The compiled consumer has not executed.
+
+This establishes source-build/staging and consumer-compilation completion only.
+Fresh Windows generation, all 191 original MemberRef checks before any strict PE
+roundtrip, complete sidecar validation, loader/menu/exit/rollback and connected
+MW2/skate gameplay remain pending. Prior rejected outputs remain rejected.
+No candidate approval, installation, game launch or owner playtest is implied.
 
 ## Remaining acceptance
 No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
