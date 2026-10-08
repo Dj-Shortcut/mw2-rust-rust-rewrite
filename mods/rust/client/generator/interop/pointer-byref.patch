@@ -307,3 +307,252 @@
      }
 
      private static PropertyDefinition GetOrCreateProperty(MethodDefinition unityMethod, MethodDefinition newMethod)
+--- a/Il2CppInterop.Generator/Utils/UnstripTranslator.cs
++++ b/Il2CppInterop.Generator/Utils/UnstripTranslator.cs
+@@ -1,4 +1,5 @@
+ using System.Diagnostics;
++using System.Runtime.CompilerServices;
+ using AsmResolver;
+ using AsmResolver.DotNet;
+ using AsmResolver.DotNet.Code.Cil;
+@@ -201,10 +202,11 @@
+
+                 var methodArg = (IMethodDescriptor)bodyInstruction.Operand;
+                 var useSystemCorlibType = methodArg.Signature?.HasThis ?? true;
+-                var methodDeclarer =
+-                    Pass80UnstripMethods.ResolveTypeInNewAssemblies(globalContext, methodArg.DeclaringType?.ToTypeSignature(), imports, useSystemCorlibType);
+-                if (methodDeclarer == null)
+-                    return false;
++                var rawMethodDeclarer =
++                    Pass80UnstripMethods.ResolveTypeInNewAssembliesRaw(globalContext, methodArg.DeclaringType?.ToTypeSignature(), imports, useSystemCorlibType);
++                if (rawMethodDeclarer == null)
++                    return false;
++                var methodDeclarer = imports.Module.DefaultImporter.ImportTypeSignature(rawMethodDeclarer);
+
+                 var newReturnType =
+                     Pass80UnstripMethods.ResolveTypeInNewAssemblies(globalContext, methodArg.Signature?.ReturnType, imports);
+@@ -225,6 +227,8 @@
+                 }
+
+                 var memberReference = new MemberReference(methodDeclarer.ToTypeDefOrRef(), methodArg.Name, newMethodSignature);
++                if (!TryBindGeneratedCallee(globalContext, imports, methodArg, rawMethodDeclarer, ref memberReference))
++                    return false;
+
+                 IMethodDescriptor newMethod;
+                 if (methodArg is MethodSpecification genericMethod)
+@@ -480,6 +484,215 @@
+         return true;
+     }
+
++    private static readonly SignatureComparer ExistingCalleeComparer = new(SignatureComparisonFlags.VersionAgnostic);
++
++    // The metadata resolver only looks for an own raw signature. Prove generated
++    // targets before import, and canonicalize inherited references to that owner.
++    private static bool TryBindGeneratedCallee(RewriteGlobalContext context, RuntimeAssemblyReferences imports,
++        IMethodDescriptor source, TypeSignature outputOwner, ref MemberReference reference)
++    {
++        if (outputOwner.GetUnderlyingTypeDefOrRef() is not TypeDefinition outputDefinition ||
++            !context.Assemblies.Any(it => ReferenceEquals(it.NewAssembly, outputDefinition.DeclaringModule?.Assembly)))
++            return true; // Preserve the existing framework/runtime import route.
++
++        var sourceMethod = source is MethodSpecification specification ? specification.Method : source as IMethodDefOrRef;
++        var sourceSignature = sourceMethod?.Signature;
++        var requestedSignature = reference.Signature as MethodSignature;
++        if (sourceSignature == null || requestedSignature == null ||
++            sourceSignature.Attributes != requestedSignature.Attributes || sourceSignature.SentinelParameterTypes.Count != 0 ||
++            source is MethodSpecification generic &&
++            (generic.Signature == null || generic.Signature.TypeArguments.Count != sourceSignature.GenericParameterCount))
++            return false;
++
++        try
++        {
++            if (!TryGetOwnerDefinition(outputOwner, out outputDefinition))
++                return false;
++            var requestedEffective = requestedSignature.InstantiateGenericTypes(
++                GetSignatureContext(outputOwner, outputDefinition, requestedSignature.GenericParameterCount, imports.Module));
++            // Constructed generic overloads can collapse to equal effective
++            // signatures. Preserve a unique raw match before that comparison.
++            var rawMatches = FindOwnRawMethod(outputDefinition, sourceMethod!.Name, requestedSignature,
++                ExistingCalleeComparer, out var outputMethod);
++            if (rawMatches != 0)
++                return rawMatches == 1; // Keep valid own references, including facade mappings.
++
++            var sourceOwner = sourceMethod.DeclaringType?.ToTypeSignature();
++            if (sourceOwner == null || !TryFindSourceDeclaration(sourceOwner, sourceMethod, imports.Module,
++                    out var declarationOwner, out var declaration))
++                return false;
++
++            var mappedOwner = Pass80UnstripMethods.ResolveTypeInNewAssembliesRaw(context, declarationOwner, imports,
++                sourceSignature.HasThis);
++            if (mappedOwner == null || !TryGetOwnerDefinition(mappedOwner, out var mappedDefinition) ||
++                !TryFindOutputDeclaration(outputOwner, mappedOwner, mappedDefinition))
++                return false;
++
++            // Map the raw declaration before substituting owner arguments. Doing
++            // this in reverse can change T[] from Il2CppArrayBase<T> to a struct array.
++            var mappedSignature = MapCalleeSignature(context, imports, declaration!.Signature!);
++            if (mappedSignature == null)
++                return false;
++            var declarationEffective = mappedSignature.InstantiateGenericTypes(
++                GetSignatureContext(mappedOwner, mappedDefinition, mappedSignature.GenericParameterCount, imports.Module));
++            if (!SignatureComparer.Default.Equals(requestedEffective, declarationEffective))
++                return false;
++            var mappedMatches = FindOwnRawMethod(mappedDefinition, sourceMethod.Name, mappedSignature,
++                SignatureComparer.Default, out outputMethod);
++            if (mappedMatches != 1)
++                return false;
++
++            // Never continue into an output base when the proven source owner
++            // omitted its own declaration (e.g. an abstract method skipped in Pass80).
++            reference = new MemberReference(mappedOwner.ToTypeDefOrRef(), outputMethod!.Name, outputMethod.Signature!);
++            return true;
++        }
++        catch (ArgumentOutOfRangeException)
++        {
++            return false; // An invalid declaration VAR/MVAR index cannot be proved.
++        }
++    }
++
++    private static bool TryFindSourceDeclaration(TypeSignature owner, IMethodDefOrRef source, ModuleDefinition module,
++        out TypeSignature declarationOwner, out MethodDefinition? declaration)
++    {
++        declarationOwner = owner;
++        declaration = null;
++        if (!TryGetOwnerDefinition(owner, out var definition))
++            return false;
++        var expected = source.Signature!.InstantiateGenericTypes(
++            GetSignatureContext(owner, definition, source.Signature.GenericParameterCount, module));
++        var rawMatches = FindOwnRawMethod(definition, source.Name, source.Signature,
++            SignatureComparer.Default, out declaration);
++        if (rawMatches != 0)
++            return rawMatches == 1;
++        var visited = new HashSet<TypeDefinition>(new CalleeTypeIdentityComparer());
++        while (TryGetOwnerDefinition(declarationOwner, out definition) && visited.Add(definition))
++        {
++            var matches = FindOwnMethod(definition, declarationOwner, source.Name, expected, module, out declaration);
++            if (matches != 0)
++                return matches == 1;
++            if (source.Name == ".ctor" || source.Name == ".cctor" || definition.IsInterface || definition.BaseType == null)
++                return false;
++            declarationOwner = definition.BaseType.ToTypeSignature().InstantiateGenericTypes(
++                GetSignatureContext(declarationOwner, definition, 0, module));
++        }
++        return false;
++    }
++
++    private static bool TryFindOutputDeclaration(TypeSignature owner, TypeSignature declarationOwner,
++        TypeDefinition declaration)
++    {
++        var visited = new HashSet<TypeDefinition>(new CalleeTypeIdentityComparer());
++        while (TryGetOwnerDefinition(owner, out var definition) && visited.Add(definition))
++        {
++            if (ReferenceEquals(definition, declaration) && SignatureComparer.Default.Equals(owner, declarationOwner))
++                return true;
++            if (definition.IsInterface || definition.BaseType == null)
++                return false;
++            owner = definition.BaseType.ToTypeSignature().InstantiateGenericTypes(
++                GetSignatureContext(owner, definition, 0, definition.DeclaringModule!));
++        }
++        return false;
++    }
++
++    private static int FindOwnRawMethod(TypeDefinition definition, Utf8String? name, MethodSignature expected,
++        SignatureComparer comparer, out MethodDefinition? match)
++    {
++        match = null;
++        var count = 0;
++        foreach (var candidate in definition.Methods)
++        {
++            if (candidate.Name != name || !comparer.Equals(expected, candidate.Signature))
++                continue;
++            if (candidate.GenericParameters.Count != candidate.Signature!.GenericParameterCount)
++                return 2;
++            match = candidate;
++            count++;
++        }
++        return count;
++    }
++
++    private static int FindOwnMethod(TypeDefinition definition, TypeSignature owner, Utf8String? name,
++        MethodSignature expected, ModuleDefinition module, out MethodDefinition? match)
++    {
++        match = null;
++        var count = 0;
++        foreach (var candidate in definition.Methods)
++        {
++            if (candidate.Name != name || candidate.Signature == null)
++                continue;
++            var signature = candidate.Signature;
++            var effective = signature.InstantiateGenericTypes(
++                GetSignatureContext(owner, definition, signature.GenericParameterCount, module));
++            if (!SignatureComparer.Default.Equals(expected, effective))
++                continue;
++            if (candidate.GenericParameters.Count != signature.GenericParameterCount)
++                return 2; // A malformed definition is not a unique usable target.
++            match = candidate;
++            count++;
++        }
++        return count;
++    }
++
++    private static bool TryGetOwnerDefinition(TypeSignature owner, out TypeDefinition definition)
++    {
++        definition = null!;
++        if (owner is not TypeDefOrRefSignature && owner is not GenericInstanceTypeSignature)
++            return false;
++        var resolved = owner.Resolve();
++        if (resolved == null || owner is GenericInstanceTypeSignature instance &&
++            instance.TypeArguments.Count != resolved.GenericParameters.Count)
++            return false;
++        definition = resolved;
++        return true;
++    }
++
++    private static GenericContext GetSignatureContext(TypeSignature owner, TypeDefinition definition,
++        int methodArity, ModuleDefinition module)
++    {
++        var typeArguments = owner as GenericInstanceTypeSignature;
++        if (typeArguments == null)
++        {
++            typeArguments = new GenericInstanceTypeSignature(definition, owner.IsValueType);
++            for (var i = 0; i < definition.GenericParameters.Count; i++)
++                typeArguments.TypeArguments.Add(new GenericParameterSignature(module, GenericParameterType.Type, i));
++        }
++        var methodArguments = new GenericInstanceMethodSignature();
++        for (var i = 0; i < methodArity; i++)
++            methodArguments.TypeArguments.Add(new GenericParameterSignature(module, GenericParameterType.Method, i));
++        // Non-null empty providers also reject out-of-range indices for arity zero.
++        // Actual TypeSpec/MethodSpec arguments belong to the caller, not this arity.
++        return new GenericContext(typeArguments, methodArguments);
++    }
++
++    private static MethodSignature? MapCalleeSignature(RewriteGlobalContext context, RuntimeAssemblyReferences imports,
++        MethodSignature source)
++    {
++        var returnType = Pass80UnstripMethods.ResolveTypeInNewAssemblies(context, source.ReturnType, imports);
++        if (returnType == null)
++            return null;
++        var result = source.HasThis
++            ? MethodSignature.CreateInstance(returnType, source.GenericParameterCount)
++            : MethodSignature.CreateStatic(returnType, source.GenericParameterCount);
++        if (source.Attributes != result.Attributes || source.SentinelParameterTypes.Count != 0)
++            return null;
++        foreach (var parameter in source.ParameterTypes)
++        {
++            var mapped = Pass80UnstripMethods.ResolveTypeInNewAssemblies(context, parameter, imports);
++            if (mapped == null)
++                return null;
++            result.ParameterTypes.Add(mapped);
++        }
++        return result;
++    }
++
++    private sealed class CalleeTypeIdentityComparer : IEqualityComparer<TypeDefinition>
++    {
++        public bool Equals(TypeDefinition? x, TypeDefinition? y) => ReferenceEquals(x, y);
++        public int GetHashCode(TypeDefinition obj) => RuntimeHelpers.GetHashCode(obj);
++    }
++
+     public static void ReplaceBodyWithException(MethodDefinition newMethod, RuntimeAssemblyReferences imports)
+     {
+         newMethod.CilMethodBody = new();
