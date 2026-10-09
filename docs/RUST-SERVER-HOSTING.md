@@ -33,12 +33,56 @@ explains that powered-off Droplets still accrue charges until destroyed.
 Actual SSH access, available RAM/disk and nonroot installation are confirmed.
 The recorded Steam public build/Oxide 2.0.7815 reached startup complete,
 authenticated loopback console, bounded plugin checks and save/reload.
-Game remains loopback; query binds all IPv4 interfaces but is blocked externally
-by the host firewall. Rust+ reports disabled. The quit process ended with
+At the 8 October checkpoint, game was loopback; query bound all IPv4 interfaces
+but was blocked externally by the host firewall. Rust+ reports disabled. The quit process ended with
 SIGKILL; no normal-exit guarantee is claimed. See [exact native scope](../mods/rust/server/LINUX.md#native-startup-and-control-evidence).
 Do not publish addresses, keys, console credentials or operational logs.
-Shadow join, player-state persistence, two-client PvP and full mod acceptance
-remain open.
+At that checkpoint, Shadow join, player-state persistence, two-client PvP and
+full mod acceptance remained open. The later player check is recorded below.
+
+## Shadow player check — 9 October 2026
+
+The owner authorized a first real loadout component check on the existing host.
+After a save and restart under the same identity, actual startup completed with
+unchanged ShortcutLoadouts 0.1.0 and default configuration. Measured game UDP
+28015 and query UDP 28017 bind the assigned public IPv4; RCON TCP 28016 remains
+on 127.0.0.1. Rust+ is disabled and launch uses `-insecure`. The existing private
+loopback TCP listener changes its ephemeral port after restart; no additional
+public TCP or IPv6 listener appeared. Launch arguments contain `-insecure`,
+but authenticated `status` still reports `secure`. This discrepancy remains
+unresolved in meaning. The later owner spawn and authenticated active-account
+check establish that this Shadow connection worked; they do not explain the
+security-status string.
+
+Only game UDP 28015 was opened, from the actually observed Shadow public IPv4
+as a single `/32` to the assigned server IPv4. Address stability is unproved,
+so this is a bounded test window, rather than permanent access. Active UFW
+retains default inbound denial, SSH and IPv6 rules; query and RCON have no
+external allow rule. A persistent calendar timer was scheduled for closure at
+03:24:21 UTC on 9 October, with catch-up after boot. Closure removes the owned
+rule, attempts a save and stops only the explicitly tracked test units;
+it must verify configured-rule absence and disappearance of the game listener.
+After stopping the player checks, actual manual closure was verified at
+03:15:11 UTC: the owned rule was removed, the save succeeded and fresh reads
+showed game, query and RCON listeners gone with default inbound denial active.
+The owned timer was then disabled to prevent a second closure attempt.
+
+Only the owner's account received `shortcutloadouts.use` and
+`shortcutloadouts.damage`; no other users or groups held either permission.
+Both grants survived this preparation restart. The owner used F1 direct join
+and reported spawning; authenticated status independently confirmed that account
+as the sole active player, with no joining players. The later private recording
+also visually confirms the in-world spawn. It corrects the initially reported
+loadout failure: T chat actually contains `/loudaout carbinew`, followed by
+`Unknown command: loudaout`. That mistyped command did not exercise the requested
+`/loadout carbine`; all five loadout/persistence checks remain unrun. Severe
+Shadow lag was reported and live screen control timed out, but the recording
+was inspected locally. No plugin registration failure is established and no
+plugin behavior changed. See the [ordered results](RUST-SERVER-PLUGIN.md#first-shadow-player-check).
+A join alone is setup evidence, not a completed loadout playtest.
+No new rental, paid backup or paid change was made. The existing Droplet remains
+billable while it exists. Addresses, account identifiers and raw reports stay
+private.
 
 ## Require these capabilities before setup
 

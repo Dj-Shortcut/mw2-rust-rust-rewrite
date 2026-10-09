@@ -50,9 +50,53 @@ flag or prove live player behavior while disabled.
 The server saved 3394 entities, quit and later loaded 3394 entities/navmesh under
 the same identity/build, with this plugin loaded and its config unchanged.
 The quit process ended with SIGKILL; normal exit 0 is not claimed.
-No clients joined. Permission/life/cooldown, real inventory delivery and cleanup,
+During those 8 October checks, no clients joined. Permission/life/cooldown,
+real inventory delivery and cleanup,
 damage scaling, excluded-target behavior, permanent removal, player-state
 persistence and full MW2/skate acceptance remain open.
+
+## First Shadow player check
+
+On 9 October 2026, the owner requested a narrow existing-server component check.
+The server reached startup complete with public game UDP 28015, private RCON,
+externally blocked query and disabled Rust+. Only the observed Shadow IPv4 was
+allowed during the [bounded test window](RUST-SERVER-HOSTING.md#shadow-player-check--9-october-2026);
+actual rule removal and listener closure were verified after the stopped check.
+Plugin source and default config hashes remain unchanged. Authenticated console
+confirmed both permissions granted only to the owner, no grants to other users
+or groups, and retention across the preparation restart. Revoke/denial and
+player/item persistence are separate checks below, not inferred from that restart.
+
+| Ordered player check | Actual result |
+| --- | --- |
+| Owner Shadow client joins and spawns | Pass: owner reports spawn, authenticated status confirms the sole active owner account, and the later private recording shows the in-world spawn |
+| `/loadout carbine`: rifle.ak x1 and ammo.rifle x120 | Not run with the requested command: recording shows `/loudaout carbinew` and `Unknown command: loudaout`; delivery is unverified |
+| Second request within 60 seconds: English cooldown refusal | Not run after stopped, mistyped attempt |
+| Full main/belt inventory: English refusal, no original items lost | Not run after stopped, mistyped attempt |
+| Revoke use permission, observe English denial, then grant again | Not run after stopped, mistyped attempt |
+| Save, restart same world, rejoin with player and items preserved | Not run after stopped, mistyped attempt |
+
+The owner also reported severe Shadow lag and live screen control returned
+`timeoutReached`. A later owner-supplied recording was inspected locally: at
+about 08:20–08:30 it shows `/loudaout carbinew` in global chat and the exact
+reply `Unknown command: loudaout`. Both the command token and kit text differ
+from `/loadout carbine`. This corrects the initial owner-report failure
+classification: the requested handler/delivery flow was not exercised, and
+this message does not establish a plugin registration or behavior failure.
+No delivery, cooldown, inventory safety, permission denial or player/item
+reload acceptance is claimed. Saving during closure does not prove rejoin
+persistence. Both original grants remain; the revocation check was not reached.
+The recording and extracted frames remain private and are not shipped.
+
+Run these in order and stop at the first observed failure; any behavior fix
+belongs in a separate focused PR. Record the exact failure without public
+player identifiers or raw logs. Wait beyond the successful 60-second cooldown
+before the full-inventory request so cooldown cannot mask inventory refusal.
+Observe original items immediately before and after that request; do not clear
+or replace the owner's inventory. Restore the direct use grant after the denial
+check. A connection without these loadout checks is not a loadout playtest.
+Two-client PvP remains open and requires a second EAC-disabled player. This
+component check does not establish full MW2 gunplay/skate acceptance.
 
 ## Verification and delivery gate
 
