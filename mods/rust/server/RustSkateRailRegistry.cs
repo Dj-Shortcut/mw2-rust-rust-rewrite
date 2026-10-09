@@ -109,7 +109,8 @@ namespace Shortcut.RustMod
                 {
                     if (Thread.CurrentThread.ManagedThreadId != registry.serverThread) return false;
                     if (Volatile.Read(ref expired) != 0) return false;
-                    if (registry.IsClosed || checking) { Expire(); return false; }
+                    if (registry.IsClosed) { Expire(); return false; }
+                    if (checking) return false;
                     checking = true;
                     try
                     {
