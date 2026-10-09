@@ -20,6 +20,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="RustSkateWorld.cs" />
+    <Compile Include="RustSkateCollisionScene.cs" />
     <Compile Include="IRustSkateRailLease.cs" />
     <Compile Include="RustSkateProbeSet.cs" />
     <Compile Include="../shared/SkateWorldQuery.cs" />

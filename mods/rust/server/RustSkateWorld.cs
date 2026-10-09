@@ -8,7 +8,6 @@ namespace Shortcut.RustMod
     // The host owns the board and factory-owned parked probes, and revokes before cleanup.
     public sealed class RustSkateWorld : ISkateWorld
     {
-        private const int MaximumHierarchyDepth = 128;
         private readonly BasePlayer rider;
         private readonly BaseEntity board;
         private readonly Guid boardLease;
@@ -19,9 +18,7 @@ namespace Shortcut.RustMod
         private readonly SkateRailBinding railBinding;
         private readonly IRustSkateRailLease railLease;
         private readonly int serverThread;
-        private readonly Collider[] overlaps = new Collider[SkateWorldQuery.Capacity];
-        private readonly RaycastHit[] casts = new RaycastHit[SkateWorldQuery.Capacity];
-        private readonly SkateWorldContact[] contacts = new SkateWorldContact[SkateWorldQuery.Capacity];
+        private readonly RustSkateCollisionScene scene;
         private int closed;
         private bool querying;
 
@@ -60,6 +57,7 @@ namespace Shortcut.RustMod
             this.railBinding = railBinding;
             this.railLease = railLease;
             serverThread = Thread.CurrentThread.ManagedThreadId;
+            if (probeSet != null) scene = new RustSkateCollisionScene(probeSet, railBinding, railLease);
         }
 
         public static RustSkateWorld WithProbes(BasePlayer rider, BaseEntity board, Guid boardLease,
@@ -76,7 +74,11 @@ namespace Shortcut.RustMod
 
         // Revocation is idempotent and safe without accessing a Unity object.
         // A lease is host fencing metadata; it does not authenticate a rider.
-        public void Close() { Interlocked.Exchange(ref closed, 1); }
+        public void Close()
+        {
+            Interlocked.Exchange(ref closed, 1);
+            if (scene != null) scene.Close();
+        }
 
         public bool TrySweep(SkateVector start, SkateVector end, SkateHull hull, out SkateHit hit)
         {
@@ -88,37 +90,9 @@ namespace Shortcut.RustMod
                 Transform riderRoot, boardRoot;
                 if (!SkateWorldQuery.TryPrepare(start, end, hull, out query) ||
                     !TryBindings(out riderRoot, out boardRoot)) return false;
-                bool blocked;
-                if (!TryOverlap(query, riderRoot, boardRoot, out blocked)) return false;
-                SkateHit result = SkateHit.Miss;
-                if (blocked)
-                    result = new SkateHit(true, true, 0, new SkateVector(0, 1, 0), 0);
-                else if (query.Distance > 0)
-                {
-                    if (IsClosed) return false;
-                    Vector3 center = ToUnity(query.Center);
-                    int count = Physics.BoxCastNonAlloc(center, ToUnity(query.HalfExtents),
-                        ToUnity(query.Direction), casts, Quaternion.identity, (float)query.Distance,
-                        Rust.Layers.Server.PlayerMovement, QueryTriggerInteraction.Ignore);
-                    // A full buffer may hide a closer blocker, including after self filtering.
-                    if (count < 0 || count >= casts.Length) return false;
-                    for (int i = 0; i < count; ++i)
-                    {
-                        if (IsClosed) return false;
-                        RaycastHit nativeHit = casts[i];
-                        if (!Finite(nativeHit.point)) return false;
-                        Collider collider = nativeHit.collider;
-                        Transform colliderTransform;
-                        bool self;
-                        if (!TryCollider(collider, out colliderTransform) ||
-                            !TrySelf(colliderTransform, riderRoot, boardRoot, out self)) return false;
-                        if (!self && !GamePhysics.Verify(nativeHit, center, rider)) return false;
-                        long railId = self ? 0 : railBinding.Resolve(collider.GetInstanceID());
-                        contacts[i] = new SkateWorldContact(nativeHit.distance,
-                            ToSkate(nativeHit.normal), self, railId);
-                    }
-                    if (!SkateWorldQuery.TrySelect(query, contacts, count, out result)) return false;
-                }
+                SkateHit result;
+                if (scene == null || !scene.TrySweepFor(start, end, hull, rider,
+                    riderRoot, boardRoot, out result)) return false;
                 // This is the result publication boundary against concurrent revocation.
                 if (!RailCurrent || !ProbesCurrent) return false;
                 hit = result;
@@ -138,9 +112,10 @@ namespace Shortcut.RustMod
                 Transform riderRoot, boardRoot;
                 if (!SkateWorldQuery.TryPrepare(position, position, hull, out query) ||
                     !TryBindings(out riderRoot, out boardRoot)) return false;
-                bool blocked;
-                if (!TryOverlap(query, riderRoot, boardRoot, out blocked) || !RailCurrent || !ProbesCurrent) return false;
-                clear = !blocked;
+                bool result;
+                if (scene == null || !scene.TryClearFor(position, hull, rider,
+                    riderRoot, boardRoot, out result) || !RailCurrent || !ProbesCurrent) return false;
+                clear = result;
                 return true;
             }
             catch (Exception) { return false; }
@@ -235,92 +210,5 @@ namespace Shortcut.RustMod
                 rotation.x == 0 && rotation.y == 0 && rotation.z == 0 && Math.Abs(rotation.w) == 1;
         }
 
-        private bool TryOverlap(SkateWorldSweep query, Transform riderRoot, Transform boardRoot, out bool blocked)
-        {
-            blocked = false;
-            if (IsClosed) return false;
-            Vector3 center = ToUnity(query.Center);
-            int count = Physics.OverlapBoxNonAlloc(center, ToUnity(query.HalfExtents), overlaps,
-                Quaternion.identity, Rust.Layers.Server.PlayerMovement, QueryTriggerInteraction.Ignore);
-            if (count < 0 || count >= overlaps.Length) return false;
-            for (int i = 0; i < count; ++i)
-            {
-                if (IsClosed) return false;
-                Collider collider = overlaps[i];
-                Transform colliderTransform;
-                bool self;
-                if (!TryCollider(collider, out colliderTransform) ||
-                    !TrySelf(colliderTransform, riderRoot, boardRoot, out self)) return false;
-                if (self) continue;
-                // Unity penetration ignores backfaces, so a concave overlap cannot certify clearance.
-                MeshCollider mesh = collider as MeshCollider;
-                if ((mesh != null && !mesh.convex) || !GamePhysics.Verify(collider, center, rider)) return false;
-                Vector3 otherPosition = colliderTransform.position;
-                Quaternion otherRotation = colliderTransform.rotation;
-                if (!Finite(otherPosition) || !Finite(otherRotation)) return false;
-                Vector3 direction;
-                float depth;
-                if (IsClosed) return false;
-                bool penetrates;
-                if (!probeSet.TryPenetration(query.Mounted, center, collider, otherPosition, otherRotation,
-                    out penetrates, out direction, out depth))
-                {
-                    Close();
-                    return false;
-                }
-                // Direction and depth are undefined when Unity reports no penetration.
-                if (!penetrates) continue;
-                if (!Finite(depth) || depth < 0 || !NearUnit(direction)) return false;
-                if (depth > 0)
-                {
-                    blocked = true;
-                }
-            }
-            return ProbesCurrent;
-        }
-
-        private static bool TryCollider(Collider collider, out Transform transform)
-        {
-            transform = null;
-            if (collider == null || !collider.enabled || collider.isTrigger ||
-                collider.gameObject == null || !collider.gameObject.activeInHierarchy) return false;
-            transform = collider.transform;
-            return transform != null;
-        }
-
-        private static bool TrySelf(Transform transform, Transform riderRoot, Transform boardRoot, out bool self)
-        {
-            self = false;
-            // Compare only the exact entity transform and its descendants; never transform.root.
-            for (int depth = 0; depth < MaximumHierarchyDepth; ++depth)
-            {
-                if (transform == null) return true;
-                if (transform == riderRoot || transform == boardRoot) { self = true; return true; }
-                transform = transform.parent;
-            }
-            return transform == null;
-        }
-
-        private static Vector3 ToUnity(SkateVector value)
-        { return new Vector3((float)value.X, (float)value.Y, (float)value.Z); }
-
-        private static SkateVector ToSkate(Vector3 value)
-        { return new SkateVector(value.x, value.y, value.z); }
-
-        private static bool NearUnit(Vector3 value)
-        {
-            if (!Finite(value)) return false;
-            double squared = (double)value.x * value.x + (double)value.y * value.y + (double)value.z * value.z;
-            return Math.Abs(squared - 1) <= 0.001;
-        }
-
-        private static bool Finite(Vector3 value)
-        { return Finite(value.x) && Finite(value.y) && Finite(value.z); }
-
-        private static bool Finite(Quaternion value)
-        { return Finite(value.x) && Finite(value.y) && Finite(value.z) && Finite(value.w); }
-
-        private static bool Finite(float value)
-        { return !float.IsNaN(value) && !float.IsInfinity(value); }
     }
 }

@@ -15,6 +15,7 @@ The inherited run/import guides below document optional upstream modes.
 | [`RUST-RIDER-CONTROLS.md`](RUST-RIDER-CONTROLS.md) | rider identity, input release, candidate and cleanup fences; source contract | coordinating gunplay/skate lifecycle |
 | [`RUST-SKATE-LIVE-RAILS.md`](RUST-SKATE-LIVE-RAILS.md) | live server rail registration, freshness fencing and real-scene results | binding rails to the skate world |
 | [`RUST-SKATE-PROBES.md`](RUST-SKATE-PROBES.md) | owned parked penetration probes, native results and cleanup obligations | creating probes for the genuine collision adapter |
+| [`RUST-SKATE-NATIVE-MOTION.md`](RUST-SKATE-NATIVE-MOTION.md) | shared native collision backend and actual calculated skate flow | assessing core/scene evidence and remaining player-host gates |
 | [`RUST-SKATE-WORLD.md`](RUST-SKATE-WORLD.md) | genuine server collision adapter design and native acceptance gaps | connecting skate motion to Rust terrain and obstacles |
 | [`MULTIPLAYER.md`](MULTIPLAYER.md) | standalone shared-world milestone, authority boundaries and two-client acceptance; design only | working on core multiplayer |
 | [`DIRECT-MULTIPLAYER.md`](DIRECT-MULTIPLAYER.md) | bounded direct TCP server/client runtime and connected verification scope | implementing standalone transport |

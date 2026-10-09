@@ -1,7 +1,7 @@
 # Native Rust skate collision queries
 
 Part of [the full mod](RUST-MW2-SKATE.md); [task #285](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/285).
-Status: source, live rail and owned penetration checks exist; connected world movement unverified.
+Status: shared native collision and calculated skate flow observed; connected world movement unverified.
 
 ## Boundary and guards
 
@@ -12,6 +12,10 @@ Queries never move transforms, synchronize physics or change global physics sett
 They briefly enable only their owned parked penetration collider and restore it
 before publication; arbitrary AllLayers queries can see that actor at parking.
 Close revokes the world before lifecycle cleanup; reentry/invalid bindings fail closed.
+After authenticating those exact bindings, delegate geometry to the internal
+RustSkateCollisionScene with fresh rider/board roots for this query. Its actor-free
+entry grants no actor authority and performs no movement. Both entries share the
+same queries, probe restoration, rail mapping and publication fences.
 Use only existing mounted/standing axis-aligned hulls and identity rotation.
 Centre is anchor + CentreOffset; both hulls extend 0.15m below the anchor.
 Use [the owned probe factory](RUST-SKATE-PROBES.md) and `WithProbes` on the server
@@ -56,6 +60,12 @@ Null-player world checks exercise freshness/thread/reentry guards, never player 
 Earlier 170 analytical behavior/44 passive linkage checks executed no Unity scene calls.
 Earlier normal-rounding defect was reproduced/corrected; no copied game code is published.
 Temporary probes, game DLLs, addresses, credentials and raw logs remain private/ignored.
-Terrain/slopes/holes, concave interiors and connected collision-driven mount/dismount remain.
+The [native core/scene flow](RUST-SKATE-NATIVE-MOTION.md) now passes 75 checks,
+978 calculated steps and 987 poses against actual owned fixtures, including
+mount, push/brake/steering, obstacles, ollie/landing/bail, two rail orientations,
+standing exits, a walkable slope and ledge. All 167 objects actually removed,
+settings unchanged. The retained first analytical-height oracle failed; a focused
+actual-cast diagnosis corrected only the temporary expectation, not production.
+Full terrain/holes, concave interiors and connected collision-driven mount/dismount remain.
 Production host, visible board/rider, client input/camera, replication and two-client play
 are still required by #275; this component is not a playable release or owner test request.
