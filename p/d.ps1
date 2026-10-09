@@ -5,7 +5,7 @@ $gen = "$dl\codex-bep788-probe\interop-callee-generated-20261009-007748-v1\gener
 $core = "$probe\bep788\BepInEx\core"; $fx = "$probe\bep788\dotnet"
 New-Item -ItemType Directory -Force "$probe\plugin","$probe\src" | Out-Null
 $src = "$probe\src\Probe.cs"
-(irm ("https://raw.githubusercontent.com/Dj-Shortcut/mw2-rust-rust-rewrite/claude-loader-probe/p/Probe.cs?t=" + [DateTime]::Now.Ticks)) | Out-File $src -Encoding utf8
+(zg Probe.cs) | Out-File $src -Encoding utf8
 $refs = @()
 $refs += ls $fx -Filter *.dll | ? { ($_.Name -like 'System*' -or $_.Name -in 'mscorlib.dll','netstandard.dll','Microsoft.CSharp.dll') -and $_.Name -notlike '*.Native.dll' } | % FullName
 $refs += 'BepInEx.Core.dll','BepInEx.Unity.IL2CPP.dll','BepInEx.Unity.Common.dll','Il2CppInterop.Runtime.dll','Il2CppInterop.Common.dll' | % { "$core\$_" }
