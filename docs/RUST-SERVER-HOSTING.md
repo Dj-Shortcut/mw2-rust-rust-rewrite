@@ -109,9 +109,12 @@ current plugin/permissions checks. Independent readback at 14:35:56 UTC confirme
 public game UDP 28015, loopback-only RCON, blocked query/RCON, no unintended Rust
 listener, the actual `-insecure` process and active persistent closure. Current
 `app.port=-1` confirmed disabled Rust+. Its checked deadline is 15:34:57 UTC on
-9 October; scheduled closure is not yet an observed completed closure. The old
-return timer is disabled and inactive. Only the owned game rule is allowed;
-addresses, account identifiers, credentials and raw evidence remain private.
+9 October. Independent readback at 15:35:34 UTC confirmed the completed
+automatic closure: save acknowledged with exit 0, the owned game rule removed,
+the instance inactive, all Rust listeners absent and the default-deny firewall
+active. The old return timer is disabled and inactive. Addresses, account
+identifiers, credentials and raw evidence remain private. This save does not
+verify persistence of the player and kit after a restart/rejoin.
 
 Authenticated status at 14:45:44 UTC confirmed the owner as the sole active
 player, with the observed source matching the window rule. The owner confirmed

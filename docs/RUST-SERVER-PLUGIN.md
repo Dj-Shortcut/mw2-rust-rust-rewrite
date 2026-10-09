@@ -102,14 +102,15 @@ component check does not establish full MW2 gunplay/skate acceptance.
 
 After the initial mistyped attempt, the owner requested another check. The
 [return-session route](RUST-SERVER-HOSTING.md#return-session--9-october-2026)
-uses the same unchanged ShortcutLoadouts 0.1.0/default config and owner grants.
-Authenticated status confirms the active owner and matching source address.
+used the same unchanged ShortcutLoadouts 0.1.0/default config and owner grants.
+Before closure, authenticated status at 14:45:44 UTC confirmed the active owner
+and matching source address.
 The owner reports the requested AK and 120 Rifle Ammo in inventory; no
 independent client capture was obtained for this delivery.
 
 | Ordered player check | Return-session result |
 | --- | --- |
-| Owner joins and spawns | Pass reported by owner; authenticated status independently confirms the sole active owner account |
+| Owner joins and spawns | Pass reported by owner; authenticated status independently confirmed the sole active owner account |
 | `/loadout carbine`: rifle.ak x1 and ammo.rifle x120 | Pass reported by owner: one Assault Rifle and 120 Rifle Ammo in inventory |
 | Second request within 60 seconds: English cooldown refusal | Not yet verified; a later `claimed` report without timing does not prove an in-window request |
 | Full main/belt inventory: English refusal, no original items lost | Not run in this session |
@@ -124,8 +125,12 @@ changed. After the test setup stopped safely during a failed runtime extension,
 the owner explicitly requested continuation; the fresh bounded session above
 records only actual results. The earlier fail-close acknowledged its save, while
 the old timer's later post-stop save returned exit 1. Neither operation saves or
-verifies persistence of the subsequently issued kit. Root stays off the Shadow
-controls.
+verifies persistence of the subsequently issued kit. The fresh session later
+closed automatically: independent readback at 15:35:34 UTC confirmed save
+acknowledgement with exit 0, stopped instance, removed game rule and absent Rust
+listeners. This acknowledges saving after the reported delivery; persistence
+after restart/rejoin remains untested. For these player checks, root leaves
+Shadow input to the owner.
 
 The remaining ordered checks stay open under #266. The owner redirected work
 to the missing native skateboard and MW2 gunplay under #275; further loadout

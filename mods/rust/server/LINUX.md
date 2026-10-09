@@ -143,14 +143,18 @@ fresh 4,500-second runtime limit, without altering the launcher or plugin.
 Actual startup/plugin checks and an independent current readback confirmed only
 public game UDP 28015, public query UDP 28017 blocked externally, loopback RCON
 and its existing internal loopback TCP listener. No unintended Rust listener
-appeared. Only UDP 28015 from the observed source `/32` is allowed; Rust+ stays
-disabled via current `app.port=-1`. A fresh persistent absolute-time timer was
+appeared. During the window, only UDP 28015 from the observed source `/32` was allowed;
+Rust+ was disabled via the observed `app.port=-1`. A fresh persistent absolute-time timer was
 verified for 15:34:57 UTC on 9 October, before the runtime backstop. Its handler
 removes the owned rule, attempts a save, always stops only the pinned instance,
-and verifies closure; failed closure retries. Scheduled closure is not proof of
-completed closure. The previous return timer is disabled and inactive.
+and verifies closure; failed closure retries. Independent readback at 15:35:34 UTC
+confirmed the actual completion: save acknowledged with exit 0, owned rule
+removed, pinned instance inactive, no Rust listeners and an active default-deny
+firewall. The previous return timer is disabled and inactive. The save alone
+does not verify player/item persistence after a restart/rejoin.
 
-Authenticated status confirms the sole active owner and matching source.
+Before closure, authenticated status at 14:45:44 UTC confirmed the sole active
+owner and matching source.
 The owner reports one Assault Rifle and 120 Rifle Ammo after `/loadout carbine`.
 This is owner-reported delivery evidence; cooldown, full-inventory safety,
 permission denial/restoration and save/restart/rejoin of player/items remain
