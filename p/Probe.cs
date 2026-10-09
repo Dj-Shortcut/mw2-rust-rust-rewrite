@@ -46,7 +46,7 @@ public class ProbePlugin : BasePlugin
             case "prod": return Application.productName;
             case "frame": return Time.frameCount.ToString();
             case "plat": return Application.platform.ToString();
-            case "log": Debug.Log("probe debug log"); return "logged";
+            case "log": UnityEngine.Debug.Log("probe debug log"); return "logged";
             case "inject": return "added=" + (AddComponent<ProbeBehaviour>() != null);
             default: return "unknown step";
         }
