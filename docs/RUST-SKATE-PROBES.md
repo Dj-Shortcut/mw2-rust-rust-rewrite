@@ -1,48 +1,82 @@
 # Owned Rust skate penetration probes
 
 Part of [the full mod](RUST-MW2-SKATE.md); [task #325](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/325).
-Status: design; correction source and native verification pending.
+Status: source built and real server probes checked; connected skating remains unverified.
 
 ## Reproduction and selected boundary
 
-Real current-server ComputePenetration reports false for a disabled standing probe
-against a known overlapping box; enabling it reports true, depth0.5 and unit direction.
-Inactive probes also report false. The raw-probe world must not advance a player.
-A distinct local physics scene excluded its probe from default queries, but its immediate
-cross-scene penetration failed. That unsimulated route remains unproven, not impossible.
-[Unity requires enabled colliders](https://docs.unity3d.com/6000.3/Documentation/ScriptReference/Physics.ComputePenetration.html).
-The selected correction owns two disabled probes in the default physics scene.
+The current server reported false for a disabled standing probe against a known
+overlapping box. Enabling it reported true, depth 0.5 and a unit direction.
+Inactive probes also reported false. A distinct local physics scene excluded its
+probe from default queries, but its immediate cross-scene penetration failed.
+That unsimulated route remains unproven, rather than established as impossible.
+[Unity's example requires enabled colliders](https://docs.unity3d.com/6000.3/Documentation/ScriptReference/Physics.ComputePenetration.html).
+The correction owns two probes in the default physics scene, disabled at rest.
 
 ## Ownership, measurement and lifecycle
 
-RustSkateProbeSet.TryCreate returns its allocation/cleanup record before native setup.
-On partial failure the returned closed record remains a cleanup obligation, not null success.
-Only exact owned unparented active objects/colliders are accepted: no children, scripts
-or Rigidbody; zero centre, exact hull sizes, unit scale and identity rotation.
-Fixed layer2 must be excluded from the actual PlayerMovement mask.
-Park at(0,-10000,0), beyond the guarded query domain including both hull extents.
-Only the selected probe is synchronously enabled during TryPenetration.
-Observe activation before ComputePenetration; always disable in finally and confirm
-unchanged shape/layer/parking before publishing any true or false result.
-No callbacks, yields, simulation, synchronization or component attachment while active.
-Uncertain activation/compute/restoration closes the set/world and refuses the query.
-The actor is briefly visible to other AllLayers queries at its parking position;
-this is not global scene invisibility or a global collision-matrix change.
-RustSkateWorld.WithProbes uses the factory's exact probes; legacy signatures remain
-but cannot query without the owned set. Rail freshness and existing guards remain.
-Close invalidates on any thread without Unity access; cleanup runs on the owning thread.
-TryBeginCleanup submits destruction; IsCleanupComplete observes exact objects absent.
-Never acknowledge deferred Destroy, a failed allocation or unknown cleanup as complete.
+Call `RustSkateProbeSet.TryCreate` on the actual server main thread. It returns
+its allocation/cleanup record before native setup. A partially failed allocation
+leaves a closed record with retained cleanup obligations.
+Only exact owned, unparented, active objects and colliders are accepted: no
+children, scripts or Rigidbody; zero centre, exact hull sizes, unit scale and
+identity rotation. Layer 2 must be excluded from the actual PlayerMovement mask.
+They remain parked at `(0, -10000, 0)`, beyond the bounded query domain including
+both hull extents. This is parking, not global scene invisibility.
 
-## Verification and remaining acceptance
+`TryPenetration` briefly enables only the selected probe. It observes activation,
+computes with supplied poses, then always disables it in `finally` and observes
+unchanged shape, layer and parking before publishing either contact or no contact.
+No callback, yield, simulation, synchronization or component attachment occurs
+while enabled. The target must be enabled, active, nontrigger and in a valid,
+loaded default physics scene; cross-scene targets refuse instead of certifying
+clear space. Invalid caller inputs refuse without invalidating healthy probes.
+Native exceptions, observed probe mutations or uncertain activation/restoration
+permanently close the set. Zero-depth contact does not block the world query.
+Arbitrary AllLayers queries can still see the briefly enabled actor at parking.
+No global collision matrix or physics settings are changed.
 
-Root will compile against the current262 genuine server references and run a temporary
-private probe on the existing externally closed server with zero connected players.
-Check both hulls, positive/separated/touching geometry, mask exclusion and restoration,
-shape/position/component mutation, thread/reentry/lifecycle refusal and actual cleanup.
-Check global physics settings and all source/reference hashes before/after.
-No permanent tests, proprietary binaries/media/raw logs, rental or paid change.
-No ShortcutLoadouts or saved world/inventory behavior changes.
-A real board/rider/input/effect host, visible authored board, accepted client extension,
-replication and the complete two-client #275 flow remain unfinished.
-These native probe results cannot establish connected skateboard gameplay.
+Use `RustSkateWorld.WithProbes` with the factory's exact probes. Legacy constructor
+signatures remain source-compatible, but now close/refuse queries without an owned
+set; their earlier runtime behavior is deliberately not preserved. Query entry
+and publication check probe and rail freshness, with existing rider/board guards.
+`Close` invalidates on any thread without Unity access. Cleanup runs on the
+creator thread: `TryBeginCleanup` submits destruction, and `IsCleanupComplete`
+observes the exact objects absent. Unknown children prevent whole-object cleanup;
+their owner must resolve that hierarchy before retrying. Never acknowledge a
+submitted Destroy, failed allocation or unknown cleanup as complete.
+
+## Actual verification and remaining acceptance
+
+On 2026-10-09 root compiled frozen source against the current 262 genuine server
+references: net48/C# 7.3, zero warnings/errors; 273 source/project/reference pins
+unchanged. The same production source was composed into a temporary Oxide probe
+and compiled/loaded by the actual private server, with zero connected players.
+Both hulls detected known overlap: standing depth 0.5, mounted approximately
+0.6499634; unit direction, repeated alternation and restoration passed. Separated
+poses succeeded without contact and returned zero direction/depth.
+
+The first report preserves 125 passing checks and one failed fixture expectation:
+exact touching returned true with depth 0, while the fixture expected false.
+An independent review found no corresponding product defect. A separate native
+follow-up confirmed touching depth 0 is nonblocking under the existing depth>0
+rule, positive overlap depth 0.5 and separated no contact. This is probe output
+and branch classification, not an authenticated world query or player movement.
+All 43 initial and 3 follow-up owned objects were actually absent after deferred
+cleanup; an independent scene inventory found no survivors. The distinct local
+scene was gone and global physics settings were unchanged.
+
+Mask exclusion, honest AllLayers visibility, invalid callers, wrong-thread
+refusal, closed-set cleanup, shape/position/layer/scene/component mutations,
+foreign-child retention and cleanup retry, actual collider/object destruction,
+and irreversible expiry passed. Two private copies instrumented only the native
+compute call with a deterministic throw or synchronous reentry and confirmed
+refusal/restoration. They are not observations of an exception from the native
+API. Partial allocation and activation/restoration failure paths remain source
+reviewed, without an actual injected native failure.
+
+Temporary probes, game references and raw logs remain private and ignored.
+No permanent tests, rental, paid change, ShortcutLoadouts or saved inventory
+behavior change was added. A production board/rider/input/effect host, visible
+authored board, accepted client extension, replication and the complete two-client
+#275 flow remain unfinished. These checks cannot establish connected skating.
