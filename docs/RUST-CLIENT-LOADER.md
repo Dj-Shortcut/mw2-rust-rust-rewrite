@@ -557,12 +557,45 @@ the stream before constructing that encoder; fixture definitions, signatures,
 oracles, strict consumer, runtime guards and case expectations remain unchanged.
 The corrected harness compiled separately on macOS with SDK 8.0.425: all three
 build processes exited 0, 2 warnings/0 errors, 5098 inputs and 5559 SDK inventory
-entries preserved. This is build evidence; its native 27-case retry remains open.
+entries preserved. This is build evidence. The next native run is recorded below.
 
-Local checks also parsed the separately reviewed strict/sidecar admission
-wrappers and exercised their isolated admission against the actual Mac strict
-build receipt and rejection controls. These checks do not execute the full
-Windows wrappers. Complete original 191-member validation, authored native core
+On 9 October 2026, the aligned harness actually executed all 27 authored cases on
+Shadow Windows using the pinned PowerShell 7.4.20 launcher and x64 CLR 6.0.7.
+The child and outer reports returned exit 1 without timeout, kill or cleanup
+failure. A complete visual filter of the saved report identifies 26 passing cases
+and exactly one failure: `generic-calli`, `actual-negative-must-reject:generic-calli`.
+The outer report rechecked all 331 control inputs and retained its two measured
+streams. Its overall inventory-acceptance flag remains false; do not infer a
+successful complete output/inventory gate from these narrower preservation flags.
+The report and stream hashes were independently read on Windows, but the raw
+reports have not been returned and authenticated on the Mac. This checkpoint is
+visual native failure evidence, not accepted authored-core validation.
+
+The pinned reader wraps a `calli` operand in `StandAloneSignature`; the strict
+consumer checked only a bare `MethodSignature`. A separate reviewed correction
+adds 12 lines to require the proper opcode and payload, retain the existing
+generic-signature rejection, and check ordinary payloads with the actual caller
+slots. All 27 case definitions and oracles, the aligned writer and the independent
+physical oracle remain unchanged. The first correction compile failed on an
+ambiguous type pattern; a separate syntax correction adds an explicit typed
+discard and retains that failure evidence. The corrected strict consumer and
+rebound harness built separately on macOS with SDK 8.0.425: normal exit 0,
+12 and 2 warnings respectively, no errors, and 5153 and 5110 enrolled inputs with
+5559 SDK inventory entries preserved. These builds do not prove a native pass.
+
+The fresh package contains 47 app files, 12 proof files and 62 archive members.
+Root staged, rendered and checked those local bytes; a separate review found no
+material binding or guard issue. Transfer has not occurred: automatic approval
+review rejected the temporary download tunnel pending consent for this specific
+new package. The next native run must use distinct fresh directories and preserve
+all prior sources and failure reports. No generated retail assembly is CLR-loaded
+and no loader, installation or game-start approval follows from this correction.
+
+Earlier local checks parsed the separately reviewed strict/sidecar admission
+wrappers and exercised their isolated admission against the prior strict28 Mac
+build receipt and rejection controls. They do not admit the new strict44 build;
+its strict/sidecar binding validation remains pending. These checks do not execute
+the full Windows wrappers. Complete original 191-member validation, authored native core
 acceptance, strict roundtrips, sidecars, native ABI, loader startup/rollback and
 full two-client MW2/skate acceptance remain open. No owner playtest is ready.
 
@@ -574,8 +607,12 @@ lifecycle or two-client play.
 
 Shadow remains client-only. The owner-selected DigitalOcean Linux host has
 verified Rust/Oxide startup, authenticated private control, save/reload and bounded
-ShortcutLoadouts checks. Its game port remains bound to loopback; a reviewed
-remote route and an observed Shadow join are still required. See
+ShortcutLoadouts checks. During a previous restricted test window, the owner
+actually joined from Shadow and spawned. The intended loadout, cooldown,
+full-inventory, permission and save/restart/rejoin checks were not completed;
+join/spawn alone is not a loadout playtest. That window was closed and the server
+was saved/stopped with external game/query ports blocked. A new player session
+and a second EAC-disabled client for PvP damage remain separate checks. See
 [native server evidence](../mods/rust/server/LINUX.md#native-startup-and-control-evidence).
 
 The owner playtests after source completion and verification of the complete
