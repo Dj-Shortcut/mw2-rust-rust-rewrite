@@ -47,4 +47,4 @@ Runtime may change; same-runtime time cannot rewind, including pending work.
 Temporary fixtures exercise the actual compiled DLL and production core APIs:
 identity/time/input/token rejection, real releases, all outcomes, pending invalidation,
 cleanup retry, restart and reload-versus-mode ordering. Native board/rider, callbacks,
-replication, stock rules and full gameplay remain open.
+Replication/stock/gameplay remain open; [freshness admission](RUST-INPUT-FRESHNESS.md) is separate and retains legacy semantics.
