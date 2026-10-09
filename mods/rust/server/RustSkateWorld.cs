@@ -16,6 +16,7 @@ namespace Shortcut.RustMod
         private readonly BoxCollider mountedProbe;
         private readonly BoxCollider standingProbe;
         private readonly SkateRailBinding railBinding;
+        private readonly IRustSkateRailLease railLease;
         private readonly int serverThread;
         private readonly Collider[] overlaps = new Collider[SkateWorldQuery.Capacity];
         private readonly RaycastHit[] casts = new RaycastHit[SkateWorldQuery.Capacity];
@@ -31,8 +32,16 @@ namespace Shortcut.RustMod
         public RustSkateWorld(BasePlayer rider, BaseEntity board, Guid boardLease,
                               BoxCollider mountedProbe, BoxCollider standingProbe,
                               SkateRailBinding railBinding)
+            : this(rider, board, boardLease, mountedProbe, standingProbe, railBinding, null)
+        { }
+
+        public RustSkateWorld(BasePlayer rider, BaseEntity board, Guid boardLease,
+                              BoxCollider mountedProbe, BoxCollider standingProbe,
+                              SkateRailBinding railBinding, IRustSkateRailLease railLease)
         {
             if (railBinding == null) throw new ArgumentNullException(nameof(railBinding));
+            if (railLease != null && !ReferenceEquals(railLease.Binding, railBinding))
+                throw new ArgumentException("Rail lease uses a different catalog.", nameof(railLease));
             this.rider = rider;
             this.board = board;
             this.boardLease = boardLease;
@@ -40,6 +49,7 @@ namespace Shortcut.RustMod
             this.mountedProbe = mountedProbe;
             this.standingProbe = standingProbe;
             this.railBinding = railBinding;
+            this.railLease = railLease;
             serverThread = Thread.CurrentThread.ManagedThreadId;
         }
 
@@ -91,7 +101,7 @@ namespace Shortcut.RustMod
                     if (!SkateWorldQuery.TrySelect(query, contacts, count, out result)) return false;
                 }
                 // This is the result publication boundary against concurrent revocation.
-                if (IsClosed) return false;
+                if (!RailCurrent) return false;
                 hit = result;
                 return true;
             }
@@ -110,7 +120,7 @@ namespace Shortcut.RustMod
                 if (!SkateWorldQuery.TryPrepare(position, position, hull, out query) ||
                     !TryBindings(out riderRoot, out boardRoot)) return false;
                 bool blocked;
-                if (!TryOverlap(query, riderRoot, boardRoot, out blocked) || IsClosed) return false;
+                if (!TryOverlap(query, riderRoot, boardRoot, out blocked) || !RailCurrent) return false;
                 clear = !blocked;
                 return true;
             }
@@ -119,6 +129,28 @@ namespace Shortcut.RustMod
         }
 
         private bool IsClosed { get { return Volatile.Read(ref closed) != 0; } }
+
+        private bool RailCurrent
+        {
+            get
+            {
+                if (IsClosed) return false;
+                try
+                {
+                    if (railLease != null && !railLease.IsCurrent)
+                    {
+                        Close();
+                        return false;
+                    }
+                }
+                catch (Exception)
+                {
+                    Close();
+                    return false;
+                }
+                return !IsClosed;
+            }
+        }
 
         private bool TryEnter()
         {
@@ -132,7 +164,7 @@ namespace Shortcut.RustMod
         {
             riderRoot = null;
             boardRoot = null;
-            if (IsClosed || playerId == 0 || boardLease == Guid.Empty || rider == null || board == null ||
+            if (!RailCurrent || playerId == 0 || boardLease == Guid.Empty || rider == null || board == null ||
                 rider.IsDestroyed || board.IsDestroyed || rider.userID != playerId || board.OwnerID != playerId ||
                 !rider.IsConnected || !rider.IsAlive()) return false;
             if (mountedProbe == standingProbe) return false;

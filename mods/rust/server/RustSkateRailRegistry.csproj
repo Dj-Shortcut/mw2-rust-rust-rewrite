@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
-    <BaseIntermediateOutputPath>../../../context/rust-world-build/obj/</BaseIntermediateOutputPath>
-    <OutputPath>../../../context/rust-world-build/bin/</OutputPath>
+    <BaseIntermediateOutputPath>../../../context/rust-rail-registry-build/obj/</BaseIntermediateOutputPath>
+    <OutputPath>../../../context/rust-rail-registry-build/bin/</OutputPath>
   </PropertyGroup>
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   <PropertyGroup>
@@ -19,10 +19,8 @@
     <_FullFrameworkReferenceAssemblyPaths>$(RustManagedPath)</_FullFrameworkReferenceAssemblyPaths>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="RustSkateWorld.cs" />
-    <Compile Include="IRustSkateRailLease.cs" />
-    <Compile Include="../shared/SkateWorldQuery.cs" />
-    <ProjectReference Include="../shared/SkateMotion.csproj" />
+    <Compile Include="RustSkateRailRegistry.cs" />
+    <ProjectReference Include="RustSkateWorld.csproj" />
     <Reference Include="$(RustManagedPath)/*.dll" Exclude="$(RustManagedPath)/Newtonsoft.Json.dll">
       <Private>false</Private>
     </Reference>
