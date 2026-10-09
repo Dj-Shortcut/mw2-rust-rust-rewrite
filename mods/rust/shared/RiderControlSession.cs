@@ -56,10 +56,18 @@ namespace Shortcut.RustMod
         internal readonly RiderControlSession Owner;
         internal readonly RiderControlFrame Original;
         internal readonly object Epoch;
+        internal readonly bool UsesObservation;
+        internal readonly RiderInputObservation Observation;
+        internal readonly long ObservationFenceTick;
 
         internal RiderControlCandidate(RiderControlSession owner, RiderControlFrame original,
             object epoch, RiderControlFrame frame)
         { Owner = owner; Original = original; Epoch = epoch; Frame = frame; }
+
+        internal RiderControlCandidate(RiderControlSession owner, RiderControlFrame original,
+            object epoch, RiderControlFrame frame, RiderInputObservation observation, long fenceTick)
+            : this(owner, original, epoch, frame)
+        { UsesObservation = true; Observation = observation; ObservationFenceTick = fenceTick; }
     }
 
     public enum RiderCommitOutcome { Applied = 0, RejectedNoEffects = 1, UnknownPartial = 2 }
@@ -95,11 +103,17 @@ namespace Shortcut.RustMod
         private RiderCleanupTicket cleanup;
         private object epoch = new object();
         private long highWaterTick;
+        private RiderInputObservation retainedObservation;
+        private long observationFenceTick;
         private bool open = true;
         private bool cleanupAcknowledged;
 
         private RiderControlSession(RiderIdentity identity, long hostTick)
-        { current = InitialFrame(identity, hostTick); highWaterTick = hostTick; }
+        {
+            current = InitialFrame(identity, hostTick);
+            highWaterTick = hostTick;
+            observationFenceTick = hostTick;
+        }
 
         // Current is the last published frame. A pending plan and a closed session
         // do not publish their candidate state through this property.
@@ -169,6 +183,77 @@ namespace Shortcut.RustMod
             }
         }
 
+        public bool TryPrepareObserved(long hostTick, GunPose confirmedPose, Guid boardLease,
+            RiderInputAdmission admission, RiderInputObservation observation,
+            out RiderControlCandidate candidate, out string error)
+        {
+            lock (sync)
+            {
+                candidate = null;
+                error = "Invalid observed rider control preparation.";
+                if (!open || pending != null || current.Tick >= Gunplay.MaximumTick ||
+                    !ValidTick(hostTick) || hostTick != current.Tick + 1 ||
+                    !ValidPose(confirmedPose, boardLease) ||
+                    admission < RiderInputAdmission.NewObservation ||
+                    admission > RiderInputAdmission.Unavailable) return false;
+                bool fresh = admission == RiderInputAdmission.NewObservation;
+                if (fresh != (observation != null)) return false;
+                if (fresh && (observation.AdmissionTick != hostTick || !observation.IsValidAt(hostTick) ||
+                    !SameIdentity(observation.Request.Identity, current.Identity) ||
+                    observation.Request.Sequence <= current.Sequence)) return false;
+
+                bool transition = confirmedPose.Mode != current.ConfirmedPose.Mode ||
+                    boardLease != current.BoardLease;
+                long fenceTick = transition ? hostTick : observationFenceTick;
+                RiderInputObservation retained = null;
+                if (fresh) retained = observation;
+                else if (admission == RiderInputAdmission.NoNewObservation && !transition &&
+                    retainedObservation != null && retainedObservation.IsValidAt(hostTick))
+                    retained = retainedObservation;
+
+                // A new packet covers this slot even at the previous snapshot's expiry.
+                // Uncovered slots and transitions cannot borrow a previous release.
+                bool reset = transition || retainedObservation == null || retained == null;
+                bool fireLocked = reset || current.FireLocked;
+                bool reloadLocked = reset || current.ReloadLocked;
+                bool jumpLocked = reset || current.JumpLocked;
+                long sequence = current.Sequence;
+                GunInput gun = default(GunInput);
+                SkateInput skate = default(SkateInput);
+                GunPose pose = UnavailablePose(confirmedPose);
+                if (retained == null) fenceTick = hostTick;
+                else
+                {
+                    var request = retained.Request;
+                    if (fresh)
+                    {
+                        sequence = request.Sequence;
+                        if (hostTick > fenceTick)
+                        {
+                            if (!request.Gun.Fire) fireLocked = false;
+                            if (!request.Gun.Reload) reloadLocked = false;
+                            if (!request.Skate.Jump) jumpLocked = false;
+                        }
+                    }
+                    pose = fireLocked ? UnavailablePose(confirmedPose) : confirmedPose;
+                    bool walking = pose.Mode == GunUseMode.Walking;
+                    gun = new GunInput(request.Gun.Fire, walking && request.Gun.Aim,
+                        walking && !reloadLocked && request.Gun.Reload);
+                    if (confirmedPose.Mode == GunUseMode.Skating)
+                        skate = new SkateInput(request.Skate.Push, request.Skate.Brake,
+                            !jumpLocked && request.Skate.Jump, request.Skate.Steer,
+                            request.Skate.Spin, request.Skate.Flip);
+                }
+                var frame = new RiderControlFrame(current.Identity, hostTick, sequence,
+                    confirmedPose, boardLease, gun, pose, skate, fireLocked, reloadLocked, jumpLocked);
+                candidate = new RiderControlCandidate(this, current, epoch, frame, retained, fenceTick);
+                pending = candidate;
+                highWaterTick = hostTick;
+                error = null;
+                return true;
+            }
+        }
+
         // A true result means this outcome was accepted, not that native work succeeded.
         // RejectedNoEffects returns a fallback for the same core tick, to apply from
         // the original/reconciled UID states without resetting ammunition or cadence.
@@ -192,6 +277,10 @@ namespace Shortcut.RustMod
                     var plan = candidate.Frame;
                     current = outcome == RiderCommitOutcome.Applied ? plan :
                         NoActionsFrame(plan.Identity, plan.Tick, plan.Sequence, plan.ConfirmedPose, plan.BoardLease);
+                    retainedObservation = outcome == RiderCommitOutcome.Applied && candidate.UsesObservation ?
+                        candidate.Observation : null;
+                    observationFenceTick = outcome == RiderCommitOutcome.Applied && candidate.UsesObservation ?
+                        candidate.ObservationFenceTick : plan.Tick;
                     pending = null;
                     frame = current;
                 }
@@ -237,6 +326,8 @@ namespace Shortcut.RustMod
                     (identity.RuntimeId == current.Identity.RuntimeId && hostTick < highWaterTick)) return false;
                 current = InitialFrame(identity, hostTick);
                 highWaterTick = hostTick;
+                retainedObservation = null;
+                observationFenceTick = hostTick;
                 epoch = new object();
                 cleanup = null;
                 cleanupAcknowledged = false;
@@ -251,6 +342,8 @@ namespace Shortcut.RustMod
             Guid pendingLease = pending == null ? Guid.Empty : pending.Frame.BoardLease;
             cleanup = new RiderCleanupTicket(this, current.Identity, current.BoardLease,
                 pendingLease, requiresReconciliation);
+            retainedObservation = null;
+            observationFenceTick = highWaterTick;
             pending = null;
             epoch = new object();
             cleanupAcknowledged = false;

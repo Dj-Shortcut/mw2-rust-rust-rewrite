@@ -29,7 +29,7 @@ Right-minus-Left to Steer. Spin/flip stay zero; trick input remains unfinished.
 The callback is received input, not a guaranteed 100Hz clock. The host supplies
 its current slot and owns the exact 10ms clock and freshness policy. Do not
 replay packets, admit backlog, use client clocks/sequences or change missing-input
-release behavior. [Packet-silence admission](RUST-INPUT-FRESHNESS.md) is separate. No hook/input suppression.
+release behavior. [Packet-silence admission](RUST-INPUT-FRESHNESS.md) passes 382 separate protocol checks; no installed hook/input suppression.
 
 ## Actual verification and remaining product work
 
