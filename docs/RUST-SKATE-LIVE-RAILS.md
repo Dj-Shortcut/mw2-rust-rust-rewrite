@@ -1,7 +1,7 @@
 # Live Rust skate rails
 
 Part of [the full mod](RUST-MW2-SKATE.md); [task #323](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/323).
-Status: design; implementation and native scene verification pending.
+Status: implemented; live rail checks pass on the real server; connected skating remains unverified.
 
 ## Server contract
 
@@ -19,9 +19,10 @@ Native signed GetInstanceID keys map only the host-selected collider to its rail
 ## Lease and world boundary
 
 `IRustSkateRailLease.Binding` is the immutable exact catalog; IsCurrent validates live state.
-A lease permanently expires after collider movement, scaling, rotation, centre/size/layer
+A lease permanently expires on observed collider movement, scaling, rotation, centre/size/layer
 change, hierarchy replacement, enable/trigger change, deletion or registry replacement/closure.
 Wrong-thread checks refuse before touching Unity; expiry never becomes current again.
+A mutation restored between freshness reads is undetectable; hosts must revoke before mutation.
 RustSkateWorld accepts binding plus an optional lease and requires reference equality.
 Existing constructors retain their immutable-snapshot behavior for compatibility.
 A leased world checks freshness before queries and again before publishing results.
@@ -31,10 +32,13 @@ No global physics settings, transforms, persistence, inventory or TC rules chang
 
 ## Verification and unfinished integration
 
-Root will compile against genuine RustDedicated managed references and execute a private,
-temporary probe in a real server Unity scene with external game access closed.
-Exercise transformed centres, signed identity, valid/invalid boxes, atomic replacement,
-move/scale/enable/hierarchy/deletion expiry, wrong-thread rejection and unload cleanup.
+The current genuine RustDedicated/Oxide 262-reference build has zero warnings/errors.
+A private temporary probe executed in the real externally closed Rust scene: 117 checks pass.
+They cover transformed centres, real signed IDs, 64 rails/128-ancestor bounds, native BoxCast/
+Overlap/Rust Verify, replacement/observed expiry, worker refusal, world freshness guards
+and actual deletion of all 230 owned objects. No connected rider or world movement ran.
+One additional disabled-probe ComputePenetration check failed; it is an existing adapter
+precondition gate, not a passing skating result. Its focused diagnosis remains separate.
 Temporary probes, real server DLLs, addresses, credentials and raw logs remain ignored.
 No permanent test is added; no rental or paid change is made.
 This is server rail lifecycle work, not a visible skateboard or connected player test.

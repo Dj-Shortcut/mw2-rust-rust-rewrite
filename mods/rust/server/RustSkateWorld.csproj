@@ -20,6 +20,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="RustSkateWorld.cs" />
+    <Compile Include="IRustSkateRailLease.cs" />
     <Compile Include="../shared/SkateWorldQuery.cs" />
     <ProjectReference Include="../shared/SkateMotion.csproj" />
     <Reference Include="$(RustManagedPath)/*.dll" Exclude="$(RustManagedPath)/Newtonsoft.Json.dll">
