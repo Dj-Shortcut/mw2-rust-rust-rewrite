@@ -24,7 +24,9 @@ change, hierarchy replacement, enable/trigger change, deletion or registry repla
 Wrong-thread checks refuse before touching Unity; expiry never becomes current again.
 A mutation restored between freshness reads is undetectable; hosts must revoke before mutation.
 RustSkateWorld accepts binding plus an optional lease and requires reference equality.
-Existing constructors retain their immutable-snapshot behavior for compatibility.
+At the #323 checkpoint, existing constructors retained their immutable snapshot.
+The [#325 probe migration](RUST-SKATE-PROBES.md) keeps those signatures but makes
+raw-probe queries refuse; use `WithProbes` and the owned factory for native queries.
 A leased world checks freshness before queries and again before publishing results.
 Hosts pass the world's exact Rails to SkateMotion; no stale catalog may advance motion.
 Close the world before intentional rail mutation, then replace registry/world together.
@@ -37,8 +39,10 @@ A private temporary probe executed in the real externally closed Rust scene: 117
 They cover transformed centres, real signed IDs, 64 rails/128-ancestor bounds, native BoxCast/
 Overlap/Rust Verify, replacement/observed expiry, worker refusal, world freshness guards
 and actual deletion of all 230 owned objects. No connected rider or world movement ran.
-One additional disabled-probe ComputePenetration check failed; it is an existing adapter
-precondition gate, not a passing skating result. Its focused diagnosis remains separate.
+At that checkpoint one additional disabled-probe ComputePenetration check failed.
+The separate #325 correction now uses owned parked probes with observed activation
+and restoration. Its real overlap/contact/cleanup results are recorded in the
+[probe guide](RUST-SKATE-PROBES.md); connected collision-driven skating is still unverified.
 Temporary probes, real server DLLs, addresses, credentials and raw logs remain ignored.
 No permanent test is added; no rental or paid change is made.
 This is server rail lifecycle work, not a visible skateboard or connected player test.
