@@ -1,44 +1,50 @@
 # Native player input for rider controls
 
 Part of [the full existing-Rust mod](RUST-MW2-SKATE.md); [task #329](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/329).
-Status: design; genuine input reader and native decoding verification pending.
+Status: genuine reader source and bounded native decoding verified; live capture pending.
 
 ## Scope and admission
 
 RustRiderInput binds one exact connected/alive BasePlayer to a trusted host-issued
-RiderIdentity. The production host calls it only inside that player's genuine
-OnPlayerInput callback. Require the exact callback player and InputState reference
-equal to player.serverInput, valid current input message and the host's current
-runtime/life identity. A Guid fences an existing authenticated life; it does not
-authenticate a caller. Close on death, disconnect, respawn, reload or stop.
+RiderIdentity. Create it on the server main thread and call only inside that
+player's genuine OnPlayerInput callback: these remain caller obligations, not
+facts established by a captured thread ID or matching object references.
+Require the exact callback player and InputState equal to player.serverInput,
+valid current message and current runtime/life identity. A Guid fences an already
+authenticated life; it does not authenticate. Close before death, disconnect,
+respawn, reload or stop. Reentry, identity changes and uncertain publication close.
 
-Capture on the server main thread, with reentry/closure/publication guards. Copy
-held button values immediately and retain no InputState/InputMessage. Refuse
-invalid identities, stale/duplicate host slots and uncertain native observations.
-Generate increasing positive request sequences on the host. Copy produces the
-existing RiderControlRequest; it grants no mode, board, weapon or effect authority.
+Copy held buttons immediately and retain no mutable InputState/InputMessage.
+Refuse stale/duplicate host slots, unknown bits and uncertain native observations.
+Issue positive increasing request sequences only after successful publication.
+RiderControlRequest grants no mode, board, weapon or effect authority.
 
 ## Basic controls and clock boundary
 
-Read held FirePrimary, FireSecondary, Reload and Jump levels, preserving the
-shared RiderControlSession's explicit release gates. Forward maps to Push,
-Backward to Brake and Right-minus-Left to Steer. Spin/flip stay zero in this
-basic reader; native trick controls are a separate unfinished gate.
+Read held FirePrimary, FireSecondary, Reload and Jump, preserving the shared
+session's explicit release gates. Copy raw held levels; if genuine IsDown reports
+any supported button swallowed, refuse the whole sample. Never fabricate a
+release or grant a stock-denied intent. Forward maps to Push, Backward to Brake,
+Right-minus-Left to Steer. Spin/flip stay zero; trick input remains unfinished.
+The callback is received input, not a guaranteed 100Hz clock. The host supplies
+its current slot and owns the exact 10ms clock and freshness policy. Do not
+replay packets, admit backlog, use client clocks/sequences or change missing-input
+release behavior. This reader installs no hook and suppresses no vanilla input.
 
-The callback is received player input, not a guaranteed 100Hz clock. The host
-supplies its current slot and still owns the exact 10ms session clock and freshness
-policy. Never replay one packet as new samples, admit backlog, derive a clock or
-sequence from client data, or silently change missing-input release behavior.
-Reader code does not install a hook or suppress normal Rust input processing.
+## Actual verification and remaining product work
 
-## Verification and remaining product work
-
-Root builds against the genuine current server references. Temporary ignored
-checks may exercise genuine InputState/button decoding and refusal logic. A fake
-player cannot prove authenticated callback capture; that still requires a real
-connected player. Keep observed input decoding distinct from native hook success.
-
-No board/model is selected or created here. Mount, mode observation, rider/board
-movement, camera/animation, trick input, replication, reconciliation, client/model
-delivery and the full two-client #275 flow remain open. ShortcutLoadouts and
-survival/TC behavior remain unchanged; no permanent test or paid change.
+The net48/C#7.3 project builds against 262 genuine current server references:
+0 warnings/errors and all 273 authored source/project/reference hashes unchanged.
+An ignored, separately composed Oxide diagnostic used the exact reader source:
+20 checks passed, 0 failed; all 256 held combinations matched genuine IsDown,
+repeated controls stayed held when genuine WasJustPressed reported no new edge;
+all eight supported swallowed buttons retained raw bits but were absent from effective input. Decoding
+preserved message references/buttons/effective state. Release, unmapped buttons,
+actual enum-mask and static invalid binding refusals also passed.
+Report SHA256: `0fe6a576de57c080eb1cc3daa7f7457cb5d35fcd1e4df85dfb7efda6fe754f63`.
+No native object created; physics settings unchanged; diagnostic unloaded and
+its source removed. No fake player, connected check or authenticated capture.
+Instance slot/sequence/lifecycle success and genuine hook/main-thread provenance
+still require a connected player and the production host; decoding is no playtest.
+Mount/mode, movement, model, camera, tricks, replication, reconciliation and client
+route remain open. Loadout/survival/TC behavior unchanged; no permanent test added.
