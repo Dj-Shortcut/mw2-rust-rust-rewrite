@@ -13,12 +13,12 @@ using UnityEngine;
 [BepInPlugin("claude.loaderprobe", "Loader Probe", "0.2.0")]
 public class ProbePlugin : BasePlugin
 {
-    internal static ManualLogSource L;
+    internal static PLog L = new PLog();
     private static long lo, hi;
 
     public override void Load()
     {
-        L = Log;
+        L.Inner = Log;
         var path = System.IO.Path.Combine(Paths.PluginPath, "steps.txt");
         var steps = System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path).Trim() : "";
         L.LogMessage("PROBE load entered steps=" + steps);
@@ -90,6 +90,15 @@ public class ProbePlugin : BasePlugin
         }
         return r + " methods=" + n;
     }
+}
+
+// Writes every line straight to plugins\\probe.log so a native crash cannot lose it.
+public class PLog
+{
+    public ManualLogSource Inner;
+    private readonly string file = System.IO.Path.Combine(Paths.PluginPath, "probe.log");
+    public void LogMessage(string m) { System.IO.File.AppendAllText(file, m + "\r\n"); if (Inner != null) Inner.LogMessage(m); }
+    public void LogError(string m) { System.IO.File.AppendAllText(file, "ERROR " + m + "\r\n"); if (Inner != null) Inner.LogError(m); }
 }
 
 public class ProbeBehaviour : MonoBehaviour
