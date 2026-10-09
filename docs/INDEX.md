@@ -12,6 +12,7 @@ The inherited run/import guides below document optional upstream modes.
 | [`RUST-SERVER-PLUGIN.md`](RUST-SERVER-PLUGIN.md) | implemented loadout/PvP source, configuration contract and real-server acceptance | installing or changing the Oxide plugin |
 | [`RUST-SERVER-HOSTING.md`](RUST-SERVER-HOSTING.md) | self-managed host capabilities, cost approval and real-host acceptance | choosing an existing PC or a permitted rental |
 | [`RUST-SERVER-LINUX.md`](RUST-SERVER-LINUX.md) | guarded Linux installer, portable plan and real-host control gates | preparing a permitted Linux Rust/Oxide host |
+| [`RUST-INPUT-FRESHNESS.md`](RUST-INPUT-FRESHNESS.md) | bounded held observations, admission fences and actual protocol results | connecting packet callbacks to fixed core ticks |
 | [`RUST-NATIVE-INPUT.md`](RUST-NATIVE-INPUT.md) | genuine held player input, swallowed-control refusal and native decoding evidence | binding callbacks to the shared rider session |
 | [`RUST-RIDER-CONTROLS.md`](RUST-RIDER-CONTROLS.md) | rider identity, input release, candidate and cleanup fences; source contract | coordinating gunplay/skate lifecycle |
 | [`RUST-SKATE-LIVE-RAILS.md`](RUST-SKATE-LIVE-RAILS.md) | live server rail registration, freshness fencing and real-scene results | binding rails to the skate world |

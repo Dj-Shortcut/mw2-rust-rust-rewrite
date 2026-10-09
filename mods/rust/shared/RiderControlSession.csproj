@@ -20,6 +20,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="RiderControlSession.cs" />
+    <Compile Include="RiderInputObservation.cs" />
     <ProjectReference Include="Gunplay.csproj" />
     <ProjectReference Include="SkateMotion.csproj" />
     <Reference Include="$(RustManagedPath)/mscorlib.dll"><Private>false</Private></Reference>
