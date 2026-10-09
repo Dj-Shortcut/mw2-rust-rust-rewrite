@@ -525,11 +525,46 @@ inputs preserved. The first stricter consumer build failed at two ambiguous null
 comparisons. A separately reviewed two-expression correction then compiled with
 12 warnings/0 errors and all 5139 inputs preserved. Both resulting consumers retain
 net6.0, CLR 6.0.7 and disabled runtime roll-forward. These are Mac compiler results;
-current native Windows generation, complete original 191-member validation,
-authored strict rejection controls, strict PE roundtrips and sidecars remain
-pending. Earlier accepted or rejected generation/audit results above retain their
-stated scope. No generated CLR execution, loader approval, installation, game
-launch or owner playtest follows from these builds.
+the subsequent native preparation, observed generation completion and failed
+authored-core run are recorded below. Complete original 191-member validation,
+strict PE roundtrips and sidecars remain pending. Earlier accepted or rejected
+generation/audit results above retain their stated scope. No generated CLR
+execution, loader approval, installation, game launch or owner playtest follows
+from these builds.
+
+## Current Windows preparation and authored-core correction
+
+The current copy-only preparation completed normally on Shadow Windows with
+child and supervisor exit 0, confirmed root exit, drained streams and no timeout,
+kill, cleanup or preservation error. All 229 copied files, 231 measured outputs,
+10993 input checks and 28 inventories were preserved. Root independently read the
+Windows report and archive hashes, returned the actual reports to the Mac and
+authenticated their exact preparation bindings. This accepts preparation only.
+
+The subsequent generation supervisor also visibly completed on Windows with
+exit 0, drained streams and no reported preservation or cleanup error. Its report
+and archive hashes were read independently on Windows. The report ZIP remains on
+Shadow: automatic approval review blocked its temporary return transfer pending
+specific owner consent. Returned-report authentication is therefore pending;
+observed completion does not accept the generated candidate.
+
+The first current authored-core run stopped with native exit 1 before any of its
+27 cases completed. Its unchanged strict consumer was not reached by those cases:
+the independent PE fixture writer failed at the `MethodBodyStreamEncoder`
+four-byte alignment precondition. The actual failure reports and original source
+remain preserved. A separately reviewed one-statement writer correction aligns
+the stream before constructing that encoder; fixture definitions, signatures,
+oracles, strict consumer, runtime guards and case expectations remain unchanged.
+The corrected harness compiled separately on macOS with SDK 8.0.425: all three
+build processes exited 0, 2 warnings/0 errors, 5098 inputs and 5559 SDK inventory
+entries preserved. This is build evidence; its native 27-case retry remains open.
+
+Local checks also parsed the separately reviewed strict/sidecar admission
+wrappers and exercised their isolated admission against the actual Mac strict
+build receipt and rejection controls. These checks do not execute the full
+Windows wrappers. Complete original 191-member validation, authored native core
+acceptance, strict roundtrips, sidecars, native ABI, loader startup/rollback and
+full two-client MW2/skate acceptance remain open. No owner playtest is ready.
 
 ## Remaining acceptance
 
