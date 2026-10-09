@@ -58,7 +58,7 @@ RCON 127.0.0.1:28016/TCP and query 0.0.0.0:28017/UDP.
 The active host firewall denied inbound traffic except SSH, including IPv6.
 The query listener therefore was not claimed to bind loopback.
 `app.port` returned -1 and `app.info` confirmed Rust+ disabled.
-No Shadow/direct-client route was opened or verified.
+No Shadow/direct-client route was opened or verified in that 8 October check.
 
 Private startup used explicit `-insecure`, identity `mod-demo`,
 Procedural Map/seed 12345/size 1500 and four-player limit. Password only in
@@ -83,8 +83,47 @@ Unchanged ShortcutLoadouts 0.1.0 compiled/loaded on this host. Its generated
 default config, permission registration, rejected unknown-field config byte
 preservation, restored original bytes, reload and temporary unload/load
 were checked. See [plugin runtime scope](../../../docs/RUST-SERVER-PLUGIN.md).
-Client joins, player inventory/cooldown/PvP and full MW2/skate acceptance remain
-open. Do not use these server checks as a playtest-ready claim.
+At the 8 October checkpoint, client joins, player inventory/cooldown/PvP and
+full MW2/skate acceptance remained open. The later Shadow join and stopped
+loadout check are recorded below. These server checks do not establish a
+playtest-ready plugin.
+
+## Bounded Shadow route on 9 October 2026
+
+The owner authorized a first existing-host loadout player check. The unchanged
+plugin and configuration were retained while the same world was saved and
+restarted as the existing nonroot account with explicit `-insecure`. Actual
+listeners during the window showed game UDP 28015 on the assigned public IPv4, RCON TCP 28016
+on 127.0.0.1 and query UDP 28017 on that public IPv4. Rust+ remains disabled;
+no additional public TCP or IPv6 listener appeared. The query port is still
+blocked by active default-deny UFW. The launch/status security discrepancy
+remains unresolved; see the [hosting qualification](../../../docs/RUST-SERVER-HOSTING.md#shadow-player-check--9-october-2026).
+The owner later reported spawn and authenticated status confirmed that active
+account; the meaning of the security-status string is still unresolved.
+
+Only UDP 28015 to the assigned server IPv4 was allowed from the currently
+observed Shadow source `/32`. Source stability is unproved, so access is limited
+to this test window. The persistent absolute-time closure timer was confirmed
+active with its future trigger at 03:24:21 UTC on 9 October. Its private
+handler removes the owned rule, attempts a save, stops only the tracked test
+instances and verifies rule/listener removal; overdue execution is caught up
+after boot. Actual manual post-test closure was verified at 03:15:11 UTC:
+the owned rule was removed, the save succeeded and fresh game/RCON/query
+listeners were absent with default inbound denial still active. The owned timer
+was disabled after this readback.
+
+Authenticated console confirmed both plugin grants on the owner's account
+only, no group grants, and retention across this preparation restart. The owner
+reported spawn and authenticated status confirmed the sole active owner account.
+The owner then reported `unknown command` for `/loadout carbine` in T chat.
+Further checks stopped; severe Shadow lag and `timeoutReached` prevented
+independent visual readback, and the cause remains undiagnosed. Loadout delivery,
+cooldown/inventory refusal, permission denial and player/item persistence have
+not passed. Follow the ordered
+[player check record](../../../docs/RUST-SERVER-PLUGIN.md#first-shadow-player-check).
+A join without the loadout checks is not a playtest; two-client PvP and full
+MW2/skate acceptance remain open. No plugin behavior or paid resources changed.
+Private operational scripts, addresses, identifiers and raw logs are not shipped.
 
 ## Source evidence
 
