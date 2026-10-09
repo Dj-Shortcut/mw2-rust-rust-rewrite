@@ -503,7 +503,46 @@ exit/rollback and full two-client MW2/skate acceptance remain pending. The
 preserved partial audit approves no candidate, installation, game launch or
 owner playtest.
 
+## Current Windows capture and client build
+
+On 9 October 2026 (Europe/Brussels), the current Windows preservation capture
+completed with normal child and outer exit 0, drained streams and no timeout,
+kill, cleanup or preservation failure. Root verified 10953 before/final file
+pins, 28 inventories and three early rejection controls against the independently
+hashed returned archive. The complete input union fits the reviewed 16 MiB bound.
+The earlier deadline failure remains rejected; complete historical 1517-hash
+equality remains unproven.
+
+A subsequent bounded export preserved its 11 controls and returned the exact two
+compile-reference DLLs with matching source/destination hashes. Both child and
+outer exited normally 0. Root verified the ten-member archive and retained the
+accepted capture documents unchanged; this export did not rehash all 10953 prior
+Windows inputs. Both temporary transfer routes closed with no cleanup failure.
+
+The current original generation-only consumer compiled on macOS with SDK 8.0.425
+against the exact 33 references: normal exit 0, 8 warnings/0 errors and all 5134
+inputs preserved. The first stricter consumer build failed at two ambiguous null
+comparisons. A separately reviewed two-expression correction then compiled with
+12 warnings/0 errors and all 5139 inputs preserved. Both resulting consumers retain
+net6.0, CLR 6.0.7 and disabled runtime roll-forward. These are Mac compiler results;
+current native Windows generation, complete original 191-member validation,
+authored strict rejection controls, strict PE roundtrips and sidecars remain
+pending. Earlier accepted or rejected generation/audit results above retain their
+stated scope. No generated CLR execution, loader approval, installation, game
+launch or owner playtest follows from these builds.
+
 ## Remaining acceptance
-No compatible full mod is verified. A marker cannot prove weapon/camera/input adapters, board/rider, movement, lifecycle or two-client flow.
-Shadow remains client-only; a permitted controllable testserver is still missing.
-The owner tests after source completion and full verification; choose/rent no host without owner choice and concrete cost approval.
+
+No compatible full mod is verified. A marker or passive metadata audit does not
+prove weapon/camera/input adapters, a visible board and rider, movement,
+lifecycle or two-client play.
+
+Shadow remains client-only. The owner-selected DigitalOcean Linux host has
+verified Rust/Oxide startup, authenticated private control, save/reload and bounded
+ShortcutLoadouts checks. Its game port remains bound to loopback; a reviewed
+remote route and an observed Shadow join are still required. See
+[native server evidence](../mods/rust/server/LINUX.md#native-startup-and-control-evidence).
+
+The owner playtests after source completion and verification of the complete
+MW2/skate flow. Any further rental or paid hosting change requires the owner's
+choice and concrete cost approval.
