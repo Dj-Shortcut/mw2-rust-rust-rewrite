@@ -32,11 +32,13 @@ TTL proves no wall-time limit, native100Hz cadence or correct effect scheduler.
 Only Applied settlement commits retained input. No pending observation is public.
 RejectedNoEffects consumes its tick/sequence but drops continuity; UnknownPartial
 closes. Legacy settlement, expiry, mode/board change and lifecycle clear continuity.
-Check old-snapshot expiry before a new replacement; held input cannot hide a gap.
+A fresh replacement on the first expired slot covers it; TTL1 can accept new input
+each tick. An uncovered expired slot relocks; later held input cannot hide that gap.
 Only genuinely new false controls can clear locks. Without after-transition
 ordering proof, same-transition-slot release cannot unlock the new mode/lease;
 require a later capture/admission slot. Restart discards old-life observations.
-Failed admission cannot refresh input, clock, sequence or expiry.
+Entering from legacy cannot inherit unlocked controls. Wall freshness loss must
+be Unavailable before replacement. Failed admission cannot refresh any boundary.
 
 ## Verification and remaining host work
 
