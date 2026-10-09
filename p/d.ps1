@@ -2,6 +2,9 @@
 $dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"
 $sdk = "$dl\codex-bep788-probe\interop-nested-build-20261007-c5ab5f\source-build\sdk"
 $gen = "$dl\codex-bep788-probe\interop-callee-generated-20261009-007748-v1\generation\generated"
+# Prefer an interop set generated for the installed build, when one exists.
+$pb = ((gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf' | sls '"buildid"').Line -split '"')[3]
+if (Test-Path "$dl\claude-loader-probe\gen-$pb\out\Assembly-CSharp.dll") { $gen = "$dl\claude-loader-probe\gen-$pb\out" }
 $core = "$probe\bep788\BepInEx\core"; $fx = "$probe\bep788\dotnet"
 New-Item -ItemType Directory -Force "$probe\plugin","$probe\src" | Out-Null
 $src = "$probe\src\Probe.cs"

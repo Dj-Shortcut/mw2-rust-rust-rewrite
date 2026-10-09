@@ -15,6 +15,9 @@ $dl = "$HOME\Downloads"
 $probe = "$dl\claude-loader-probe"
 $zip = "$dl\BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.788+5b766a3.zip"
 $gen = "$dl\codex-bep788-probe\interop-callee-generated-20261009-007748-v1\generation\generated"
+# Prefer an interop set generated for the installed build, when one exists.
+$pb = ((gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf' | sls '"buildid"').Line -split '"')[3]
+if (Test-Path "$dl\claude-loader-probe\gen-$pb\out\Assembly-CSharp.dll") { $gen = "$dl\claude-loader-probe\gen-$pb\out" }
 $run = "$probe\run-$ptag-" + (Get-Date -Format 'HHmmss')
 $roots = 'BepInEx','dotnet','winhttp.dll','doorstop_config.ini','.doorstop_version','changelog.txt'
 function say($m) { Write-Host $m }
@@ -33,7 +36,7 @@ try {
   $bx = Join-Path $rust 'BepInEx'
   New-Item -ItemType Directory -Force "$bx\interop","$bx\config","$bx\plugins" | Out-Null
   Copy-Item "$gen\*" "$bx\interop"
-  say ('interop files: ' + (ls "$bx\interop").Count)
+  say ('interop files: ' + (ls "$bx\interop").Count + ' from ' + $gen.Replace($dl,'~'))
   if ($prt) { Copy-Item "$prt\*" "$bx\core" -Force; say ('overlay core: ' + ((ls $prt | % Name) -join ',')) }
   if ($psteps) { Set-Content "$bx\plugins\steps.txt" $psteps }
   if ($pplug) { Copy-Item "$pplug\*" "$bx\plugins" -Force; say ('plugins: ' + ((ls $pplug | % Name) -join ',')) }
