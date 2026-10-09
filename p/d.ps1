@@ -9,7 +9,7 @@ $src = "$probe\src\Probe.cs"
 $refs = @()
 $refs += ls $fx -Filter *.dll | ? { ($_.Name -like 'System*' -or $_.Name -in 'mscorlib.dll','netstandard.dll','Microsoft.CSharp.dll') -and $_.Name -notlike '*.Native.dll' } | % FullName
 $refs += 'BepInEx.Core.dll','BepInEx.Unity.IL2CPP.dll','BepInEx.Unity.Common.dll','Il2CppInterop.Runtime.dll','Il2CppInterop.Common.dll' | % { "$core\$_" }
-$refs += 'UnityEngine.CoreModule.dll','Il2Cppmscorlib.dll' | % { "$gen\$_" }
+$refs += 'UnityEngine.CoreModule.dll','Il2Cppmscorlib.dll','Il2CppSystem.dll','Il2CppSystem.Core.dll' | % { "$gen\$_" }
 $rsp = "$probe\src\probe.rsp"
 (@('-nologo','-target:library','-nostdlib','-optimize+','-nowarn:CS1701,CS1702,CS8632',"-out:`"$probe\plugin\LoaderProbe.dll`"") + ($refs | % { "-r:`"$_`"" }) + "`"$src`"") | Out-File $rsp -Encoding ascii
 $csc = (ls "$sdk\sdk" -Directory | select -First 1).FullName + '\Roslyn\bincore\csc.dll'
@@ -17,3 +17,5 @@ $out = & "$sdk\dotnet.exe" $csc "@$rsp" 2>&1
 "csc exit=$LASTEXITCODE refs=" + $refs.Count
 $out | select -First 25 | % { $s = "$_"; if ($s.Length -gt 260) { $s.Substring(0,260) } else { $s } }
 ls "$probe\plugin" | % { "{0} {1}" -f $_.Name, $_.Length }
+
+if ($LASTEXITCODE -eq 0 -and $pnext) { zz $pnext }
