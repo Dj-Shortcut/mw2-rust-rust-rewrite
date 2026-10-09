@@ -71,11 +71,14 @@ Only the owner's account received `shortcutloadouts.use` and
 `shortcutloadouts.damage`; no other users or groups held either permission.
 Both grants survived this preparation restart. The owner used F1 direct join
 and reported spawning; authenticated status independently confirmed that account
-as the sole active player, with no joining players. The first loadout check
-failed according to the owner: `/loadout carbine` in T chat produced
-`unknown command`. Severe Shadow lag and a screen-control timeout prevented
-independent visual readback. The cause remains undiagnosed; further checks
-stopped and plugin behavior was not changed. See the [ordered results](RUST-SERVER-PLUGIN.md#first-shadow-player-check).
+as the sole active player, with no joining players. The later private recording
+also visually confirms the in-world spawn. It corrects the initially reported
+loadout failure: T chat actually contains `/loudaout carbinew`, followed by
+`Unknown command: loudaout`. That mistyped command did not exercise the requested
+`/loadout carbine`; all five loadout/persistence checks remain unrun. Severe
+Shadow lag was reported and live screen control timed out, but the recording
+was inspected locally. No plugin registration failure is established and no
+plugin behavior changed. See the [ordered results](RUST-SERVER-PLUGIN.md#first-shadow-player-check).
 A join alone is setup evidence, not a completed loadout playtest.
 No new rental, paid backup or paid change was made. The existing Droplet remains
 billable while it exists. Addresses, account identifiers and raw reports stay

@@ -69,19 +69,24 @@ player/item persistence are separate checks below, not inferred from that restar
 
 | Ordered player check | Actual result |
 | --- | --- |
-| Owner Shadow client joins and spawns | Pass: owner reports spawn; authenticated status confirms the owner account as the sole active player and no joining players |
-| `/loadout carbine`: rifle.ak x1 and ammo.rifle x120 | Fail, owner observed: command in T chat produced `unknown command`; delivery was not confirmed |
-| Second request within 60 seconds: English cooldown refusal | Not run: stopped at first reported failure |
-| Full main/belt inventory: English refusal, no original items lost | Not run: stopped at first reported failure |
-| Revoke use permission, observe English denial, then grant again | Not run: stopped at first reported failure |
-| Save, restart same world, rejoin with player and items preserved | Not run: stopped at first reported failure |
+| Owner Shadow client joins and spawns | Pass: owner reports spawn, authenticated status confirms the sole active owner account, and the later private recording shows the in-world spawn |
+| `/loadout carbine`: rifle.ak x1 and ammo.rifle x120 | Not run with the requested command: recording shows `/loudaout carbinew` and `Unknown command: loudaout`; delivery is unverified |
+| Second request within 60 seconds: English cooldown refusal | Not run after stopped, mistyped attempt |
+| Full main/belt inventory: English refusal, no original items lost | Not run after stopped, mistyped attempt |
+| Revoke use permission, observe English denial, then grant again | Not run after stopped, mistyped attempt |
+| Save, restart same world, rejoin with player and items preserved | Not run after stopped, mistyped attempt |
 
-The owner also reported severe Shadow lag. Screen control returned
-`timeoutReached`, so the command context and failure above are owner observations,
-not an independently captured chat/inventory result. The cause has not been
-established. No cooldown, inventory safety, permission denial or player/item
+The owner also reported severe Shadow lag and live screen control returned
+`timeoutReached`. A later owner-supplied recording was inspected locally: at
+about 08:20–08:30 it shows `/loudaout carbinew` in global chat and the exact
+reply `Unknown command: loudaout`. Both the command token and kit text differ
+from `/loadout carbine`. This corrects the initial owner-report failure
+classification: the requested handler/delivery flow was not exercised, and
+this message does not establish a plugin registration or behavior failure.
+No delivery, cooldown, inventory safety, permission denial or player/item
 reload acceptance is claimed. Saving during closure does not prove rejoin
 persistence. Both original grants remain; the revocation check was not reached.
+The recording and extracted frames remain private and are not shipped.
 
 Run these in order and stop at the first observed failure; any behavior fix
 belongs in a separate focused PR. Record the exact failure without public

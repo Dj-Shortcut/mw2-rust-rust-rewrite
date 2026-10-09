@@ -84,8 +84,8 @@ default config, permission registration, rejected unknown-field config byte
 preservation, restored original bytes, reload and temporary unload/load
 were checked. See [plugin runtime scope](../../../docs/RUST-SERVER-PLUGIN.md).
 At the 8 October checkpoint, client joins, player inventory/cooldown/PvP and
-full MW2/skate acceptance remained open. The later Shadow join and stopped
-loadout check are recorded below. These server checks do not establish a
+full MW2/skate acceptance remained open. The later Shadow join and stopped,
+mistyped loadout attempt are recorded below. These server checks do not establish a
 playtest-ready plugin.
 
 ## Bounded Shadow route on 9 October 2026
@@ -115,11 +115,13 @@ was disabled after this readback.
 Authenticated console confirmed both plugin grants on the owner's account
 only, no group grants, and retention across this preparation restart. The owner
 reported spawn and authenticated status confirmed the sole active owner account.
-The owner then reported `unknown command` for `/loadout carbine` in T chat.
-Further checks stopped; severe Shadow lag and `timeoutReached` prevented
-independent visual readback, and the cause remains undiagnosed. Loadout delivery,
-cooldown/inventory refusal, permission denial and player/item persistence have
-not passed. Follow the ordered
+A later private recording also confirms in-world spawn and corrects the reported
+chat failure: the entered command is `/loudaout carbinew` and the reply is
+`Unknown command: loudaout`. The exact requested `/loadout carbine` was not run;
+no plugin registration failure is established. Severe Shadow lag was reported
+and live screen control returned `timeoutReached`; the later recording was
+inspected locally. Delivery, cooldown/inventory refusal, permission denial and
+player/item persistence remain unverified. Follow the ordered
 [player check record](../../../docs/RUST-SERVER-PLUGIN.md#first-shadow-player-check).
 A join without the loadout checks is not a playtest; two-client PvP and full
 MW2/skate acceptance remain open. No plugin behavior or paid resources changed.
