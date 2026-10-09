@@ -127,6 +127,38 @@ A join without the loadout checks is not a playtest; two-client PvP and full
 MW2/skate acceptance remain open. No plugin behavior or paid resources changed.
 Private operational scripts, addresses, identifiers and raw logs are not shipped.
 
+## Return-session operation on 9 October 2026
+
+The owner's later playtest uses the unchanged world, public-game `-insecure`
+launcher and ShortcutLoadouts source/config. The first supplied source address
+was corrected to the sole actually observed inbound game UDP source, removing
+the wrong owned rule before adding the correct `/32`. A transient runtime-limit
+change failed and cleanup stopped that instance. The first closure acknowledged
+the save and verified rule/listener removal; the later timer fired after stop
+and its save returned exit 1, with closure still confirmed. These records do not
+prove persistence of the subsequently issued player items. The same world was
+restarted as the nonroot account with a
+fresh 4,500-second runtime limit, without altering the launcher or plugin.
+
+Actual startup/plugin checks and an independent current readback confirmed only
+public game UDP 28015, public query UDP 28017 blocked externally, loopback RCON
+and its existing internal loopback TCP listener. No unintended Rust listener
+appeared. Only UDP 28015 from the observed source `/32` is allowed; Rust+ stays
+disabled via current `app.port=-1`. A fresh persistent absolute-time timer was
+verified for 15:34:57 UTC on 9 October, before the runtime backstop. Its handler
+removes the owned rule, attempts a save, always stops only the pinned instance,
+and verifies closure; failed closure retries. Scheduled closure is not proof of
+completed closure. The previous return timer is disabled and inactive.
+
+Authenticated status confirms the sole active owner and matching source.
+The owner reports one Assault Rifle and 120 Rifle Ammo after `/loadout carbine`.
+This is owner-reported delivery evidence; cooldown, full-inventory safety,
+permission denial/restoration and save/restart/rejoin of player/items remain
+open in the [ordered record](../../../docs/RUST-SERVER-PLUGIN.md#return-session--9-october-2026).
+Neither a client-crash cause nor Shadow lag resolution is established. Root
+leaves native input to the owner. No behavior or paid-resource change was made;
+private operational sources/reports remain ignored.
+
 ## Source evidence
 
 On macOS arm64/Python3.14.6: source compiles; actual CLI plan and Mac install refusal pass. 82 regression and 93 cgroup/timeout/manifest assertions pass, plus 59 initialization/signal/manifest/group checks using owned IO/processes. Background helpers stop after success/nonzero/signal/timeout exits and unrelated groups survive. Darwin zombie-only signaling denial is a real rejected path; one observation-failure check uses an explicit syscall seam. These checks do not prove native Linux cleanup. These are narrower than native Linux/SteamCMD execution.

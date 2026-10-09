@@ -98,6 +98,42 @@ check. A connection without these loadout checks is not a loadout playtest.
 Two-client PvP remains open and requires a second EAC-disabled player. This
 component check does not establish full MW2 gunplay/skate acceptance.
 
+## Return session — 9 October 2026
+
+After the initial mistyped attempt, the owner requested another check. The
+[return-session route](RUST-SERVER-HOSTING.md#return-session--9-october-2026)
+uses the same unchanged ShortcutLoadouts 0.1.0/default config and owner grants.
+Authenticated status confirms the active owner and matching source address.
+The owner reports the requested AK and 120 Rifle Ammo in inventory; no
+independent client capture was obtained for this delivery.
+
+| Ordered player check | Return-session result |
+| --- | --- |
+| Owner joins and spawns | Pass reported by owner; authenticated status independently confirms the sole active owner account |
+| `/loadout carbine`: rifle.ak x1 and ammo.rifle x120 | Pass reported by owner: one Assault Rifle and 120 Rifle Ammo in inventory |
+| Second request within 60 seconds: English cooldown refusal | Not yet verified; a later `claimed` report without timing does not prove an in-window request |
+| Full main/belt inventory: English refusal, no original items lost | Not run in this session |
+| Revoke use permission, observe English denial, then grant again | Not run in this session |
+| Save, restart same world, rejoin with player and items preserved | Not run after this delivery; preparation restarts do not prove player/item persistence |
+
+The owner earlier reported an unsuccessful correct-command attempt followed by
+a client crash. Its exact response, active connection at that attempt and
+client-crash cause were not independently established. The later confirmed
+delivery does not resolve the earlier crash report. No plugin behavior was
+changed. After the test setup stopped safely during a failed runtime extension,
+the owner explicitly requested continuation; the fresh bounded session above
+records only actual results. The earlier fail-close acknowledged its save, while
+the old timer's later post-stop save returned exit 1. Neither operation saves or
+verifies persistence of the subsequently issued kit. Root stays off the Shadow
+controls.
+
+The remaining ordered checks stay open under #266. The owner redirected work
+to the missing native skateboard and MW2 gunplay under #275; further loadout
+checks are not prerequisites for that implementation and no further component
+playtest is requested now. `/loadout skateboard` is not implemented. Two-client
+PvP still requires a second EAC-disabled player. This delivery alone does not
+establish the full loadout flow or MW2 gunplay/skate acceptance.
+
 ## Verification and delivery gate
 
 Before asking for rental: implement and independently review the source,
