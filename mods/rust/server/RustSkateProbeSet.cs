@@ -234,8 +234,13 @@ namespace Shortcut.RustMod
 
         private static bool ValidOther(Collider other)
         {
-            return other != null && other.enabled && !other.isTrigger && other.gameObject != null &&
-                other.gameObject.activeInHierarchy && other.transform != null;
+            if (other == null || !other.enabled || other.isTrigger || other.transform == null) return false;
+            GameObject gameObject = other.gameObject;
+            if (gameObject == null || !gameObject.activeInHierarchy) return false;
+            Scene scene = gameObject.scene;
+            if (!scene.IsValid() || !scene.isLoaded) return false;
+            PhysicsScene physicsScene = scene.GetPhysicsScene();
+            return physicsScene.IsValid() && physicsScene.Equals(Physics.defaultPhysicsScene);
         }
 
         private static bool TryDestroy(OwnedProbe probe)
