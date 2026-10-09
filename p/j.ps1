@@ -5,7 +5,8 @@ $acf = gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf'
 $md = "$rust\RustClient_Data\il2cpp_data\Metadata\global-metadata.dat"
 foreach ($f in "$rust\GameAssembly.dll", $md, "$rust\UnityPlayer.dll") { $i = gi $f; "{0} {1} {2:yyyy-MM-dd HH:mm} sha={3}" -f $i.Name, $i.Length, $i.LastWriteTime, (Get-FileHash $f).Hash.Substring(0,16) }
 '--- copies under Downloads'
-ls $dl -Recurse -Depth 7 -Include 'global-metadata.dat','GameAssembly.dll' -ErrorAction SilentlyContinue | % { "{0} {1} {2:MM-dd HH:mm} sha={3} {4}" -f $_.Name, $_.Length, $_.LastWriteTime, (Get-FileHash $_.FullName).Hash.Substring(0,16), $_.DirectoryName.Replace($dl,'~') }
+ls $dl -Recurse -Depth 7 -Include 'global-metadata.dat','GameAssembly.dll' -ErrorAction SilentlyContinue | ? { $_.DirectoryName -notmatch 'TestFiles' } | % { "{0} {1} {2:MM-dd HH:mm} sha={3} {4}" -f $_.Name, $_.Length, $_.LastWriteTime, (Get-FileHash $_.FullName).Hash.Substring(0,16), $_.DirectoryName.Replace($dl,'~') }
 '--- generation dir'
 $g = "$dl\codex-bep788-probe\interop-callee-generated-20261009-007748-v1"
-ls $g -Depth 1 | select -First 30 | % { "{0} {1}" -f $_.FullName.Replace($g,'.'), $_.Length }
+gc "$g\generation\summary.json" | % { if ($_.Length -gt 1100) { $_.Substring(0,1100) } else { $_ } }
+gc "$g\generation-child-stdout.txt" | select -First 14 | % { if ($_.Length -gt 300) { $_.Substring(0,300) } else { $_ } }
