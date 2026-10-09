@@ -22,6 +22,8 @@ Native signed GetInstanceID keys map only the host-selected collider to its rail
 A lease permanently expires on observed collider movement, scaling, rotation, centre/size/layer
 change, hierarchy replacement, enable/trigger change, deletion or registry replacement/closure.
 Wrong-thread checks refuse before touching Unity; expiry never becomes current again.
+A reentrant freshness read refuses without expiring a still-valid lease; the outer
+read retains responsibility for observing mutation and registry closure.
 A mutation restored between freshness reads is undetectable; hosts must revoke before mutation.
 RustSkateWorld accepts binding plus an optional lease and requires reference equality.
 Existing constructors retain their immutable-snapshot behavior for compatibility.
@@ -39,6 +41,16 @@ Overlap/Rust Verify, replacement/observed expiry, worker refusal, world freshnes
 and actual deletion of all 230 owned objects. No connected rider or world movement ran.
 One additional disabled-probe ComputePenetration check failed; it is an existing adapter
 precondition gate, not a passing skating result. Its focused diagnosis remains separate.
+A focused review correction separates reentry refusal from permanent registry closure.
+The unchanged old source reproduced valid-lease expiry after private checking-state
+injection (8 checks pass, 1 fails); the corrected source passes all 9 focused checks
+on a genuine owned rail/lease, including actual mutation/restoration/replacement
+and closure. Both owned objects were actually absent after their separate runs;
+settings unchanged and both probes unloaded with their own source removed.
+The current-reference module and composed probe compile with zero warnings/errors.
+This is guard-state injection, not a naturally observed Unity callback reentry.
+Corrected native report SHA256:
+`92b33c4506b810478832b45404995314b58f683b3b24ae3acf85bb7225d38b5b`.
 Temporary probes, real server DLLs, addresses, credentials and raw logs remain ignored.
 No permanent test is added; no rental or paid change is made.
 This is server rail lifecycle work, not a visible skateboard or connected player test.
