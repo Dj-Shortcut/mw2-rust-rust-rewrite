@@ -4,6 +4,8 @@
 #   $prt      directory with replacement core DLLs to overlay (default none)
 #   $pwait    seconds to keep the client alive after chainloader start (default 45)
 #   $pplug    directory with plugin DLLs to install (default none)
+#   $pinject  create plugins\inject.on (class-injection step)
+#   $ppreload PreloadIL2CPPInteropAssemblies (default false)
 $ErrorActionPreference = 'Stop'
 if (-not $ptag) { $ptag = 'A' }
 if ($null -eq $plisten) { $plisten = $false }
@@ -33,8 +35,9 @@ try {
   Copy-Item "$gen\*" "$bx\interop"
   say ('interop files: ' + (ls "$bx\interop").Count)
   if ($prt) { Copy-Item "$prt\*" "$bx\core" -Force; say ('overlay core: ' + ((ls $prt | % Name) -join ',')) }
+  if ($pinject) { Set-Content "$bx\plugins\inject.on" '1' }
   if ($pplug) { Copy-Item "$pplug\*" "$bx\plugins" -Force; say ('plugins: ' + ((ls $pplug | % Name) -join ',')) }
-  $cfg = "[IL2CPP]`r`nUpdateInteropAssemblies = false`r`n`r`n[Logging]`r`nUnityLogListening = " + $plisten.ToString().ToLower() + "`r`n`r`n[Logging.Disk]`r`nLogLevels = All`r`n`r`n[Logging.Console]`r`nEnabled = false`r`n"
+  $cfg = "[IL2CPP]`r`nUpdateInteropAssemblies = false`r`nPreloadIL2CPPInteropAssemblies = " + ([bool]$ppreload).ToString().ToLower() + "`r`n`r`n[Logging]`r`nUnityLogListening = " + $plisten.ToString().ToLower() + "`r`n`r`n[Logging.Disk]`r`nLogLevels = All`r`nInstantFlushing = true`r`n`r`n[Logging.Console]`r`nEnabled = false`r`n"
   [IO.File]::WriteAllText("$bx\config\BepInEx.cfg", $cfg)
   $p = Start-Process -FilePath (Join-Path $rust 'RustClient.exe') -WorkingDirectory $rust -PassThru
   $log = "$bx\LogOutput.log"
@@ -72,6 +75,6 @@ say "run dir: $run"
 if (Test-Path "$run\LogOutput.log") {
   $l = Get-Content "$run\LogOutput.log"
   say ('log lines=' + $l.Count)
-  $l | select -Last 28 | % { if ($_.Length -gt 300) { $_.Substring(0,300) } else { $_ } }
+  $l | ? { $_ -notmatch 'DobbyDetour|NativeDetour' } | select -Last $(if ($ptail) { $ptail } else { 26 }) | % { if ($_.Length -gt 300) { $_.Substring(0,300) } else { $_ } }
 } else { say 'no LogOutput.log' }
 if (Test-Path "$run\ErrorLog.log") { say '--- ErrorLog'; Get-Content "$run\ErrorLog.log" | select -First 12 }
