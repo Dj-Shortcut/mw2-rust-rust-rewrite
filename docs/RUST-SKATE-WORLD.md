@@ -1,7 +1,7 @@
 # Native Rust skate collision queries
 
 Part of [the full mod](RUST-MW2-SKATE.md); [task #285](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/285).
-Status: source and live rail checks exist; disabled penetration probe fails; player movement unverified.
+Status: source, live rail and owned penetration checks exist; connected world movement unverified.
 
 ## Boundary and guards
 
@@ -9,12 +9,18 @@ Status: source and live rail checks exist; disabled penetration probe fails; pla
 The host authenticates the exact connected/alive rider and owns its board/lease/probes.
 Use the captured server main thread after the host physics synchronization boundary.
 Queries never move transforms, synchronize physics or change global physics settings.
+They briefly enable only their owned parked penetration collider and restore it
+before publication; arbitrary AllLayers queries can see that actor at parking.
 Close revokes the world before lifecycle cleanup; reentry/invalid bindings fail closed.
 Use only existing mounted/standing axis-aligned hulls and identity rotation.
 Centre is anchor + CentreOffset; both hulls extend 0.15m below the anchor.
-Probes must be unparented, active, zero-centred, unit-scale and exactly hull-sized.
-Current source requires disabled probes; the real positive-penetration fixture fails.
-Do not use this world for player movement before a focused penetration correction.
+Use [the owned probe factory](RUST-SKATE-PROBES.md) and `WithProbes` on the server
+main thread. Probes remain unparented, active, zero-centred, unit-scale, exactly
+hull-sized and disabled at rest; layer 2 and fixed parking are checked. Targets
+must belong to the valid, loaded default physics scene. Probe freshness is checked
+at query entry and publication. Legacy raw-probe signatures remain source-compatible
+but close/refuse queries; this deliberately changes their earlier runtime behavior.
+Exact zero-depth contact does not establish penetration or block clearance.
 Fixed Rust.Layers.Server.PlayerMovement mask and QueryTriggerInteraction.Ignore apply.
 Ignore only the exact rider/board transforms and descendants, never transform.root.
 Fixed 128-entry buffers reject saturation; inspect every result, not native ordering.
@@ -40,7 +46,12 @@ No native IDs/leases are persistent or client-selected; stock survival/TC remain
 
 Current 262 genuine server references: net48/C#7.3 build, zero warnings/errors.
 Private real Rust scene: 117 rail/guard checks pass; 230 owned objects actually deleted.
-Real BoxCast/Overlap/Rust Verify and signed-hit resolution pass; disabled penetration fails.
+Real BoxCast/Overlap/Rust Verify and signed-hit resolution pass. The original
+disabled-probe failure was reproduced and corrected by #325. Its native suite
+preserves 125 passing checks and one invalid exact-touching expectation; a focused
+follow-up confirms zero-depth contact, positive overlap and separated results.
+Owned probe cleanup observed 43 + 3 objects actually absent; no settings changed.
+Private instrumented throw/reentry checks do not prove native API exceptions.
 Null-player world checks exercise freshness/thread/reentry guards, never player movement.
 Earlier 170 analytical behavior/44 passive linkage checks executed no Unity scene calls.
 Earlier normal-rounding defect was reproduced/corrected; no copied game code is published.

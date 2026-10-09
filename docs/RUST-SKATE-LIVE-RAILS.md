@@ -26,7 +26,9 @@ A reentrant freshness read refuses without expiring a still-valid lease; the out
 read retains responsibility for observing mutation and registry closure.
 A mutation restored between freshness reads is undetectable; hosts must revoke before mutation.
 RustSkateWorld accepts binding plus an optional lease and requires reference equality.
-Existing constructors retain their immutable-snapshot behavior for compatibility.
+At the #323 checkpoint, existing constructors retained their immutable snapshot.
+The [#325 probe migration](RUST-SKATE-PROBES.md) keeps those signatures but makes
+raw-probe queries refuse; use `WithProbes` and the owned factory for native queries.
 A leased world checks freshness before queries and again before publishing results.
 Hosts pass the world's exact Rails to SkateMotion; no stale catalog may advance motion.
 Close the world before intentional rail mutation, then replace registry/world together.
@@ -39,8 +41,10 @@ A private temporary probe executed in the real externally closed Rust scene: 117
 They cover transformed centres, real signed IDs, 64 rails/128-ancestor bounds, native BoxCast/
 Overlap/Rust Verify, replacement/observed expiry, worker refusal, world freshness guards
 and actual deletion of all 230 owned objects. No connected rider or world movement ran.
-One additional disabled-probe ComputePenetration check failed; it is an existing adapter
-precondition gate, not a passing skating result. Its focused diagnosis remains separate.
+At that checkpoint one additional disabled-probe ComputePenetration check failed.
+The separate #325 correction now uses owned parked probes with observed activation
+and restoration. Its real overlap/contact/cleanup results are recorded in the
+[probe guide](RUST-SKATE-PROBES.md); connected collision-driven skating is still unverified.
 A focused review correction separates reentry refusal from permanent registry closure.
 The unchanged old source reproduced valid-lease expiry after private checking-state
 injection (8 checks pass, 1 fails); the corrected source passes all 9 focused checks

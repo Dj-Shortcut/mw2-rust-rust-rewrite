@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Shortcut.RustMod
 {
     // The host creates this binding on the server main thread after synchronizing physics.
-    // The host owns the board and disabled probes, and revokes this binding before cleanup.
+    // The host owns the board and factory-owned parked probes, and revokes before cleanup.
     public sealed class RustSkateWorld : ISkateWorld
     {
         private const int MaximumHierarchyDepth = 128;
@@ -15,6 +15,7 @@ namespace Shortcut.RustMod
         private readonly ulong playerId;
         private readonly BoxCollider mountedProbe;
         private readonly BoxCollider standingProbe;
+        private readonly RustSkateProbeSet probeSet;
         private readonly SkateRailBinding railBinding;
         private readonly IRustSkateRailLease railLease;
         private readonly int serverThread;
@@ -38,6 +39,13 @@ namespace Shortcut.RustMod
         public RustSkateWorld(BasePlayer rider, BaseEntity board, Guid boardLease,
                               BoxCollider mountedProbe, BoxCollider standingProbe,
                               SkateRailBinding railBinding, IRustSkateRailLease railLease)
+            : this(rider, board, boardLease, mountedProbe, standingProbe, railBinding, railLease, null)
+        { }
+
+        private RustSkateWorld(BasePlayer rider, BaseEntity board, Guid boardLease,
+                               BoxCollider mountedProbe, BoxCollider standingProbe,
+                               SkateRailBinding railBinding, IRustSkateRailLease railLease,
+                               RustSkateProbeSet probeSet)
         {
             if (railBinding == null) throw new ArgumentNullException(nameof(railBinding));
             if (railLease != null && !ReferenceEquals(railLease.Binding, railBinding))
@@ -48,9 +56,20 @@ namespace Shortcut.RustMod
             playerId = ReferenceEquals(rider, null) ? 0 : rider.userID;
             this.mountedProbe = mountedProbe;
             this.standingProbe = standingProbe;
+            this.probeSet = probeSet;
             this.railBinding = railBinding;
             this.railLease = railLease;
             serverThread = Thread.CurrentThread.ManagedThreadId;
+        }
+
+        public static RustSkateWorld WithProbes(BasePlayer rider, BaseEntity board, Guid boardLease,
+                                                RustSkateProbeSet probes, SkateRailBinding railBinding,
+                                                IRustSkateRailLease railLease)
+        {
+            if (probes == null) throw new ArgumentNullException(nameof(probes));
+            if (!probes.IsCurrent) throw new ArgumentException("Skate probes are not current.", nameof(probes));
+            return new RustSkateWorld(rider, board, boardLease, probes.Mounted, probes.Standing,
+                                      railBinding, railLease, probes);
         }
 
         public SkateRailSet Rails { get { return railBinding.Rails; } }
@@ -101,7 +120,7 @@ namespace Shortcut.RustMod
                     if (!SkateWorldQuery.TrySelect(query, contacts, count, out result)) return false;
                 }
                 // This is the result publication boundary against concurrent revocation.
-                if (!RailCurrent) return false;
+                if (!RailCurrent || !ProbesCurrent) return false;
                 hit = result;
                 return true;
             }
@@ -120,7 +139,7 @@ namespace Shortcut.RustMod
                 if (!SkateWorldQuery.TryPrepare(position, position, hull, out query) ||
                     !TryBindings(out riderRoot, out boardRoot)) return false;
                 bool blocked;
-                if (!TryOverlap(query, riderRoot, boardRoot, out blocked) || !RailCurrent) return false;
+                if (!TryOverlap(query, riderRoot, boardRoot, out blocked) || !RailCurrent || !ProbesCurrent) return false;
                 clear = !blocked;
                 return true;
             }
@@ -152,6 +171,28 @@ namespace Shortcut.RustMod
             }
         }
 
+        private bool ProbesCurrent
+        {
+            get
+            {
+                if (IsClosed) return false;
+                try
+                {
+                    if (probeSet == null || !probeSet.IsCurrent)
+                    {
+                        Close();
+                        return false;
+                    }
+                }
+                catch (Exception)
+                {
+                    Close();
+                    return false;
+                }
+                return !IsClosed;
+            }
+        }
+
         private bool TryEnter()
         {
             // Check managed guards before touching any Unity object.
@@ -167,7 +208,8 @@ namespace Shortcut.RustMod
             if (!RailCurrent || playerId == 0 || boardLease == Guid.Empty || rider == null || board == null ||
                 rider.IsDestroyed || board.IsDestroyed || rider.userID != playerId || board.OwnerID != playerId ||
                 !rider.IsConnected || !rider.IsAlive()) return false;
-            if (mountedProbe == standingProbe) return false;
+            if (!ProbesCurrent || mountedProbe != probeSet.Mounted ||
+                standingProbe != probeSet.Standing || mountedProbe == standingProbe) return false;
             riderRoot = rider.transform;
             boardRoot = board.transform;
             return riderRoot != null && boardRoot != null &&
@@ -201,7 +243,6 @@ namespace Shortcut.RustMod
             int count = Physics.OverlapBoxNonAlloc(center, ToUnity(query.HalfExtents), overlaps,
                 Quaternion.identity, Rust.Layers.Server.PlayerMovement, QueryTriggerInteraction.Ignore);
             if (count < 0 || count >= overlaps.Length) return false;
-            BoxCollider probe = query.Mounted ? mountedProbe : standingProbe;
             for (int i = 0; i < count; ++i)
             {
                 if (IsClosed) return false;
@@ -220,8 +261,13 @@ namespace Shortcut.RustMod
                 Vector3 direction;
                 float depth;
                 if (IsClosed) return false;
-                bool penetrates = Physics.ComputePenetration(probe, center, Quaternion.identity,
-                    collider, otherPosition, otherRotation, out direction, out depth);
+                bool penetrates;
+                if (!probeSet.TryPenetration(query.Mounted, center, collider, otherPosition, otherRotation,
+                    out penetrates, out direction, out depth))
+                {
+                    Close();
+                    return false;
+                }
                 // Direction and depth are undefined when Unity reports no penetration.
                 if (!penetrates) continue;
                 if (!Finite(depth) || depth < 0 || !NearUnit(direction)) return false;
@@ -230,7 +276,7 @@ namespace Shortcut.RustMod
                     blocked = true;
                 }
             }
-            return !IsClosed;
+            return ProbesCurrent;
         }
 
         private static bool TryCollider(Collider collider, out Transform transform)
