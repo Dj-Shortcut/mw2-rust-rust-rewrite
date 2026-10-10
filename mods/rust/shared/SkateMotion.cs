@@ -111,7 +111,7 @@ namespace Shortcut.RustMod
         public const double MinimumCaptureSpeed = 1.5;
         public const double MinimumGrindingSpeed = 0.8;
         public const double RailRecaptureDelay = 0.25;
-        private const double RailAlignment = 0.9063077870366499;
+        public const double RailAlignment = 0.9063077870366499;
         private static readonly SkateVector Up = new SkateVector(0, 1, 0);
 
         public static bool TryMount(SkateVector position, double yaw, ISkateWorld world, out SkateState state, out string error)
