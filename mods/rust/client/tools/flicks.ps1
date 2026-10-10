@@ -14,7 +14,12 @@ if ($rows.Count -eq 0) { 'the right stick was not moved in the last session'; re
 if ($pshow) {
   $n = [int]$pshow
   if ($n -lt 1 -or $n -gt $rows.Count) { "there are $($rows.Count) movements"; return }
-  $rows[$n - 1]
+  # Indented and a few points to a line, so that a window that hangs over the edge of the screen
+  # hides none of it.
+  $head, $path = $rows[$n - 1] -split ' \| ', 2
+  "   $head"
+  $pts = @("$path" -split ' ' | ? { $_ })
+  for ($k = 0; $k -lt $pts.Count; $k += 8) { '   ' + (($pts[$k..([Math]::Min($k + 7, $pts.Count - 1))]) -join ' ') }
   return
 }
 function zone($x, $y) {
@@ -27,7 +32,7 @@ function zone($x, $y) {
 $out = @(); $kinds = @{}; $i = 0
 foreach ($row in $rows) {
   $i++
-  if ($row -notmatch '^PAD stick (\d+) ms, (.+?) -> (.+?) \|(.*)$') { $out += "$i ?"; continue }
+  if ($row -notmatch '^PAD stick (\d+) ms, (.+?) -> (.+?) \|(.*)$') { $out += "   $i ?"; continue }
   $ms = $Matches[1]; $where = $Matches[2]; $came = $Matches[3]; $path = $Matches[4].Trim()
   $letter = switch -Wildcard ($where) { 'Ground' { 'G' } 'Air' { 'A' } 'Grind' { 'R' } 'Bail' { 'B' } default { 'F' } }
   $kind = "$letter>" + ($came -replace ' pop=.*', '')
@@ -52,10 +57,10 @@ foreach ($row in $rows) {
   }
   if ($last -eq 'B' -or $last -eq 'F') { $shape += "$($pts[$pts.Count - 1][0] - $since)$at" }
   if ($manual -ge 100) { $shape += " m$manual" }
-  $out += ("{0} {1} {2}ms {3} |{4}" -f $i, $letter, $ms, $came, $shape)
+  $out += ("   {0} {1} {2}ms {3} |{4}" -f $i, $letter, $ms, $came, $shape)
 }
 $view = "$HOME\Downloads\claude-loader-probe\view.txt"
-$head = 'movements=' + $rows.Count + ': ' + (($kinds.Keys | sort | % { $_ + ' ' + $kinds[$_] }) -join ', ')
+$head = '   movements=' + $rows.Count + ': ' + (($kinds.Keys | sort | % { $_ + ' ' + $kinds[$_] }) -join ', ')
 (@($head) + $out) | Out-File $view -Encoding utf8
 $global:pfile = $view; $global:poff = 0
 zz more
