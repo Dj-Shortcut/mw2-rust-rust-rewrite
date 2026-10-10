@@ -3,9 +3,10 @@
 // latched until a physics step has seen them: the game steps physics at 32 Hz and draws frames
 // more often. Nothing is read while the cursor is free (console, chat, inventory), so typing never
 // rides.
-// With a controller the layout is that of the skate. games: left stick steers, right stick is the
-// board (SkateFlick), A and X push, B brakes, Y gets on and off, a trigger grabs. Steam's layout
-// keeps sending its keys for the same buttons, so while the controller rides the keys do not.
+// With a controller the layout is that of the skate. games: left stick steers and turns the rider
+// in the air, right stick is the board (SkateFlick), A and X push, B brakes, Y gets on and off, a
+// trigger grabs and the right stick picks the grab. Steam's layout keeps sending its keys for the
+// same buttons, so while the controller rides the keys do not.
 using System;
 using Shortcut.RustMod;
 using UnityEngine;
@@ -14,21 +15,32 @@ using UnityEngine.InputSystem.Controls;
 
 public static class SkateKeys
 {
-    public const float PadRest = 0.5f, SteerDead = 0.18f, Straight = 0.35f, StickPush = 0.75f, SpinFrom = 0.5f, LeastPop = 0.7f;
+    public const float PadRest = 0.5f, SteerDead = 0.18f, Straight = 0.35f, StickPush = 0.75f, SpinFrom = 0.5f, LeastPop = 0.7f, GrabStick = 0.6f;
     public static bool Scripted;
-    public static bool Push, Brake, Left, Right, Crouch, Jump, Manual;
-    public static bool JumpPressed, FlipUp, FlipDown, LeftPressed, RightPressed;
+    public static bool Push, Brake, Left, Right, Crouch, Jump, Manual, NoseManual;
+    // What a physics step has not seen yet. A pop comes with what the board does in it: whole flips
+    // (a kickflip is +1) and degrees of shove under the feet (frontside is +). LateFlip is flips
+    // asked for in the air. SpinPressed: the turn was asked for afresh, not held from before.
+    public static bool JumpPressed, SpinPressed;
+    public static SkatePopKind PopKind = SkatePopKind.Ollie;
+    public static int PopFlip, LateFlip;
+    public static float PopShove, PopScale = 1f;
     public static bool JumpTap, ToggleTap, CameraTap, CrouchTap;
     public static float LookYaw;
     // Pad: the controller rides, not the keyboard. Analog: Steer is a rate, not a direction to turn to.
     public static bool Pad, Analog, Charging;
-    public static float Steer, Charge, PopScale = 1f;
-    private static bool wasPush, wasBrake, wasLeft, wasRight, wasJump, wasCrouch, wasToggle, wasCamera, wasPadLeft, wasPadRight;
+    public static float Steer, Charge;
+    // Held in the air: the rider's turn, +1 to his right as the stick or the keys say, and the grab.
+    public static float Spin;
+    public static SkateGrabKind Grab;
+    private static bool wasPush, wasBrake, wasLeft, wasRight, wasJump, wasCrouch, wasToggle, wasCamera;
+    private static float wasSpin;
     private static bool crouchKeys = true, cameraKey = true, manualKey = true, taps = true, cursorKnown = true, failed;
 
     public static void Reset()
     {
-        Push = Brake = Left = Right = Crouch = Jump = Manual = Analog = Charging = false; Steer = Charge = 0f; PopScale = 1f;
+        Push = Brake = Left = Right = Crouch = Jump = Manual = NoseManual = Analog = Charging = false; Steer = Charge = Spin = wasSpin = 0f; PopScale = 1f;
+        Grab = SkateGrabKind.None; PopKind = SkatePopKind.Ollie;
         EndStep(); JumpTap = ToggleTap = CameraTap = CrouchTap = false;
     }
 
@@ -45,8 +57,8 @@ public static class SkateKeys
             var kb = Keyboard.current;
             if (kb == null || CursorFree())
             {
-                Push = Brake = Left = Right = Crouch = Jump = Manual = Charging = false; Steer = Charge = 0f;
-                wasPush = wasBrake = wasLeft = wasRight = wasJump = wasCrouch = wasToggle = wasCamera = wasPadLeft = wasPadRight = false; EndStep(); SkatePad.TakeFlick();
+                Push = Brake = Left = Right = Crouch = Jump = Manual = NoseManual = Charging = false; Steer = Charge = Spin = wasSpin = 0f; Grab = SkateGrabKind.None;
+                wasPush = wasBrake = wasLeft = wasRight = wasJump = wasCrouch = wasToggle = wasCamera = false; EndStep(); SkatePad.DropPops();
                 return;
             }
             bool push = Down(kb.wKey), brake = Down(kb.sKey), left = Down(kb.aKey), right = Down(kb.dKey);
@@ -91,36 +103,56 @@ public static class SkateKeys
                 Push = (SkatePad.Buttons & (SkatePad.A | SkatePad.X)) != 0 || (straight && y > StickPush);
                 Brake = (SkatePad.Buttons & SkatePad.B) != 0 || (straight && y < -StickPush);
                 Left = x < -SpinFrom; Right = x > SpinFrom;
-                if (Left && !wasPadLeft) LeftPressed = true;
-                if (Right && !wasPadRight) RightPressed = true;
-                wasPadLeft = Left; wasPadRight = Right;
-                Crouch = SkatePad.LeftTrigger > SkatePad.Pulled || SkatePad.RightTrigger > SkatePad.Pulled;
-                Manual = SkatePad.Manual; Jump = false;
+                Spin = Left ? -1f : Right ? 1f : 0f;
+                bool lt = SkatePad.LeftTrigger > SkatePad.Pulled, rt = SkatePad.RightTrigger > SkatePad.Pulled;
+                Crouch = lt || rt;
+                Grab = GrabOf(lt, rt, SkatePad.RightX, SkatePad.RightY, SkateRide.On && SkateRide.TailFirst);
+                Manual = SkatePad.Manual; NoseManual = SkatePad.NoseManual; Jump = false;
                 Charging = SkatePad.Charging; Charge = SkatePad.Charge;
-                var flick = SkatePad.TakeFlick();
-                if ((flick & (SkateFlickEvents.Ollie | SkateFlickEvents.Nollie)) != 0) { JumpPressed = true; PopScale = LeastPop + (1f - LeastPop) * SkatePad.Pop; }
-                if ((flick & SkateFlickEvents.Kickflip) != 0) FlipUp = true;
-                if ((flick & SkateFlickEvents.Heelflip) != 0) FlipDown = true;
+                SkatePop pop;
+                while (SkatePad.TakePop(out pop))
+                {
+                    var flips = (int)Math.Round(pop.FlipTurns);
+                    if (pop.Kind == SkatePopKind.None) LateFlip += flips;
+                    else { JumpPressed = true; PopKind = pop.Kind; PopFlip = flips; PopShove = (float)pop.ShoveDegrees; PopScale = LeastPop + (1f - LeastPop) * (float)pop.Strength; }
+                }
             }
             else
             {
-                SkatePad.TakeFlick();
-                Analog = Charging = false; Charge = 0f; wasPadLeft = wasPadRight = false;
+                SkatePad.DropPops();
+                Analog = Charging = false; Charge = 0f; NoseManual = false;
                 Steer = (left ? -1f : 0f) + (right ? 1f : 0f);
-                if (push && !wasPush) FlipUp = true;
-                if (brake && !wasBrake) FlipDown = true;
-                if (left && !wasLeft) LeftPressed = true;
-                if (right && !wasRight) RightPressed = true;
-                if (jump && !wasJump) { JumpPressed = true; PopScale = 1f; }
+                Spin = Steer;
+                if (push && !wasPush) LateFlip++;
+                if (brake && !wasBrake) LateFlip--;
+                if (jump && !wasJump) { JumpPressed = true; PopKind = SkatePopKind.Ollie; PopFlip = 0; PopShove = 0f; PopScale = 1f; }
                 if (crouch && !wasCrouch) CrouchTap = true;
                 Push = push; Brake = brake; Left = left; Right = right; Jump = jump; Crouch = crouch; Manual = manual;
+                Grab = crouch ? SkateGrabKind.Legacy : SkateGrabKind.None;
             }
+            if (Spin != 0f && Spin != wasSpin) SpinPressed = true;
+            wasSpin = Spin;
             wasPush = push; wasBrake = brake; wasLeft = left; wasRight = right; wasJump = jump; wasCrouch = crouch; wasToggle = toggle; wasCamera = camera;
         }
         catch (Exception e) { failed = true; Reset(); Out.Say("INPUT key read threw " + e.GetType().Name + ": " + e.Message); }
     }
 
-    public static void EndStep() { JumpPressed = FlipUp = FlipDown = LeftPressed = RightPressed = false; }
+    public static void EndStep() { JumpPressed = SpinPressed = false; PopFlip = LateFlip = 0; PopShove = 0f; }
+
+    // Which grab the triggers and the right stick ask for. The triggers alone give the three plain
+    // grabs; with the stick held up, down or to a side they give the others. The stick's sides are
+    // the rider's own: mirrored when he rides tail first.
+    public static SkateGrabKind GrabOf(bool lt, bool rt, float x, float y, bool mirrored)
+    {
+        if (!lt && !rt) return SkateGrabKind.None;
+        if (mirrored) x = -x;
+        float ax = Math.Abs(x), ay = Math.Abs(y);
+        var up = y > GrabStick && ay >= ax; var down = y < -GrabStick && ay >= ax;
+        var left = x < -GrabStick && ax > ay; var right = x > GrabStick && ax > ay;
+        if (lt && rt) return up ? SkateGrabKind.Nosebone : down ? SkateGrabKind.Tailbone : SkateGrabKind.Double;
+        if (rt) return up ? SkateGrabKind.Seatbelt : down ? SkateGrabKind.Nose : left ? SkateGrabKind.Melon : right ? SkateGrabKind.Method : SkateGrabKind.Backside;
+        return up ? SkateGrabKind.Tail : down ? SkateGrabKind.Crail : right ? SkateGrabKind.Stalefish : SkateGrabKind.Frontside;
+    }
 
     // A tap can begin and end between two frames; the key's state alone never shows such a tap.
     public static bool Down(KeyControl key)

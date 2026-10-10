@@ -25,7 +25,8 @@ public static class SkatePadLog
     private static long startUs, lastUs, restUs;
     private static int points, paths;
     private static SkateFlickEvents got;
-    private static float pop;
+    private static float pop, shove;
+    private static int flip;
     private static string during = "";
 
     public static void Stick(long us, float x, float y)
@@ -36,7 +37,7 @@ public static class SkatePadLog
         if (!open)
         {
             if (far < Begin * Begin || paths >= MostPaths) return;
-            open = true; startUs = us; text.Length = 0; points = 0; got = SkateFlickEvents.None; pop = 0f; manual = false;
+            open = true; startUs = us; text.Length = 0; points = 0; got = SkateFlickEvents.None; pop = shove = 0f; flip = 0; manual = false;
             during = SkateRide.On ? SkateRide.Mode.ToString() : "on foot";
         }
         lastUs = us;
@@ -44,16 +45,22 @@ public static class SkatePadLog
         if (points < MostPoints) { points++; text.Append(' ').Append((us - startUs) / 1000).Append(':').Append((int)Math.Round(x * 100f)).Append(',').Append((int)Math.Round(y * 100f)); }
     }
 
-    public static void Fired(SkateFlickEvents events, float strength) { if (open) { got |= events; pop = strength; } }
+    public static void Fired(SkateFlickEvents events, SkatePop asked)
+    {
+        if (!open) return;
+        got |= events; flip += (int)Math.Round(asked.FlipTurns);
+        if (asked.Kind != SkatePopKind.None) { pop = (float)asked.Strength; shove = (float)asked.ShoveDegrees; }
+    }
 
     // By the reader's clock: a movement is over when the stick has been back in the middle for a moment.
     public static void Clock(long us)
     {
         if (!open) return;
-        if (SkatePad.Manual) manual = true;
+        if (SkatePad.Manual || SkatePad.NoseManual) manual = true;
         if (away || us - restUs < StillUs) return;
         open = false; paths++;
-        var came = got == SkateFlickEvents.None ? (manual ? "manual" : "nothing") : got + (manual ? ", manual" : "") + (pop > 0f ? " pop=" + pop.ToString("F2") : "");
+        // The numbers after the names: how strong the pop was, whole flips (a kickflip is +1), degrees of shove (frontside is +).
+        var came = got == SkateFlickEvents.None ? (manual ? "manual" : "nothing") : got + (manual ? ", manual" : "") + " pop=" + pop.ToString("F2") + " flip=" + flip + " shove=" + shove.ToString("F0");
         Say("stick " + ((lastUs - startUs) / 1000) + " ms, " + during + " -> " + came + " |" + text);
     }
 

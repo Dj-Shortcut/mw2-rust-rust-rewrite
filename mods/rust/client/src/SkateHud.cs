@@ -240,7 +240,7 @@ public static class SkateHud
         s.Speed = Math.Abs(SkateRide.Speed); s.Cap = SkateRide.Cap;
         s.Score = t.TotalPoints; s.Base = t.ComboBasePoints; s.Count = t.ComboCount;
         s.Window = (float)(t.RollingSeconds / SkateTricks.ComboRollingTimeout);
-        s.Live = SkateRide.Mode == RideMode.Grind ? "GRIND" : t.Manualing ? "MANUAL" : "";
+        s.Live = SkateRide.Mode == RideMode.Grind ? "GRIND" : !t.Manualing ? "" : t.NoseManualing ? "NOSE MANUAL" : "MANUAL";
         s.LiveSeconds = SkateRide.Mode == RideMode.Grind ? (float)t.GrindSeconds : (float)t.ManualSeconds;
         s.LivePoints = (long)Math.Round(s.LiveSeconds * SkateTricks.ManualPointsPerSecond);
         return s;
@@ -323,7 +323,7 @@ public static class SkateHud
         if (live)
         {
             if (line.Count > first) row.Append(AccentTag).Append("  +  ").Append(End);
-            row.Append(v.Live == "GRIND" ? "Grind " : "Manual ").Append(v.LiveSeconds.ToString("F1")).Append(" s");
+            row.Append(v.Live == "GRIND" ? "Grind " : v.Live == "NOSE MANUAL" ? "Nose Manual " : "Manual ").Append(v.LiveSeconds.ToString("F1")).Append(" s");
         }
         var basePoints = v.Base + (live ? v.LivePoints : 0);
         // The newest trick makes the row jump: a little larger for a moment.
@@ -377,8 +377,8 @@ public static class SkateHud
         Box(x - 12f * k, y - 8f * k, Math.Min(w - 80f * k, 1240f * k), 72f * k, Fade(Dark, 0.5f));
         if (v.Pad)
         {
-            Text(x, y, w - 80f * k, Key("LEFT STICK") + " steer, spin in the air   " + Key("A / X") + " push   " + Key("B") + " brake   " + Key("LT / RT") + " grab   " + Key("Y") + " get off   " + Key("R3") + " camera", size, Ink, 0, 1f);
-            Text(x, y + 28f * k, w - 80f * k, Key("RIGHT STICK") + "  back, then flick forward: ollie   flick to a diagonal: kickflip / heelflip   part way back: manual", size, Ink, 0, 1f);
+            Text(x, y, w - 80f * k, Key("LEFT STICK") + " steer, hold to spin in the air   " + Key("A / X") + " push   " + Key("B") + " brake   " + Key("LT / RT") + " grab, with the right stick: other grabs   " + Key("Y") + " get off   " + Key("R3") + " camera", size, Ink, 0, 1f);
+            Text(x, y + 28f * k, w - 80f * k, Key("RIGHT STICK") + "  back, then flick forward: ollie   to a diagonal: kickflip / heelflip   rolled round to a side: shove-it   part way back or forward: manual", size, Ink, 0, 1f);
         }
         else
         {

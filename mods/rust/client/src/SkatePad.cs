@@ -3,6 +3,8 @@
 // controller's own state in a named block of memory: a header and a ring of the last state
 // changes, each with the reader's clock. The right stick goes through the flick module change by
 // change, with the time it spent where it was, so a flick between two frames is not lost.
+// While a trigger is pulled in the air the right stick belongs to the grab: the flick module is
+// told that it rests, or picking a grab would also flip the board.
 using System;
 using System.IO.MemoryMappedFiles;
 using Shortcut.RustMod;
@@ -21,10 +23,12 @@ public static class SkatePad
     public static bool Shared;
     public static int Buttons;
     public static float LeftX, LeftY, RightX, RightY, LeftTrigger, RightTrigger, TouchedAt = -99f;
-    // What the right stick has asked for since the ride last took it.
-    public static SkateFlickEvents Flicked;
-    public static float Pop, Charge;
-    public static bool Charging, Manual;
+    // What the right stick has asked for since the ride last took it: a pop with what the board does
+    // in it, a flip added in the air.
+    private static readonly SkatePop[] popped = new SkatePop[4];
+    private static int poppedCount;
+    public static float Charge;
+    public static bool Charging, Manual, NoseManual;
     public static int Slot = -1, Flicks;
 
     private static MemoryMappedFile map;
@@ -92,7 +96,7 @@ public static class SkatePad
     private static void Lost()
     {
         Shared = false; Buttons = 0; LeftX = LeftY = RightX = RightY = LeftTrigger = RightTrigger = 0f;
-        Flicked = SkateFlickEvents.None; Charging = Manual = false; Charge = 0f; pressed = 0; flick = default(SkateFlickState);
+        poppedCount = 0; Charging = Manual = NoseManual = false; Charge = 0f; pressed = 0; flick = default(SkateFlickState);
     }
 
     private static void Take(int at, float now, bool edges)
@@ -122,22 +126,38 @@ public static class SkatePad
         clock = us;
         if (seconds <= 0) return;
         if (seconds > MostCatchUp) seconds = MostCatchUp;
-        var input = new SkateFlickInput(SkateRide.Clamp(RightX, -1f, 1f), SkateRide.Clamp(RightY, -1f, 1f), SkateRide.Mode == RideMode.Air, SkateRide.On && SkateRide.TailFirst);
+        var air = SkateRide.Mode == RideMode.Air;
+        var grabbing = air && (LeftTrigger > Pulled || RightTrigger > Pulled);
+        var input = new SkateFlickInput(grabbing ? 0f : SkateRide.Clamp(RightX, -1f, 1f), grabbing ? 0f : SkateRide.Clamp(RightY, -1f, 1f), air, SkateRide.On && SkateRide.TailFirst);
         while (seconds > 0.000001)
         {
             var dt = seconds > 0.01 ? 0.01 : seconds; seconds -= dt;
             SkateFlickResult r; string error;
             if (!SkateFlick.TryStep(flick, input, dt, out r, out error)) { flick = default(SkateFlickState); return; }
             flick = r.State;
-            if (r.Events != SkateFlickEvents.None) { Flicked |= r.Events; Pop = (float)r.Pop; Flicks++; SkatePadLog.Fired(r.Events, Pop); }
-            Charging = r.Charging; Charge = (float)r.Charge; Manual = r.Manual || r.NoseManual;
+            if (r.Events != SkateFlickEvents.None)
+            {
+                if (poppedCount < popped.Length) popped[poppedCount++] = r.Composition;
+                Flicks++; SkatePadLog.Fired(r.Events, r.Composition);
+            }
+            Charging = r.Charging; Charge = (float)r.Charge; Manual = r.Manual; NoseManual = r.NoseManual;
         }
     }
 
     // Buttons that went down since the last call.
     public static int Pressed() { var p = pressed; pressed = 0; return p; }
 
-    public static SkateFlickEvents TakeFlick() { var f = Flicked; Flicked = SkateFlickEvents.None; return f; }
+    // The oldest thing the right stick asked for that the ride has not taken yet.
+    public static bool TakePop(out SkatePop pop)
+    {
+        pop = default(SkatePop);
+        if (poppedCount == 0) return false;
+        pop = popped[0]; poppedCount--;
+        for (var i = 0; i < poppedCount; i++) popped[i] = popped[i + 1];
+        return true;
+    }
+
+    public static void DropPops() { poppedCount = 0; }
 
     // A scripted check plays a controller without one: the same states, on a clock of its own.
     public static void Feed(long us, int buttons, float lt, float rt, float lx, float ly, float rx, float ry, float now)

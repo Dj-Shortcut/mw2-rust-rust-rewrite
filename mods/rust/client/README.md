@@ -1,9 +1,10 @@
 # Rust PC skate client
 
 A plugin for the existing Rust PC client that puts the local player on a skateboard: pushing,
-braking and carving, rolling on slopes, ollies, kickflips and heelflips, half spins that end in
-switch stance, grabs, manuals, grinding along edges, bails, a score with combos, a rider pose on
-the game's own player model, a view from behind, sounds and a score display. It is ridden with a
+braking and carving, rolling on slopes, ollies and nollies, flips, shove-its and their
+combinations, spins that end in switch stance, named grabs, manuals and nose manuals, grinding
+along edges, bails, a score with combos, a rider pose on the game's own player model, a view from
+behind, sounds and a score display. It is ridden with a
 controller, laid out as in the skate. games, or with keys. It belongs to
 [#337](https://github.com/Dj-Shortcut/mw2-rust-skate-rewrite/issues/337) and the
 [complete flow](../../../docs/RUST-MW2-SKATE.md); the calculations it shares with the server
@@ -34,15 +35,41 @@ game; see [The controller](#the-controller).
 | Control | On the ground | In the air |
 | --- | --- | --- |
 | `Y` | Get on; again gets off. | |
-| Left stick | Steer, by how far it is pushed. Far and straight forward or back: push or brake. | Held more than half way to a side: frontside or backside 180 |
+| Left stick | Steer, by how far it is pushed. Far and straight forward or back: push or brake. | Held more than half way to a side: the rider turns that way for as long as it is held. |
 | `A` or `X` | Push | |
 | `B` | Brake | |
-| Right stick | Held back and flicked forward: ollie, stronger the longer it was held, up to 0.3 s. Flicked to a forward diagonal instead: ollie with a kickflip (to the rider's heel side) or a heelflip. Kept part of the way back for 0.2 s: manual. | Flicked to a side or a forward diagonal: a flip, kickflip to the heel side. Pulled back: set for the pop after the landing. |
-| `LT` or `RT` | | Held: grab |
+| Right stick | The board: see below. Kept part of the way back or forward for 0.2 s: manual or nose manual. | Flicked to a side or a forward diagonal: a flip. Pulled back: set for the pop after the landing. |
+| `LT`, `RT` | | Held: grab; with the right stick held, another grab. |
 | Right stick click | View from behind or the game's first person | |
 
-The rider's heel side is the stick's left; riding switch it is the stick's right. The steering
-turns the board at a rate; the view does not steer it.
+The right stick pops the board, and how it moves says what the board does in the jump. The sides
+are those of a regular rider going nose first, whose heels are on the stick's left; riding tail
+first they are the other way round.
+
+| Right stick | Trick |
+| --- | --- |
+| Held back, flicked forward | Ollie, stronger the longer it was held, up to 0.3 s |
+| Held forward, flicked back | Nollie |
+| Held back, flicked to the forward left or right | Kickflip, heelflip |
+| Held back, rolled a quarter round the rim to the left or right | Pop shove-it, frontside pop shove-it |
+| Held back, rolled half way round | 360 shove-it |
+| Held at the back right or back left, flicked straight across to the opposite front | Varial kickflip, varial heelflip |
+| From the right or left rolled round to the back, then flicked to the opposite front | 360 flip, laser flip |
+| Held back, rolled a little to the left or right, flicked straight forward | Hardflip, inward heelflip |
+
+A turn of the rider goes on for as long as the left stick is held and the next half turn can
+still be reached before the ground; let go, the rider is brought round to the nearest half turn.
+A turn with a shove the same way is a bigspin. Each rotation is only started when the jump lasts
+long enough to finish it.
+
+| Trigger | Right stick | Grab |
+| --- | --- | --- |
+| `RT` | at rest, up, down, left, right | Backside, seatbelt, nose, melon, method |
+| `LT` | at rest, up, down, right | Frontside, tail, crail, stalefish |
+| both | at rest, up, down | Double, nosebone, tailbone |
+
+While a trigger is held in the air the right stick picks the grab and does not flip the board.
+The steering turns the board at a rate; the view does not steer it.
 
 ### Keys
 
@@ -51,15 +78,16 @@ turns the board at a rate; the view does not steer it.
 | `K`, or `Space` twice quickly | Get on. `K` again gets off. | |
 | `W` | Push | Tap: kickflip |
 | `S` | Brake | Tap: heelflip |
-| `A` / `D` | Carve | Frontside / backside 180 |
+| `A` / `D` | Carve | Held: the rider turns to the left / right |
 | Mouse | The board turns toward the view | |
 | `Space` | Ollie; on a grind, ollie off | |
 | `Shift` | Held while rolling: manual | |
 | `Ctrl` or `C` | Held for a moment: get off | Held: grab |
 | `L` | View from behind or the game's first person | |
 
-Coming down over an edge while moving along it starts a grind. A trick only starts when the jump
-lasts long enough to finish it. Tricks score when landed, grinds and manuals by the second; tricks
+Coming down over an edge while moving along it starts a grind. A turn is called frontside when it
+brings the rider's chest round to the way he travels: to the left going nose first, to the right
+going tail first. Tricks score when landed, grinds and manuals by the second; tricks
 in a row multiply, and the combo is banked after a moment of plain rolling. Coming down faster than 12 m/s, or with a
 rotation unfinished, is a bail: the combo is lost and the rider steps off. Water, death, a seat or
 a vehicle also end the ride. Nothing is read from keyboard or controller while the cursor is free

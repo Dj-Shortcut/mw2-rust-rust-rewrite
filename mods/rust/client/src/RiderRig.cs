@@ -379,7 +379,7 @@ public static class RiderRig
             var now = Time.realtimeSinceStartup;
             var mode = SkateRide.Mode;
             // In a jump the legs fold by as much as the board has come up, so the body keeps its line.
-            var inAir = SkateRide.Grab ? 0.95f : SkateRide.Jumped ? 0.2f + SkateBoard.Pop / (float)SkatePose.CrouchDrop : 0.45f;
+            var inAir = SkateRide.Grabbing ? 0.95f : SkateRide.Jumped ? 0.2f + SkateBoard.Pop / (float)SkatePose.CrouchDrop : 0.45f;
             var want = mode == RideMode.Air ? inAir : mode == RideMode.Grind ? 0.38f : SkateRide.Braking ? 0.4f : 0.18f;
             // A right stick held back is the rider gathering for the pop.
             if (SkateKeys.Charging && mode == RideMode.Ground) want = Math.Max(want, 0.3f + 0.3f * SkateKeys.Charge);
@@ -387,13 +387,13 @@ public static class RiderRig
             if (mode == RideMode.Ground && since < 0.35f) want += (1f - since / 0.35f) * SkateRide.Clamp(SkateRide.LandImpact / 8f, 0.2f, 1f) * 0.45f;
             Crouch += (SkateRide.Clamp(want, 0f, 1f) - Crouch) * SkateRide.Clamp(frameSeconds * 14f, 0f, 1f);
             // The board's rise is eased already; the legs follow it at once, or the body would bob.
-            if (mode == RideMode.Air && SkateRide.Jumped && !SkateRide.Grab && Crouch < want) Crouch = want;
+            if (mode == RideMode.Air && SkateRide.Jumped && !SkateRide.Grabbing && Crouch < want) Crouch = want;
             // The module leans toward the board's own right; the ride leans toward the right of travel.
             var lean = SkateRide.Clamp(SkateRide.Trick.Switch ? -SkateRide.Lean : SkateRide.Lean, -(float)SkatePose.MaximumLean, (float)SkatePose.MaximumLean);
             var speed = Math.Min((float)SkateMotion.MaximumGroundSpeed, Math.Abs(SkateRide.Speed));
             var input = new SkateRiderInput(new SkateVector(plane.x, plane.y, plane.z), new SkateVector(fx, fy, fz), new SkateVector(ux, uy, uz), SkateStance.Regular, SkateRide.TailFirst,
                 speed, lean, Crouch, mode == RideMode.Air, mode == RideMode.Ground && SkateRide.PushPhase > 0f, SkateRide.Clamp(SkateRide.PushPhase, 0f, 1f),
-                SkateRide.FlipDeg, SkateRide.Grab, mode == RideMode.Bail, SkateKeys.LookYaw % 360f, SkatePose.FootLift - AnkleHeight,
+                SkateRide.FlipDeg, mode == RideMode.Air ? SkateRide.Grab : SkateGrabKind.None, mode == RideMode.Bail, SkateKeys.LookYaw % 360f, SkatePose.FootLift - AnkleHeight,
                 DeckTop, mode == RideMode.Bail ? SkateRide.Clamp((now - SkateRide.ModeAt) / SkateRide.BailSeconds, 0f, 1f) : 0f);
             SkateRiderPose pose; string error;
             if (!SkateRider.TryCreate(Rig, input, out pose, out error))

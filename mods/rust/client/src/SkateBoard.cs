@@ -27,16 +27,17 @@ public static class SkateBoard
     public static Vector3 Contact(Transform playerT) { return playerT.position + Vector3.up * (ShowLift + Pop); }
 
     // A manual lifts the end that leads: the board, and the rider's footing with it, pitches about
-    // the ground under the trailing axle.
+    // the ground under the trailing axle. A nose manual (Tip below zero) lifts the end that trails,
+    // about the leading axle.
     public static void Tilt(ref Vector3 at, ref Vector3 up)
     {
-        if (Tip < 0.001f) return;
+        if (Math.Abs(Tip) < 0.001f) return;
         var lead = SkateRide.Dir(SkateRide.Yaw);
         lead = lead - up * Vector3.Dot(lead, up);
         if (lead.sqrMagnitude < 0.0001f) return;
         lead = SkateRide.Speed >= 0f ? lead.normalized : -lead.normalized;
         var turn = SkateRide.Turn(Tip * TipDegrees, Vector3.Cross(lead, up));
-        var pivot = at - lead * Axle;
+        var pivot = at - lead * (Tip > 0f ? Axle : -Axle);
         at = pivot + turn * (at - pivot);
         up = turn * up;
     }
@@ -61,7 +62,8 @@ public static class SkateBoard
         travel = travel.sqrMagnitude > 0.0001f ? travel.normalized : SkateRide.Dir(SkateRide.Yaw);
         // The lean rolls the board about its direction of travel, right side down in a right turn.
         var up = SkateRide.Turn(-SkateRide.Lean, travel) * n;
-        var nose = SkateRide.Dir(SkateRide.NoseYaw);
+        // The board's own nose: the rider's stance, and what the board has turned under his feet.
+        var nose = SkateRide.Dir(SkateRide.DeckYaw);
         nose = nose - up * Vector3.Dot(nose, up);
         nose = nose.sqrMagnitude > 0.0001f ? nose.normalized : travel;
         var flip = (float)SkateRide.FlipDeg; var askew = 0f;
