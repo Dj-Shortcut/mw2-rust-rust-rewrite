@@ -44,8 +44,7 @@ lasts long enough to finish it. Tricks score when landed, grinds and manuals by 
 in a row multiply, and the combo is banked after a moment of plain rolling. Coming down faster than 12 m/s, or with a
 rotation unfinished, is a bail: the combo is lost and the rider steps off. Water, death, a seat or
 a vehicle also end the ride. Nothing is read from the keyboard while the cursor is free (console,
-chat, inventory). The board cannot be got on in the first eight seconds after waking; the text on
-screen offers `K` from then on.
+chat, inventory).
 
 ## Sources
 
@@ -60,7 +59,7 @@ that commit and must match the hash; that is for shared code that is ahead on an
 | `SkateKeys.cs` | Keys. |
 | `SkateRide.cs` | Ground, air, grind and bail movement; calls the shared trick module. |
 | `SkateGrind.cs` | Samples the ground around the rider and asks the shared edge module for an edge. |
-| `SkateBoard.cs` | The board and where it sits. |
+| `SkateBoard.cs` | The board, what it is drawn with and where it sits. |
 | `RiderRig.cs` | Writes the shared rider pose onto the player model's skeleton; what is drawn in which view. |
 | `SkateCamera.cs` | View from behind. |
 | `SkateHud.cs`, `SkateSfx.cs` | Text and sounds. |
@@ -97,10 +96,15 @@ change with a Rust update:
 - The local player's full body is set to cast shadows only, and a second set of meshes whose names
   start with `leg-` is what first person shows. The view from behind swaps the two.
 - Only the main camera carries the game's image effects, so the view from behind moves it.
+- `Rust/Standard` is the game's lit shader and can be found by name. A mesh the plugin makes and
+  draws with it takes the world's light and casts a shadow; its colours come from a texture
+  (`_MainTex`), its gloss from `_Glossiness`. `Hidden/Internal-Colored` draws vertex colours without
+  light and is what the board falls back to.
 - A controller is not visible to the plugin as a gamepad; keys are read from the Input System.
-- A ride that starts within a few seconds of waking is put back several times during its first two
-  seconds, also at walking pace; one that starts later is not. The cause is not known, so the
-  client holds off getting on.
+- In the scripted checks, where nothing touches mouse or keyboard, the first ride after waking is
+  put back several times during its first two to three seconds, also at walking pace and also
+  when it starts eight seconds after waking. Checks whose first movement came forty seconds or
+  more after waking were not put back, nor was a second ride. The cause is not known.
 - Engine methods the game never calls can be missing from the client and throw when called.
 
 ## Playing it: the owner's launcher
@@ -122,5 +126,7 @@ installed. After a Rust update it refuses to start and says so, until the mod ha
 the two desktop files and the folder `Downloads\claude-loader-probe`.
 
 On the server, [`ShortcutSkate`](../plugins/SKATE.md) accepts the rider's speed and supplies a
-practice area. Without it the server puts a rider back who goes faster than a player on foot; the
-client then holds a lower top speed.
+practice area. Without it the server allows a rider the pace of a player who walks, about
+10 km/h and a little more downhill, and puts a faster one back. The client finds that limit from
+being put back, holds it, tries a little more now and then, and shows it on screen as
+`server limit`.

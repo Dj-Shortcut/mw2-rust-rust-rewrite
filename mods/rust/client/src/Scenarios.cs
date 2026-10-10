@@ -26,7 +26,7 @@ public static class Scenarios
         if (done) return;
         if (startAt < 0f)
         {
-            if (!SkateRig.Settled) return;
+            if (now - SkateRig.AwakeAt < 4f) return;
             startAt = now; yaw0 = SkateCamera.LookYaw;
             SkateKeys.Scripted = true; SkateKeys.Reset(); SkateKeys.LookYaw = yaw0;
             Say(Name + " begins, view yaw=" + yaw0.ToString("F0") + " at " + Out.V1(SkateRig.LocalT.position));
@@ -71,12 +71,28 @@ public static class Scenarios
         if (phase == 9) Finish();
     }
 
-    private static readonly string[] poseLabels = {
-        "stance, seen from the rider's front", "stance, seen along the board from behind", "stance, seen from the rider's back", "stance, seen along the board from ahead", "stance, seen from above",
-        "push, foot on the ground", "push, seen from behind", "air, half a kickflip", "air, quarter flip with a grab", "air with a grab, seen from behind", "bail", "switch stance", "grind",
-        "manual", "manual, seen from behind", "first person", "moving, pushing off", "moving, turning round", "finish" };
-    private static readonly float[] poseBearing = { 90f, 180f, 270f, 0f, 90f, 90f, 180f, 120f, 90f, 180f, 90f, 90f, 90f, 90f, 180f, 90f, 115f, 115f, 90f };
-    private const int PosePush = 6, PoseFlip = 8, PoseGrab = 9, PoseBail = 11, PoseSwitch = 12, PoseGrind = 13, PoseManual = 14, PoseFirst = 16, PoseMove = 17, PoseTurn = 18, PoseEnd = 19;
+    private struct View
+    {
+        public readonly string Label, State; public readonly float Bearing, Value;
+        public View(string label, float bearing, string state, float value) { Label = label; Bearing = bearing; State = state; Value = value; }
+    }
+
+    // Value is the point in the push for a push view, the board's flip in degrees for a flip view
+    // and the part of the bail that has passed for a bail view.
+    private static readonly View[] views = {
+        new View("stance, seen from the rider's front", 90f, "stance", 0f), new View("stance, seen along the board from behind", 180f, "stance", 0f),
+        new View("stance, seen from the rider's back", 270f, "stance", 0f), new View("stance, seen along the board from ahead", 0f, "stance", 0f),
+        new View("stance, seen from above", 90f, "above", 0f),
+        new View("push, foot coming down", 90f, "push", 0.2f), new View("push, foot on the ground", 90f, "push", 0.45f),
+        new View("push, foot on the ground, seen from behind", 180f, "push", 0.45f), new View("push, foot leaving the ground", 90f, "push", 0.7f),
+        new View("air, half a kickflip", 120f, "flip", 180f), new View("air, quarter flip", 90f, "flip", 90f),
+        new View("air with a grab", 90f, "grab", 0f), new View("air with a grab, seen from behind", 180f, "grab", 0f),
+        new View("bail, a moment in", 90f, "bail", 0.15f), new View("bail, halfway", 90f, "bail", 0.5f),
+        new View("switch stance", 90f, "switch", 0f), new View("grind", 90f, "grind", 0f),
+        new View("manual", 90f, "manual", 0f), new View("manual, seen from behind", 180f, "manual", 0f),
+        new View("first person", 90f, "first", 0f),
+        new View("moving, pushing off", 115f, "move", 0f), new View("moving, turning round", 115f, "turn", 0f),
+        new View("finish", 90f, "end", 0f) };
     private static float stepAt;
     private static bool keyWas;
 
@@ -85,28 +101,33 @@ public static class Scenarios
         var advance = phase == 0;
         try { var kb = Keyboard.current; var k = kb != null && SkateKeys.Down(kb.kKey); if (k && !keyWas) advance = true; keyWas = k; }
         catch (Exception) { }
-        if (now - stepAt > (phase >= PoseMove ? 7f : 45f)) advance = true;
-        // The moving phases hold walking pace, which the server accepts without its skate plugin.
-        if (phase >= PoseMove) SkateKeys.Push = SkateRide.Speed < 2.4f;
-        if (phase == PoseBail) SkateRide.ModeAt = now - 0.3f;
+        var state = phase == 0 ? "" : views[phase - 1].State;
+        var moving = state == "move" || state == "turn";
+        if (now - stepAt > (moving ? 7f : 45f)) advance = true;
+        // The moving views hold walking pace, which the server accepts without its skate plugin.
+        if (moving) SkateKeys.Push = SkateRide.Speed < 2.4f;
+        if (state == "bail") SkateRide.ModeAt = now - views[phase - 1].Value * SkateRide.BailSeconds;
         if (!advance) return;
         stepAt = now;
-        Enter(phase + 1, poseLabels[phase] + (phase + 1 < PoseMove ? "   (K: next)" : ""));
+        var v = views[phase];
+        var still = v.State != "move" && v.State != "turn" && v.State != "end";
+        Enter(phase + 1, v.Label + (still ? "   (K: next)" : ""));
         if (phase == 1) { SkateRig.MountNow(yaw0); SkateRide.Frozen = true; }
-        if (phase == PoseEnd) { Finish(); return; }
-        SkateCamera.Fixed = phase != PoseFirst; SkateCamera.Chase = phase != PoseFirst;
-        SkateCamera.Bearing = poseBearing[phase - 1];
-        SkateCamera.FixedHeight = phase == 5 ? 2.9f : 1.15f; SkateCamera.FixedDistance = phase == 5 ? 1.6f : 2.7f;
-        var air = phase == PoseFlip || phase == PoseGrab || phase == PoseGrab + 1;
-        SkateRide.Mode = air ? RideMode.Air : phase == PoseBail ? RideMode.Bail : phase == PoseGrind ? RideMode.Grind : RideMode.Ground;
-        SkateRide.PushPhase = phase == PosePush || phase == PosePush + 1 ? 0.45f : 0f;
-        SkateRide.FlipDeg = phase == PoseFlip ? 180 : air ? 90 : 0;
-        SkateRide.Grab = phase == PoseGrab || phase == PoseGrab + 1;
-        SkateRide.Manual = phase == PoseManual || phase == PoseManual + 1;
+        if (v.State == "end") { Finish(); return; }
+        SkateCamera.Fixed = v.State != "first"; SkateCamera.Chase = v.State != "first";
+        SkateCamera.Bearing = v.Bearing;
+        SkateCamera.FixedHeight = v.State == "above" ? 2.9f : 1.15f; SkateCamera.FixedDistance = v.State == "above" ? 1.6f : 2.7f;
+        var air = v.State == "flip" || v.State == "grab";
+        SkateRide.Mode = air ? RideMode.Air : v.State == "bail" ? RideMode.Bail : v.State == "grind" ? RideMode.Grind : RideMode.Ground;
+        SkateRide.PushPhase = v.State == "push" ? v.Value : 0f;
+        SkateRide.FlipDeg = v.State == "flip" ? (int)v.Value : 0;
+        SkateRide.Grab = v.State == "grab";
+        SkateRide.Manual = v.State == "manual";
         SkateBoard.ShowLift = air ? 0.7f : 0f;
-        SkateRide.Trick = new SkateTrickState(phase == PoseSwitch);
-        if (phase == PoseMove) { SkateRide.Frozen = false; SkateRide.Mode = RideMode.Ground; }
-        if (phase == PoseTurn) SkateKeys.LookYaw = yaw0 + 180f;
+        SkateRide.Trick = new SkateTrickState(v.State == "switch");
+        if (v.State == "bail") SkateRide.ModeAt = now - v.Value * SkateRide.BailSeconds;
+        if (v.State == "move") { SkateRide.Frozen = false; SkateRide.Mode = RideMode.Ground; }
+        if (v.State == "turn") SkateKeys.LookYaw = yaw0 + 180f;
     }
 
     private static readonly float[] trickAt = { 3f, 6f, 8.9f, 9f, 9.4f, 11f, 14f, 16.9f, 17f, 17.5f, 20f, 20.12f, 23f, 23.45f, 24.6f, 26.2f, 28f, 30.5f };

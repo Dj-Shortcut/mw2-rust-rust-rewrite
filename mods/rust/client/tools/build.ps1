@@ -1,6 +1,9 @@
 # Compile the skate client plugin with the staged SDK's compiler. The sources are those listed in
 # mods/rust/client/sources.txt at the head of the branch in $pref, or at the commit in $pcommit.
 $dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"
+# $pnext is used once, also by a build that stops early: a later build on its own must not start
+# the session that an earlier attempt asked for.
+$next = $pnext; $global:pnext = $null
 $sdk = "$probe\sdk"
 if (-not (Test-Path "$sdk\dotnet.exe")) { Write-Host 'ABORT: no SDK in the staging folder; run zz setup first'; return }
 # The interop set must have been generated for the installed Steam build. A set from another build
@@ -47,6 +50,4 @@ $out | select -First 25 | % { $s = "$_"; if ($s.Length -gt 260) { $s.Substring(0
 ls "$probe\plugin" | % { "{0} {1}" -f $_.Name, $_.Length }
 
 if ($LASTEXITCODE -eq 0) { $global:pbuilt = $head }
-# $pnext is used once: a later build on its own must not start a session.
-$next = $pnext; $global:pnext = $null
 if ($LASTEXITCODE -eq 0 -and $next) { zz $next }

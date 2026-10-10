@@ -1,11 +1,17 @@
-// Hidden/Internal-Colored is the shader that draws plugin-made objects in this client.
-// The mesh setters can be missing from a client build; primitives are the fallback.
+// Rust/Standard is the game's own lit shader: a plugin-made mesh drawn with it takes the world's
+// light, casts a shadow and goes dark at night. It reads colours from a texture, not from the
+// vertices. Hidden/Internal-Colored draws vertex colours without light and is the fallback.
+// The mesh setters can be missing from a client build; primitives are the fallback for those.
 using System;
+using Il2CppInterop.Runtime;
 using UnityEngine;
 
 public static class SkateBoard
 {
     public const float TipDegrees = 15f, Axle = 0.23f;
+    public const string LitShader = "Rust/Standard", PlainShader = "Hidden/Internal-Colored";
+    public const float Gloss = 0.2f;
+    public static string Drawn = "";
     public static float ShowLift, Tip;
     private static void Say(string m) { Out.Say("SKATE " + m); }
 
@@ -75,9 +81,13 @@ public static class SkateBoard
         var mesh = new Mesh();
         mesh.vertices = verts; mesh.normals = norms; mesh.colors = cols; mesh.triangles = data.Triangles;
         mesh.RecalculateBounds();
-        var sh = Shader.Find("Hidden/Internal-Colored");
-        if (sh == null) throw new InvalidOperationException("no vertex-colour shader");
-        var mat = new Material(sh); mat.color = Color.white;
+        var mat = Lit(mesh, cols);
+        if (mat == null)
+        {
+            var sh = Shader.Find(PlainShader);
+            if (sh == null) throw new InvalidOperationException("no vertex-colour shader");
+            mat = new Material(sh); mat.color = Color.white; Drawn = PlainShader;
+        }
         var root = new GameObject("skate_board");
         root.AddComponent<MeshFilter>().sharedMesh = mesh;
         root.AddComponent<MeshRenderer>().material = mat;
@@ -85,10 +95,66 @@ public static class SkateBoard
         return root;
     }
 
+    private static Shader Find(string name, out string how)
+    {
+        how = "by name";
+        var sh = Shader.Find(name);
+        if (sh != null) return sh;
+        // A shader that came with an asset bundle is loaded without being findable by name.
+        how = "among the loaded shaders";
+        var all = Resources.FindObjectsOfTypeAll(Il2CppType.Of<Shader>());
+        for (var i = 0; i < all.Length; i++)
+        {
+            var one = all[i] == null ? null : all[i].TryCast<Shader>();
+            if (one != null && one.name == name) return one;
+        }
+        return null;
+    }
+
+    // One block of texels per vertex colour; every vertex looks its own colour up.
+    private static Material Lit(Mesh mesh, Color[] cols)
+    {
+        try
+        {
+            string how;
+            var sh = Find(LitShader, out how);
+            if (sh == null) { Say("no " + LitShader + " shader in this client; the board is drawn without light"); return null; }
+            var unique = new System.Collections.Generic.List<Color>(); var index = new int[cols.Length];
+            for (var i = 0; i < cols.Length; i++)
+            {
+                var c = cols[i]; var found = -1;
+                for (var u = 0; u < unique.Count && found < 0; u++)
+                    if (Math.Abs(unique[u].r - c.r) + Math.Abs(unique[u].g - c.g) + Math.Abs(unique[u].b - c.b) < 0.002f) found = u;
+                if (found < 0) { found = unique.Count; unique.Add(c); }
+                index[i] = found;
+            }
+            const int cell = 4;
+            var across = 1; while (across * across < unique.Count) across++;
+            var tex = new Texture2D(cell * across, cell * across);
+            for (var u = 0; u < across * across; u++)
+            {
+                var c = u < unique.Count ? unique[u] : Color.white;
+                for (var y = 0; y < cell; y++) for (var x = 0; x < cell; x++) tex.SetPixel((u % across) * cell + x, (u / across) * cell + y, c);
+            }
+            tex.filterMode = FilterMode.Point;
+            tex.Apply();
+            var uv = new Vector2[cols.Length];
+            for (var i = 0; i < uv.Length; i++) uv[i] = new Vector2(((index[i] % across) + 0.5f) / across, ((index[i] / across) + 0.5f) / across);
+            mesh.uv = uv;
+            var m = new Material(sh);
+            m.mainTexture = tex; m.color = Color.white;
+            m.SetFloat("_Glossiness", Gloss); m.SetFloat("_Metallic", 0f);
+            Drawn = LitShader;
+            Say("BOARD lit by " + LitShader + " (found " + how + "), " + unique.Count + " colours");
+            return m;
+        }
+        catch (Exception e) { Say("lit board unavailable (" + e.GetType().Name + ": " + e.Message + "); it is drawn without light"); return null; }
+    }
+
     private static GameObject FromPrimitives()
     {
         var root = new GameObject("skate_board");
-        var sh = Shader.Find("Hidden/Internal-Colored");
+        var sh = Shader.Find(PlainShader); Drawn = PlainShader + ", primitives";
         var grip = new Color(0.07f, 0.07f, 0.08f); var kick = new Color(0.16f, 0.16f, 0.18f); var under = new Color(1f, 0.1f, 0.6f);
         var metal = new Color(0.55f, 0.57f, 0.6f); var wheel = new Color(0.95f, 0.93f, 0.85f);
         Part(root, PrimitiveType.Cube, new Vector3(0f, 0.078f, 0f), new Vector3(0.20f, 0.010f, 0.60f), Quaternion.identity, grip, sh);

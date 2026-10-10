@@ -21,11 +21,7 @@ public class SkateRig : MonoBehaviour
     public static PlayerWalkMovement Walk;
     public static float AwakeAt = -1f;
     public static bool Ready { get { return Body != null && AwakeAt > 0f; } }
-    // A ride that starts in the first seconds after waking is put back again and again for about two
-    // seconds, also at walking pace; one that starts later is not. Why is not known.
-    public const float WakeGuard = 8f;
-    public static bool Settled { get { return Ready && Time.realtimeSinceStartup - AwakeAt >= WakeGuard; } }
-    public static bool CanMount { get { return Settled && late != null && Walk != null && Walk.enabled && !SkateRide.On && Time.realtimeSinceStartup - offAt > 0.7f; } }
+    public static bool CanMount { get { return Ready && late != null && Walk != null && Walk.enabled && !SkateRide.On && Time.realtimeSinceStartup - offAt > 0.7f; } }
 
     private static GameObject board;
     private static LateDriver late;
@@ -41,7 +37,6 @@ public class SkateRig : MonoBehaviour
     {
         var now = Time.realtimeSinceStartup;
         SkateKeys.Poll();
-        SkatePad.Poll(now);
         if (SkateRide.On)
         {
             // The game switches its walk component off when something else moves the player (a seat, a vehicle).
@@ -100,6 +95,7 @@ public class SkateRig : MonoBehaviour
         {
             Say("the player or its movement object is gone; looking again");
             SkateRide.Dismount("the movement object is gone"); RiderRig.Unbind();
+            if (Local == null) SkateRide.ForgetServer();
             // The old driver is queued behind the old walk component, not the next one.
             if (late != null) { UnityEngine.Object.Destroy(late); late = null; }
             Local = null; LocalT = null; Walk = null; Body = null; AwakeAt = -1f; standTicks = 0; tracking = lateAdded = false; lateFailures = 0;
