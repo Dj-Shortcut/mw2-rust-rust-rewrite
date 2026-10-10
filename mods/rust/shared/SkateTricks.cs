@@ -5,24 +5,47 @@ namespace Shortcut.RustMod
     [Flags]
     public enum SkateTrickEvents { None = 0, Landed = 1, Bailed = 2, GrindEnded = 4, ComboBanked = 8, ManualEnded = 16 }
 
+    public enum SkateGrabKind
+    {
+        None = 0, Legacy = 1, Backside = 2, Frontside = 3, Double = 4, Tail = 5, Nose = 6,
+        Stalefish = 7, Crail = 8, Seatbelt = 9, Melon = 10, Method = 11, Nosebone = 12, Tailbone = 13
+    }
+
     public struct SkateTrickInput
     {
-        public readonly double Spin, Flip, ImpactSpeed, RollingSpeed;
-        public readonly bool Grab, Airborne, Grinding, Manual;
+        public readonly double Spin, Flip, Shove, ImpactSpeed, RollingSpeed;
+        public readonly bool Grab, Airborne, Grinding, Manual, NoseManual;
+        public readonly SkateGrabKind GrabKind;
+        public readonly SkatePopKind PopKind;
+        internal readonly bool LegacyNaming;
         public SkateTrickInput(double spin, double flip, bool grab, bool airborne, bool grinding, double impactSpeed)
             : this(spin, flip, grab, airborne, grinding, impactSpeed, false, 0) { }
         public SkateTrickInput(double spin, double flip, bool grab, bool airborne, bool grinding,
                                double impactSpeed, bool manual, double rollingSpeed)
-        { Spin = spin; Flip = flip; Grab = grab; Airborne = airborne; Grinding = grinding;
-          ImpactSpeed = impactSpeed; Manual = manual; RollingSpeed = rollingSpeed; }
+            : this(spin, flip, 0, grab ? SkateGrabKind.Legacy : SkateGrabKind.None, airborne, grinding,
+                impactSpeed, manual, false, rollingSpeed, SkatePopKind.Ollie, true) { }
+        public SkateTrickInput(double spin, double flip, double shove, SkateGrabKind grabKind, bool airborne,
+                               bool grinding, double impactSpeed, bool manual, bool noseManual,
+                               double rollingSpeed, SkatePopKind popKind)
+            : this(spin, flip, shove, grabKind, airborne, grinding, impactSpeed, manual, noseManual,
+                rollingSpeed, popKind, false) { }
+        private SkateTrickInput(double spin, double flip, double shove, SkateGrabKind grabKind, bool airborne,
+                                bool grinding, double impactSpeed, bool manual, bool noseManual,
+                                double rollingSpeed, SkatePopKind popKind, bool legacyNaming)
+        { Spin = spin; Flip = flip; Shove = shove; GrabKind = grabKind; Grab = grabKind != SkateGrabKind.None;
+          Airborne = airborne; Grinding = grinding; ImpactSpeed = impactSpeed; Manual = manual;
+          NoseManual = noseManual; RollingSpeed = rollingSpeed; PopKind = popKind; LegacyNaming = legacyNaming; }
     }
 
     public struct SkateTrickState
     {
-        public readonly double Spin, Flip, GrindSeconds, RollingSeconds, ManualSeconds;
-        public readonly bool Airborne, Grinding, Grabbed, Switch, Manualing;
+        public readonly double Spin, Flip, Shove, GrindSeconds, RollingSeconds, ManualSeconds;
+        public readonly bool Airborne, Grinding, Grabbed, Switch, Manualing, NoseManualing;
+        public readonly SkatePopKind PopKind;
+        public readonly SkateGrabKind GrabKind;
         public readonly long ComboBasePoints, TotalPoints;
         public readonly int ComboCount;
+        internal readonly bool LegacyNaming;
         public SkateTrickState(bool ridingSwitch) : this(0, 0, 0, 0, false, false, false, ridingSwitch, 0, 0, 0) { }
         internal SkateTrickState(double spin, double flip, double grind, double rolling, bool air, bool grinding,
                                  bool grab, bool ridingSwitch, long combo, long total, int count)
@@ -30,27 +53,40 @@ namespace Shortcut.RustMod
         internal SkateTrickState(double spin, double flip, double grind, double rolling, bool air, bool grinding,
                                  bool grab, bool ridingSwitch, long combo, long total, int count,
                                  double manualSeconds, bool manualing)
-        { Spin = spin; Flip = flip; GrindSeconds = grind; RollingSeconds = rolling; Airborne = air;
-          Grinding = grinding; Grabbed = grab; Switch = ridingSwitch; ComboBasePoints = combo;
-          TotalPoints = total; ComboCount = count; ManualSeconds = manualSeconds; Manualing = manualing; }
+            : this(spin, flip, 0, grind, rolling, air, grinding, grab ? SkateGrabKind.Legacy : SkateGrabKind.None,
+                ridingSwitch, combo, total, count, manualSeconds, manualing, false,
+                air ? SkatePopKind.Ollie : SkatePopKind.None, true) { }
+        internal SkateTrickState(double spin, double flip, double shove, double grind, double rolling,
+                                 bool air, bool grinding, SkateGrabKind grabKind, bool ridingSwitch,
+                                 long combo, long total, int count, double manualSeconds, bool manualing,
+                                 bool noseManualing, SkatePopKind popKind, bool legacyNaming)
+        { Spin = spin; Flip = flip; Shove = shove; GrindSeconds = grind; RollingSeconds = rolling;
+          Airborne = air; Grinding = grinding; GrabKind = grabKind; Grabbed = grabKind != SkateGrabKind.None;
+          Switch = ridingSwitch; ComboBasePoints = combo; TotalPoints = total; ComboCount = count;
+          ManualSeconds = manualSeconds; Manualing = manualing; NoseManualing = noseManualing;
+          PopKind = popKind; LegacyNaming = legacyNaming; }
     }
 
     public struct SkateTrickResult
     {
         public readonly SkateTrickState State;
-        public readonly double BoardSpin, BoardFlip, GrindSeconds, ManualSeconds;
+        public readonly double BoardSpin, BoardFlip, BoardShove, GrindSeconds, ManualSeconds;
         public readonly SkateTrickEvents Events;
         public readonly string TrickName;
         public readonly long Points, ComboPoints, BankedPoints;
         public bool Switch { get { return State.Switch; } }
         public bool Manualing { get { return State.Manualing; } }
+        public bool NoseManualing { get { return State.NoseManualing; } }
         public long TotalPoints { get { return State.TotalPoints; } }
         internal SkateTrickResult(SkateTrickState state, double spin, double flip, double grind, SkateTrickEvents events,
                                   string name, long points, long banked)
             : this(state, spin, flip, grind, state.ManualSeconds, events, name, points, banked) { }
         internal SkateTrickResult(SkateTrickState state, double spin, double flip, double grind, double manualSeconds,
                                   SkateTrickEvents events, string name, long points, long banked)
-        { State = state; BoardSpin = spin; BoardFlip = flip; GrindSeconds = grind;
+            : this(state, spin, flip, state.Shove, grind, manualSeconds, events, name, points, banked) { }
+        internal SkateTrickResult(SkateTrickState state, double spin, double flip, double shove, double grind,
+                                  double manualSeconds, SkateTrickEvents events, string name, long points, long banked)
+        { State = state; BoardSpin = spin; BoardFlip = flip; BoardShove = shove; GrindSeconds = grind;
           ManualSeconds = manualSeconds; Events = events; TrickName = name; Points = points;
           ComboPoints = SkateTricks.LiveComboValue(state); BankedPoints = banked; }
     }
@@ -59,6 +95,7 @@ namespace Shortcut.RustMod
     {
         public const double FlipTolerance = 25;
         public const double SpinTolerance = 25;
+        public const double ShoveTolerance = 25;
         public const double ComboRollingTimeout = 1.5;
         public const int MaximumMultiplier = 16;
         public const double MinimumManualSpeed = 0.01;
@@ -77,6 +114,12 @@ namespace Shortcut.RustMod
             "Frontside 360 Grab", "Frontside 360 Kickflip Grab", "Frontside 360 Heelflip Grab", "Frontside 360 Double Kickflip Grab", "Frontside 360 Double Heelflip Grab",
             "Backside 360 Grab", "Backside 360 Kickflip Grab", "Backside 360 Heelflip Grab", "Backside 360 Double Kickflip Grab", "Backside 360 Double Heelflip Grab"
         };
+        private static readonly string[] GrabSuffixes = {
+            "", " Grab", " Backside Grab", " Frontside Grab", " Double Grab", " Tail Grab", " Nose Grab",
+            " Stalefish", " Crail", " Seatbelt", " Melon", " Method", " Nosebone", " Tailbone"
+        };
+        private static readonly string[] ComposedNames = BuildNames();
+        private static readonly string[] FallbackNames = BuildFallbackNames();
 
         public static bool TryStep(SkateTrickState state, SkateTrickInput input, double dt,
                                    out SkateTrickResult result, out string error)
@@ -87,32 +130,47 @@ namespace Shortcut.RustMod
         {
             result = new SkateTrickResult(state, state.Spin, state.Flip, state.GrindSeconds, SkateTrickEvents.None, null, 0, 0);
             error = null;
-            if (!Valid(state) || !Axis(input.Spin) || !Axis(input.Flip) || !Finite(input.ImpactSpeed) || input.ImpactSpeed < 0 ||
-                input.ImpactSpeed > 100000 || !Finite(input.RollingSpeed) || input.RollingSpeed < 0 || input.RollingSpeed > 100000 ||
-                (input.Airborne && input.Grinding) || !Finite(dt) || dt <= 0 || dt > SkateMotion.MaximumStep ||
+            if (!Valid(state) || !Axis(input.Spin) || !Axis(input.Flip) || !Axis(input.Shove) ||
+                !GrabKindValid(input.GrabKind) || !PopKindValid(input.PopKind) || input.Grab != (input.GrabKind != SkateGrabKind.None) ||
+                !Finite(input.ImpactSpeed) || input.ImpactSpeed < 0 || input.ImpactSpeed > 100000 ||
+                !Finite(input.RollingSpeed) || input.RollingSpeed < 0 || input.RollingSpeed > 100000 ||
+                (input.Airborne && input.Grinding) || (input.Manual && input.NoseManual) ||
+                !Finite(dt) || dt <= 0 || dt > SkateMotion.MaximumStep ||
                 !Finite(maximumLandingImpact) || maximumLandingImpact <= 0 || maximumLandingImpact > 100000)
             { error = "Invalid skate trick step."; return false; }
-            double spin = state.Spin, flip = state.Flip, grind = state.GrindSeconds, rolling = state.RollingSeconds;
-            double manual = state.ManualSeconds;
+            double spin = state.Spin, flip = state.Flip, shove = state.Shove;
+            double grind = state.GrindSeconds, rolling = state.RollingSeconds, manual = state.ManualSeconds;
             long combo = state.ComboBasePoints, total = state.TotalPoints, points = 0, banked = 0;
             int count = state.ComboCount;
-            bool grabbed = state.Grabbed, ridingSwitch = state.Switch;
+            bool ridingSwitch = state.Switch, legacyNaming = state.LegacyNaming;
+            SkateGrabKind grabKind = state.GrabKind;
+            SkatePopKind popKind = state.PopKind;
             var events = SkateTrickEvents.None;
             string name = null;
             if (input.Airborne)
             {
-                if (!state.Airborne) { spin = 0; flip = 0; grabbed = false; }
-                spin = Math.Max(-3600000, Math.Min(3600000, spin + input.Spin * SkateMotion.RotationRate * dt));
-                flip = Math.Max(-3600000, Math.Min(3600000, flip + input.Flip * SkateMotion.FlipRate * dt));
-                grabbed |= input.Grab;
+                if (!state.Airborne)
+                {
+                    spin = 0; flip = 0; shove = 0; grabKind = SkateGrabKind.None;
+                    popKind = input.PopKind == SkatePopKind.None ? SkatePopKind.Ollie : input.PopKind;
+                    legacyNaming = input.LegacyNaming;
+                }
+                else legacyNaming &= input.LegacyNaming;
+                spin = BoundedAngle(spin + input.Spin * SkateMotion.RotationRate * dt);
+                flip = BoundedAngle(flip + input.Flip * SkateMotion.FlipRate * dt);
+                shove = BoundedAngle(shove + input.Shove * SkateMotion.ShoveRate * dt);
+                if (input.GrabKind != SkateGrabKind.None) grabKind = input.GrabKind;
             }
-            double visualSpin = spin, visualFlip = flip, completedGrind = grind, completedManual = manual;
+            double visualSpin = spin, visualFlip = flip, visualShove = shove;
+            double completedGrind = grind, completedManual = manual;
             if (state.Airborne && !input.Airborne)
             {
                 int turns = (int)Math.Round(flip / 360, MidpointRounding.AwayFromZero);
                 int halves = (int)Math.Round(spin / 180, MidpointRounding.AwayFromZero);
-                if (Math.Abs(flip - turns * 360) > FlipTolerance + 1e-8 || Math.Abs(spin - halves * 180) > SpinTolerance + 1e-8 ||
-                    input.ImpactSpeed > maximumLandingImpact)
+                int shoves = (int)Math.Round(shove / 180, MidpointRounding.AwayFromZero);
+                if (Math.Abs(flip - turns * 360) > FlipTolerance + 1e-8 ||
+                    Math.Abs(spin - halves * 180) > SpinTolerance + 1e-8 ||
+                    Math.Abs(shove - shoves * 180) > ShoveTolerance + 1e-8 || input.ImpactSpeed > maximumLandingImpact)
                 {
                     events |= SkateTrickEvents.Bailed;
                     name = "Bail";
@@ -121,16 +179,17 @@ namespace Shortcut.RustMod
                 else
                 {
                     events |= SkateTrickEvents.Landed;
+                    visualSpin = halves * 180; visualFlip = turns * 360; visualShove = shoves * 180;
                     ridingSwitch ^= (Math.Abs(halves) % 2) != 0;
-                    int flipIndex = turns == 0 ? 0 : Math.Abs(turns) == 1 ? (turns > 0 ? 1 : 2) : (turns > 0 ? 3 : 4);
-                    int spinIndex = halves == 0 ? 0 : Math.Abs(halves) % 2 != 0 ? (halves > 0 ? 1 : 2) : (halves > 0 ? 3 : 4);
-                    name = Math.Abs(turns) > 2 || Math.Abs(halves) > 2
-                        ? (grabbed ? "Multiple Rotation Trick Grab" : "Multiple Rotation Trick")
-                        : Names[spinIndex * 5 + flipIndex + (grabbed ? 25 : 0)];
-                    points = 50 + Math.Min(2, Math.Abs(turns)) * 100 + Math.Min(2, Math.Abs(halves)) * 100 + (grabbed ? 50 : 0);
+                    bool legacy = legacyNaming && shoves == 0 && popKind != SkatePopKind.Nollie &&
+                        (grabKind == SkateGrabKind.None || grabKind == SkateGrabKind.Legacy);
+                    name = LandingName(halves, turns, shoves, grabKind, popKind, legacy);
+                    points = 50 + Math.Min(2, Math.Abs(turns)) * 100 +
+                        Math.Min(legacy ? 2 : 4, Math.Abs(halves)) * 100 + Math.Min(2, Math.Abs(shoves)) * 100 +
+                        (grabKind == SkateGrabKind.None ? 0 : 50);
                     combo = Add(combo, points); count = Math.Min(MaximumMultiplier, count + 1);
                 }
-                spin = 0; flip = 0; grabbed = false;
+                spin = 0; flip = 0; shove = 0; grabKind = SkateGrabKind.None; popKind = SkatePopKind.None;
             }
             if (state.Grinding && !input.Grinding)
             {
@@ -146,15 +205,17 @@ namespace Shortcut.RustMod
                 grind = Math.Min(86400, (state.Grinding ? grind : 0) + dt);
                 completedGrind = grind;
             }
-            bool manualing = input.Manual && !input.Airborne && !input.Grinding &&
+            bool manualing = (input.Manual || input.NoseManual) && !input.Airborne && !input.Grinding &&
                 input.RollingSpeed > MinimumManualSpeed && (events & SkateTrickEvents.Bailed) == 0;
-            if (state.Manualing && !manualing)
+            bool noseManualing = manualing && input.NoseManual;
+            bool sameManual = state.Manualing && manualing && state.NoseManualing == noseManualing;
+            if (state.Manualing && !sameManual)
             {
                 completedManual = manual;
                 if ((events & SkateTrickEvents.Bailed) == 0)
                 {
                     points = DurationPoints(manual);
-                    name = "Manual";
+                    name = state.NoseManualing ? "Nose Manual" : "Manual";
                     events |= SkateTrickEvents.ManualEnded;
                     if (points > 0)
                     { combo = Add(combo, points); count = Math.Min(MaximumMultiplier, count + 1); }
@@ -163,10 +224,10 @@ namespace Shortcut.RustMod
             }
             if (manualing)
             {
-                manual = Math.Min(MaximumManualSeconds, (state.Manualing ? manual : 0) + dt);
-                completedManual = manual;
+                manual = Math.Min(MaximumManualSeconds, (sameManual ? manual : 0) + dt);
+                if ((events & SkateTrickEvents.ManualEnded) == 0) completedManual = manual;
                 if (events == SkateTrickEvents.None)
-                { name = "Manual"; points = DurationPoints(manual); }
+                { name = noseManualing ? "Nose Manual" : "Manual"; points = DurationPoints(manual); }
             }
             if (input.Airborne || grinding || manualing || state.Airborne || state.Grinding || state.Manualing) rolling = 0;
             else if (count > 0)
@@ -180,9 +241,10 @@ namespace Shortcut.RustMod
                     combo = 0; count = 0; rolling = 0;
                 }
             }
-            var next = new SkateTrickState(spin, flip, grind, rolling, input.Airborne, grinding,
-                grabbed, ridingSwitch, combo, total, count, manual, manualing);
-            result = new SkateTrickResult(next, visualSpin, visualFlip, completedGrind, completedManual, events, name, points, banked);
+            var next = new SkateTrickState(spin, flip, shove, grind, rolling, input.Airborne, grinding,
+                grabKind, ridingSwitch, combo, total, count, manual, manualing, noseManualing, popKind, legacyNaming);
+            result = new SkateTrickResult(next, visualSpin, visualFlip, visualShove, completedGrind,
+                completedManual, events, name, points, banked);
             return true;
         }
 
@@ -192,8 +254,87 @@ namespace Shortcut.RustMod
             error = null;
             if (!Valid(state)) { error = "Invalid skate trick state."; return false; }
             var next = new SkateTrickState(0, 0, 0, 0, false, false, false, state.Switch, 0, state.TotalPoints, 0);
-            result = new SkateTrickResult(next, 0, 0, state.GrindSeconds, state.ManualSeconds, SkateTrickEvents.Bailed, "Bail", 0, 0);
+            result = new SkateTrickResult(next, 0, 0, 0, state.GrindSeconds, state.ManualSeconds,
+                SkateTrickEvents.Bailed, "Bail", 0, 0);
             return true;
+        }
+
+        private static string LandingName(int spin, int flip, int shove, SkateGrabKind grab,
+                                          SkatePopKind pop, bool legacy)
+        {
+            if (legacy)
+            {
+                if (Math.Abs(flip) > 2 || Math.Abs(spin) > 2)
+                    return grab == SkateGrabKind.None ? "Multiple Rotation Trick" : "Multiple Rotation Trick Grab";
+                int flipIndex = flip == 0 ? 0 : Math.Abs(flip) == 1 ? (flip > 0 ? 1 : 2) : (flip > 0 ? 3 : 4);
+                int spinIndex = spin == 0 ? 0 : Math.Abs(spin) % 2 != 0 ? (spin > 0 ? 1 : 2) : (spin > 0 ? 3 : 4);
+                return Names[spinIndex * 5 + flipIndex + (grab == SkateGrabKind.None ? 0 : 25)];
+            }
+            int nollie = pop == SkatePopKind.Nollie ? 1 : 0;
+            if (Math.Abs(spin) > 4 || Math.Abs(flip) > 2 || Math.Abs(shove) > 2)
+                return FallbackNames[nollie * 14 + (int)grab];
+            return ComposedNames[NameIndex(spin, flip, shove, (int)grab, nollie)];
+        }
+
+        private static int NameIndex(int spin, int flip, int shove, int grab, int nollie)
+        { return (((nollie * 9 + spin + 4) * 5 + flip + 2) * 5 + shove + 2) * 14 + grab; }
+
+        private static string[] BuildNames()
+        {
+            var names = new string[2 * 9 * 5 * 5 * 14];
+            for (int nollie = 0; nollie < 2; nollie++)
+                for (int spin = -4; spin <= 4; spin++)
+                    for (int flip = -2; flip <= 2; flip++)
+                        for (int shove = -2; shove <= 2; shove++)
+                        {
+                            string core = Composition(spin, flip, shove);
+                            if (nollie != 0) core = core == "Ollie" ? "Nollie" : "Nollie " + core;
+                            for (int grab = 0; grab < 14; grab++)
+                                names[NameIndex(spin, flip, shove, grab, nollie)] = core + GrabSuffixes[grab];
+                        }
+            return names;
+        }
+
+        private static string[] BuildFallbackNames()
+        {
+            var names = new string[28];
+            for (int nollie = 0; nollie < 2; nollie++)
+                for (int grab = 0; grab < 14; grab++)
+                    names[nollie * 14 + grab] = (nollie == 0 ? "Multiple Rotation Trick" : "Nollie Multiple Rotation Trick") + GrabSuffixes[grab];
+            return names;
+        }
+
+        private static string Composition(int spin, int flip, int shove)
+        {
+            if (Math.Abs(spin) == 1 && spin == shove && flip == 0)
+                return spin > 0 ? "Frontside Bigspin" : "Backside Bigspin";
+            if (Math.Abs(spin) == 1 && shove == 0 && flip == 1)
+                return spin > 0 ? "Frontside Flip" : "Backside Flip";
+            string board;
+            if (flip == 1 && shove == -1) board = "Varial Kickflip";
+            else if (flip == -1 && shove == 1) board = "Varial Heelflip";
+            else if (flip == 1 && shove == -2) board = "360 Flip";
+            else if (flip == -1 && shove == 2) board = "Laser Flip";
+            else if (flip == 1 && shove == 1) board = "Hardflip";
+            else if (flip == -1 && shove == -1) board = "Inward Heelflip";
+            else
+            {
+                string flips = flip == 0 ? "" : flip == 1 ? "Kickflip" : flip == -1 ? "Heelflip" :
+                    flip > 0 ? "Double Kickflip" : "Double Heelflip";
+                string shoves = shove == 0 ? "" : shove == -1 ? "Pop Shove-it" : shove == 1 ? "Frontside Pop Shove-it" :
+                    shove < 0 ? "360 Shove-it" : "Frontside 360 Shove-it";
+                board = shoves.Length == 0 ? flips : flips.Length == 0 ? shoves : shoves + " " + flips;
+            }
+            if (spin == 0) return board.Length == 0 ? "Ollie" : board;
+            string rotation = spin > 0 ? "Frontside " : "Backside ";
+            switch (Math.Abs(spin))
+            {
+                case 1: rotation += "180"; break;
+                case 2: rotation += "360"; break;
+                case 3: rotation += "540"; break;
+                default: rotation += "720"; break;
+            }
+            return board.Length == 0 ? rotation : rotation + " " + board;
         }
 
         internal static long ComboValue(long points, int count) { return Math.Min(PointsLimit, points * (long)count); }
@@ -212,15 +353,21 @@ namespace Shortcut.RustMod
             if (!Finite(seconds) || seconds <= 0) return 0;
             return Math.Max(1, (long)Math.Round(Math.Min(MaximumManualSeconds, seconds) * ManualPointsPerSecond));
         }
+        private static double BoundedAngle(double value) { return Math.Max(-3600000, Math.Min(3600000, value)); }
         private static long Add(long a, long b) { return Math.Min(PointsLimit, a + b); }
         private static bool Valid(SkateTrickState s)
-        { return Finite(s.Spin) && Finite(s.Flip) && Math.Abs(s.Spin) <= 3600000 && Math.Abs(s.Flip) <= 3600000 &&
+        { return Finite(s.Spin) && Finite(s.Flip) && Finite(s.Shove) && Math.Abs(s.Spin) <= 3600000 &&
+            Math.Abs(s.Flip) <= 3600000 && Math.Abs(s.Shove) <= 3600000 &&
+            GrabKindValid(s.GrabKind) && PopKindValid(s.PopKind) && s.Grabbed == (s.GrabKind != SkateGrabKind.None) &&
+            (!s.Airborne || s.PopKind != SkatePopKind.None) &&
             Finite(s.GrindSeconds) && s.GrindSeconds >= 0 && s.GrindSeconds <= 86400 && Finite(s.RollingSeconds) &&
             s.RollingSeconds >= 0 && s.RollingSeconds <= ComboRollingTimeout && s.ComboCount >= 0 && s.ComboCount <= MaximumMultiplier &&
             s.ComboBasePoints >= 0 && s.ComboBasePoints <= PointsLimit && s.TotalPoints >= 0 && s.TotalPoints <= PointsLimit &&
             !(s.Airborne && s.Grinding) && Finite(s.ManualSeconds) && s.ManualSeconds >= 0 && s.ManualSeconds <= MaximumManualSeconds &&
             (s.Manualing ? s.ManualSeconds > 0 && !s.Airborne && !s.Grinding : s.ManualSeconds == 0) &&
-            (s.ComboCount == 0) == (s.ComboBasePoints == 0); }
+            (!s.NoseManualing || s.Manualing) && (s.ComboCount == 0) == (s.ComboBasePoints == 0); }
+        private static bool GrabKindValid(SkateGrabKind kind) { return (int)kind >= 0 && (int)kind <= 13; }
+        private static bool PopKindValid(SkatePopKind kind) { return (int)kind >= 0 && (int)kind <= 2; }
         private static bool Axis(double n) { return Finite(n) && Math.Abs(n) <= 1; }
         private static bool Finite(double n) { return !double.IsNaN(n) && !double.IsInfinity(n); }
     }

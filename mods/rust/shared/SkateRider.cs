@@ -21,6 +21,7 @@ namespace Shortcut.RustMod
         public readonly bool Switch, Airborne, Pushing, Grab, Bailed;
         public readonly double Speed, LeanDegrees, Crouch, PushPhase, FlipDegrees, LookYawDegrees, DeckOffset;
         public readonly double GroundDrop, BailPhase;
+        public readonly SkateGrabKind GrabKind;
         public SkateRiderInput(SkateVector boardPosition, SkateVector boardForward, SkateVector boardUp,
                                SkateStance stance, bool ridingSwitch, double speed, double leanDegrees,
                                double crouch, bool airborne, bool pushing, double pushPhase,
@@ -38,9 +39,17 @@ namespace Shortcut.RustMod
                                double crouch, bool airborne, bool pushing, double pushPhase,
                                double flipDegrees, bool grab, bool bailed, double lookYawDegrees, double deckOffset,
                                double groundDrop, double bailPhase)
+            : this(boardPosition, boardForward, boardUp, stance, ridingSwitch, speed, leanDegrees,
+                   crouch, airborne, pushing, pushPhase, flipDegrees, grab ? SkateGrabKind.Legacy : SkateGrabKind.None,
+                   bailed, lookYawDegrees, deckOffset, groundDrop, bailPhase) { }
+        public SkateRiderInput(SkateVector boardPosition, SkateVector boardForward, SkateVector boardUp,
+                               SkateStance stance, bool ridingSwitch, double speed, double leanDegrees,
+                               double crouch, bool airborne, bool pushing, double pushPhase,
+                               double flipDegrees, SkateGrabKind grabKind, bool bailed, double lookYawDegrees, double deckOffset,
+                               double groundDrop, double bailPhase)
         { BoardPosition = boardPosition; BoardForward = boardForward; BoardUp = boardUp; Stance = stance;
           Switch = ridingSwitch; Speed = speed; LeanDegrees = leanDegrees; Crouch = crouch; Airborne = airborne;
-          Pushing = pushing; PushPhase = pushPhase; FlipDegrees = flipDegrees; Grab = grab;
+          Pushing = pushing; PushPhase = pushPhase; FlipDegrees = flipDegrees; GrabKind = grabKind; Grab = grabKind != SkateGrabKind.None;
           Bailed = bailed; LookYawDegrees = lookYawDegrees; DeckOffset = deckOffset;
           GroundDrop = groundDrop; BailPhase = bailPhase; }
     }
@@ -92,6 +101,9 @@ namespace Shortcut.RustMod
             var floor = input.BoardPosition + up * (Math.Min(0, input.DeckOffset) -
                 (input.Bailed || pushing ? input.GroundDrop : 0));
             bool backIsLeft = (input.Stance == SkateStance.Goofy) != input.Switch;
+            bool namedGrab = grabbing && input.GrabKind != SkateGrabKind.Legacy;
+            var grip = namedGrab ? Grip(input.GrabKind, backIsLeft, input.Stance == SkateStance.Regular) : default(GrabGrip);
+            bool grabLeft = namedGrab ? grip.Left : backIsLeft;
             double armLength = rig.UpperArmLength + rig.ForearmLength;
             double speed = input.Speed / SkateMotion.MaximumGroundSpeed;
             double lean = input.LeanDegrees * Math.PI / 180;
@@ -152,6 +164,7 @@ namespace Shortcut.RustMod
                 centre += right * (rig.PelvisHeight * Math.Sin(lean) * (grabbing ? 0.1 : 0.45)) + travel * (0.035 * speed);
                 centre -= facing * (rig.SpineLength * balance * (grabbing ? 3 : 1));
                 centre += facing * (PushSide * turn);
+                if (namedGrab) centre += forward * grip.LegShift - facing * grip.BodyShift;
             }
             var leftHipBase = centre - pelvisRight * (rig.HipWidth * 0.5);
             var rightHipBase = centre + pelvisRight * (rig.HipWidth * 0.5);
@@ -161,6 +174,7 @@ namespace Shortcut.RustMod
             { error = "Skate rider legs cannot reach the foot positions."; return false; }
             double requested = rig.PelvisHeight - Math.Min(SkatePose.CrouchDrop, rig.PelvisHeight * 0.65) * crouch - PushDip * turn;
             if (grabbing) requested = minimum + GrabTuckMargin;
+            if (namedGrab) requested = grip.Extension > 0 ? minimum + (maximum - minimum) * grip.Extension : minimum + grip.Tuck;
             if (input.Bailed) requested = rig.PelvisHeight - pelvisDown;
             double height = Math.Max(minimum, Math.Min(maximum, requested));
             var pelvis = centre + up * height;
@@ -176,16 +190,29 @@ namespace Shortcut.RustMod
             double chestYaw = input.Bailed ? bailYaw : (RidingChestYaw + (PushChestYaw - RidingChestYaw) * turn) * yawScale * Math.PI / 180;
             if (grabbing) chestYaw = 0;
             var chestFacing = facing * Math.Cos(chestYaw) + travel * Math.Sin(chestYaw);
+            if (namedGrab && grip.ChestTurn != 0)
+                chestFacing = facing * Math.Cos(grip.ChestTurn) + (grip.End ? forward : travel) * Math.Sin(grip.ChestTurn);
             double carve = lean * 0.65 * side * leanScale;
             double pitch = input.Bailed ? chestPitch : 0.1 + 0.12 * crouch + PushLean * turn;
             var carved = up * Math.Cos(carve) + facing * Math.Sin(carve);
             var ahead = Unit(Project(chestFacing, carved));
             var grab = input.BoardPosition + up * input.DeckOffset + facing * 0.1 - travel * 0.12;
+            var secondGrab = default(SkateVector);
+            if (namedGrab)
+            {
+                grab = input.BoardPosition + up * input.DeckOffset + facing * grip.Across +
+                    (grip.End ? forward : travel) * grip.Along;
+                if (grip.Both) secondGrab = input.BoardPosition + up * input.DeckOffset + facing * 0.1 - travel * 0.06;
+            }
             double roll = 0;
             if (grabbing)
             {
-                roll = GrabRoll * (backIsLeft ? -1 : 1);
-                pitch = GrabPitch(pelvis, carved, ahead, grab, rig, roll, backIsLeft, pitch);
+                roll = namedGrab && grip.Both ? 0 : GrabRoll * (grabLeft ? -1 : 1);
+                pitch = namedGrab && grip.Across < 0 && !grip.Both
+                    ? -GrabPitch(pelvis, carved, ahead * -1, grab, rig, -roll, !grabLeft, pitch)
+                    : GrabPitch(pelvis, carved, ahead, grab, rig, roll, grabLeft, pitch);
+                if (namedGrab && grip.Both) pitch = Math.Max(pitch,
+                    GrabPitch(pelvis, carved, ahead, secondGrab, rig, roll, !grabLeft, 0.1 + 0.12 * crouch));
             }
             var chestUp = carved * Math.Cos(pitch) + ahead * Math.Sin(pitch);
             var chestForward = ahead * Math.Cos(pitch) - carved * Math.Sin(pitch);
@@ -216,7 +243,14 @@ namespace Shortcut.RustMod
             if (grabbing)
             {
                 var free = up * (armLength * 0.15) + chestForward * (armLength * 0.2);
-                if (backIsLeft) { leftTarget = grab; rightTarget = rightShoulder + chestRight * (armLength * 0.7) + free; }
+                if (namedGrab)
+                {
+                    free = up * (armLength * grip.FreeUp) + chestForward * (armLength * 0.15) -
+                        Project(grab - input.BoardPosition, up) * 0.3;
+                    if (grabLeft) { leftTarget = grab; rightTarget = grip.Both ? secondGrab : rightShoulder + chestRight * (armLength * 0.75) + free; }
+                    else { rightTarget = grab; leftTarget = grip.Both ? secondGrab : leftShoulder - chestRight * (armLength * 0.75) + free; }
+                }
+                else if (backIsLeft) { leftTarget = grab; rightTarget = rightShoulder + chestRight * (armLength * 0.7) + free; }
                 else { rightTarget = grab; leftTarget = leftShoulder - chestRight * (armLength * 0.7) + free; }
             }
             if (reaching) { leftTarget = leftReach; rightTarget = rightReach; }
@@ -247,6 +281,41 @@ namespace Shortcut.RustMod
         private const double AirYaw = 0.35, PushWeight = 0.28, PushSide = 0.03, PushDip = 0.06, PushLean = 0.22, PushSwing = 0.28;
         private const double PushPlant = 0.10, PushSweep = 0.36, PushHeel = 0.07;
         private const double GrabRoll = 0.4, GrabFoldLimit = 1.0, GrabTuckMargin = 0.05;
+
+        private struct GrabGrip
+        {
+            public readonly bool Left, Both, End;
+            public readonly double Across, Along, FreeUp, Tuck, Extension, LegShift, BodyShift, ChestTurn;
+            public GrabGrip(bool left, double across, double along, double freeUp = 0.25,
+                            bool end = false, bool both = false, double tuck = GrabTuckMargin,
+                            double extension = 0, double legShift = 0, double bodyShift = 0, double chestTurn = 0)
+            { Left = left; Across = across; Along = along; FreeUp = freeUp; End = end; Both = both;
+              Tuck = tuck; Extension = extension; LegShift = legShift; BodyShift = bodyShift; ChestTurn = chestTurn; }
+        }
+
+        private static GrabGrip Grip(SkateGrabKind kind, bool backIsLeft, bool noseIsLeft)
+        {
+            switch (kind)
+            {
+                case SkateGrabKind.Backside: return new GrabGrip(!backIsLeft, -0.1, 0.06, bodyShift: -0.15);
+                case SkateGrabKind.Frontside: return new GrabGrip(backIsLeft, 0.1, -0.08);
+                case SkateGrabKind.Double: return new GrabGrip(!backIsLeft, -0.1, 0.06, both: true, tuck: 0.035, bodyShift: 0.1);
+                case SkateGrabKind.Tail: return new GrabGrip(!noseIsLeft, 0, -0.36, 0.3, end: true);
+                case SkateGrabKind.Nose: return new GrabGrip(noseIsLeft, 0, 0.36, 0.3, end: true);
+                case SkateGrabKind.Stalefish: return new GrabGrip(backIsLeft, -0.1, -0.15, 0.4);
+                case SkateGrabKind.Crail: return new GrabGrip(backIsLeft, 0.1, 0.3, 0.2, end: true,
+                    chestTurn: backIsLeft != noseIsLeft ? 1.2 : 0);
+                case SkateGrabKind.Seatbelt: return new GrabGrip(!backIsLeft, 0.1, -0.3, 0.35, end: true,
+                    chestTurn: backIsLeft != noseIsLeft ? -1.2 : 0);
+                case SkateGrabKind.Melon: return new GrabGrip(!backIsLeft, -0.1, -0.06, 0.35, tuck: 0.035, bodyShift: -0.15, chestTurn: 0.7);
+                case SkateGrabKind.Method: return new GrabGrip(!backIsLeft, -0.1, 0.04, 0.45, tuck: 0.015, bodyShift: -0.18);
+                case SkateGrabKind.Nosebone: return new GrabGrip(!noseIsLeft, 0.1, -0.25, 0.3, end: true,
+                    extension: 0.18, legShift: -0.18, bodyShift: 0.09);
+                case SkateGrabKind.Tailbone: return new GrabGrip(noseIsLeft, -0.1, 0.3, 0.3, end: true,
+                    extension: 0.18, legShift: 0.18, bodyShift: -0.18);
+                default: return default(GrabGrip);
+            }
+        }
 
         private static double PushTurn(double phase)
         { return phase < 0.2 ? Smooth(phase / 0.2) : phase < 0.75 ? 1 : Smooth((1 - phase) / 0.25); }
@@ -430,7 +499,7 @@ namespace Shortcut.RustMod
             Math.Abs(input.FlipDegrees) <= 3600000 && Finite(input.LookYawDegrees) && Math.Abs(input.LookYawDegrees) <= 3600000 &&
             Finite(input.DeckOffset) && Math.Abs(input.DeckOffset) <= MaximumMeasurement &&
             Finite(input.GroundDrop) && input.GroundDrop >= 0 && input.GroundDrop <= MaximumMeasurement &&
-            Fraction(input.BailPhase); }
+            Fraction(input.BailPhase) && input.GrabKind >= SkateGrabKind.None && input.GrabKind <= SkateGrabKind.Tailbone; }
         private static bool Finite(SkateRiderPose p)
         { return Vector(p.Pelvis) && Vector(p.LeftHip) && Vector(p.RightHip) && Vector(p.LeftKnee) && Vector(p.RightKnee) &&
             Vector(p.LeftAnkle) && Vector(p.RightAnkle) && Vector(p.LeftToe) && Vector(p.RightToe) && Vector(p.Chest) &&
