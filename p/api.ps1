@@ -42,16 +42,16 @@ if ($Find) {
       $props = @($t.GetProperties($flags) | ? { $_.Name -match $Pat })
       $meths = @($t.GetMethods($flags) | ? { -not $_.IsSpecialName -and $_.Name -match $Pat })
       $lines.Add('== ' + $t.FullName + ' : ' + (Short $t.BaseType) + ' [' + $t.Assembly.GetName().Name + '] props=' + $props.Count + ' methods=' + $meths.Count)
-      $gen = '^(field_|prop_|Method_|method_)'
+      $genRx = '^(field_|prop_|Method_|method_)'
       $pdesc = { param($x) $(if (($x.GetGetMethod($true), $x.GetSetMethod($true) | ? { $_ } | select -First 1).IsStatic) { 'static ' } else { '' }) }
-      $real = $props | ? { $_.Name -notmatch $gen } | sort Name | % { (& $pdesc $_) + $_.Name + ':' + (Short $_.PropertyType) }
+      $real = $props | ? { $_.Name -notmatch $genRx } | sort Name | % { (& $pdesc $_) + $_.Name + ':' + (Short $_.PropertyType) }
       if ($real) { $lines.Add('P ' + ($real -join ' | ')) }
-      $grp = $props | ? { $_.Name -match $gen } | group { (& $pdesc $_) + (Short $_.PropertyType) } | sort Count -Descending | select -First 40 | % { $_.Name + ' x' + $_.Count }
+      $grp = $props | ? { $_.Name -match $genRx } | group { (& $pdesc $_) + (Short $_.PropertyType) } | sort Count -Descending | select -First 40 | % { $_.Name + ' x' + $_.Count }
       if ($grp) { $lines.Add('P(generated names, by type) ' + ($grp -join ' | ')) }
       $sig = { param($m) $(if ($m.IsStatic) { 'static ' } else { '' }) + '(' + (($m.GetParameters() | % { Short $_.ParameterType }) -join ',') + '):' + (Short $m.ReturnType) }
-      $real = $meths | ? { $_.Name -notmatch $gen } | sort Name | % { $(if ($_.IsStatic) { 'static ' } else { '' }) + $_.Name + '(' + (($_.GetParameters() | % { (Short $_.ParameterType) + ' ' + $_.Name }) -join ', ') + '):' + (Short $_.ReturnType) }
+      $real = $meths | ? { $_.Name -notmatch $genRx } | sort Name | % { $(if ($_.IsStatic) { 'static ' } else { '' }) + $_.Name + '(' + (($_.GetParameters() | % { (Short $_.ParameterType) + ' ' + $_.Name }) -join ', ') + '):' + (Short $_.ReturnType) }
       if ($real) { $lines.Add('M ' + ($real -join ' | ')) }
-      $grp = $meths | ? { $_.Name -match $gen } | group { & $sig $_ } | sort Count -Descending | select -First 25 | % { $_.Name + ' x' + $_.Count }
+      $grp = $meths | ? { $_.Name -match $genRx } | group { & $sig $_ } | sort Count -Descending | select -First 25 | % { $_.Name + ' x' + $_.Count }
       if ($grp) { $lines.Add('M(generated names, by signature) ' + ($grp -join ' | ')) }
     }
   }
