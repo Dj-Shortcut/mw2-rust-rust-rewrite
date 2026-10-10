@@ -10,7 +10,7 @@ public static class SkateBoard
 {
     public const float TipDegrees = 15f, Axle = 0.23f;
     public const string LitShader = "Rust/Standard", PlainShader = "Hidden/Internal-Colored";
-    public const float Gloss = 0.2f;
+    public const float Gloss = 0.2f, BailTurn = 0.5f, BailBehind = 0.9f, BailRest = 0.045f;
     public static string Drawn = "";
     public static float ShowLift, Tip;
     private static void Say(string m) { Out.Say("SKATE " + m); }
@@ -54,14 +54,16 @@ public static class SkateBoard
         var nose = SkateRide.Dir(SkateRide.NoseYaw);
         nose = nose - up * Vector3.Dot(nose, up);
         nose = nose.sqrMagnitude > 0.0001f ? nose.normalized : travel;
-        var flip = (float)SkateRide.FlipDeg;
+        var flip = (float)SkateRide.FlipDeg; var askew = 0f;
         if (SkateRide.Mode == RideMode.Bail)
         {
+            // The rider goes on and down; the board stays behind, turns over once and lies on its deck.
             var t = Time.realtimeSinceStartup - SkateRide.ModeAt;
-            flip = t * 540f;
-            at = at + travel * (t * 1.6f) + Vector3.up * (0.25f * (float)Math.Sin(Math.Min(1f, t / SkateRide.BailSeconds) * Math.PI));
+            var over = SkateRide.Clamp(t / BailTurn, 0f, 1f); over = over * over * (3f - 2f * over);
+            flip += 180f * over; askew = 35f * over;
+            at = at - travel * (BailBehind * over) + Vector3.up * (0.22f * (float)Math.Sin(over * Math.PI)) - up * ((RiderRig.DeckTop - BailRest) * over);
         }
-        var rot = Quaternion.LookRotation(nose, up) * SkateRide.Turn(flip, Vector3.forward);
+        var rot = SkateRide.Turn(askew, up) * Quaternion.LookRotation(nose, up) * SkateRide.Turn(flip, Vector3.forward);
         // A flip turns the board about the middle of the deck, not about the wheels.
         board.transform.rotation = rot;
         board.transform.position = at + up * RiderRig.DeckTop - (rot * Vector3.up) * RiderRig.DeckTop;

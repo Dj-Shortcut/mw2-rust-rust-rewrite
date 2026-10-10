@@ -23,6 +23,16 @@ public static class RiderRig
     private static Vector3 lSole, rSole;
     private static bool failed;
 
+    // The module answers every frame from that frame's state alone. Between two states (rolling, a
+    // push, the air, a grab, a bail) the joints ease over, in the board's own frame so that a turning
+    // or tipping board does not leave them behind.
+    public const float EaseSeconds = 0.07f;
+    private const int PelvisJ = 0, LHipJ = 1, RHipJ = 2, LKneeJ = 3, RKneeJ = 4, LAnkleJ = 5, RAnkleJ = 6, LToeJ = 7, RToeJ = 8, ChestJ = 9, NeckJ = 10, HeadJ = 11,
+        LShoulderJ = 12, RShoulderJ = 13, LElbowJ = 14, RElbowJ = 15, LHandJ = 16, RHandJ = 17, Points = 18,
+        PelvisForwardJ = 18, PelvisUpJ = 19, ChestForwardJ = 20, ChestUpJ = 21, HeadForwardJ = 22, All = 23;
+    private static readonly Vector3[] eased = new Vector3[All], joint = new Vector3[All];
+    private static float easedAt = -99f;
+
     // The game draws the local player's model twice: the full body casts shadows only, and a second
     // set of skinned meshes named "leg-..." is what first person shows, with the upper body folded
     // out of view. A camera behind the rider needs the full body drawn and that set hidden; both
@@ -216,39 +226,63 @@ public static class RiderRig
             var speed = Math.Min((float)SkateMotion.MaximumGroundSpeed, Math.Abs(SkateRide.Speed));
             var input = new SkateRiderInput(new SkateVector(plane.x, plane.y, plane.z), new SkateVector(fx, fy, fz), new SkateVector(ux, uy, uz), SkateStance.Regular, SkateRide.TailFirst,
                 speed, lean, Crouch, mode == RideMode.Air, mode == RideMode.Ground && SkateRide.PushPhase > 0f, SkateRide.Clamp(SkateRide.PushPhase, 0f, 1f),
-                SkateRide.FlipDeg, SkateRide.Grab, mode == RideMode.Bail, SkateKeys.LookYaw % 360f, SkatePose.FootLift - AnkleHeight);
+                SkateRide.FlipDeg, SkateRide.Grab, mode == RideMode.Bail, SkateKeys.LookYaw % 360f, SkatePose.FootLift - AnkleHeight,
+                DeckTop, mode == RideMode.Bail ? SkateRide.Clamp((now - SkateRide.ModeAt) / SkateRide.BailSeconds, 0f, 1f) : 0f);
             SkateRiderPose pose; string error;
             if (!SkateRider.TryCreate(Rig, input, out pose, out error))
             {
                 if (Refusals++ == 0 || error != Error) Say("pose refused: " + error);
                 Error = error; return;
             }
-            // The module keeps the pushing foot at deck height; the ground is a deck lower.
-            var phase = input.PushPhase; var down = 0f;
-            if (input.Pushing) down = phase < 0.25 ? Smooth((float)phase / 0.25f) : phase < 0.85 ? 1f : 1f - Smooth(((float)phase - 0.85f) / 0.15f);
-            Apply(pose, upV, legsOnly, down * DeckTop, SkateRide.TailFirst);
+            Ease(pose, plane, toToes, upV, new Vector3((float)fx, (float)fy, (float)fz), now, frameSeconds);
+            Apply(upV, legsOnly);
             Applied++;
         }
         catch (Exception e) { failed = true; Say("pose threw " + e.GetType().Name + ": " + e.Message); }
     }
 
-    private static float Smooth(float t) { t = t < 0f ? 0f : t > 1f ? 1f : t; return t * t * (3f - 2f * t); }
+    private static void Ease(SkateRiderPose p, Vector3 origin, Vector3 x, Vector3 y, Vector3 z, float now, float frameSeconds)
+    {
+        joint[PelvisJ] = V(p.Pelvis); joint[LHipJ] = V(p.LeftHip); joint[RHipJ] = V(p.RightHip); joint[LKneeJ] = V(p.LeftKnee); joint[RKneeJ] = V(p.RightKnee);
+        joint[LAnkleJ] = V(p.LeftAnkle); joint[RAnkleJ] = V(p.RightAnkle); joint[LToeJ] = V(p.LeftToe); joint[RToeJ] = V(p.RightToe);
+        joint[ChestJ] = V(p.Chest); joint[NeckJ] = V(p.Neck); joint[HeadJ] = V(p.Head); joint[LShoulderJ] = V(p.LeftShoulder); joint[RShoulderJ] = V(p.RightShoulder);
+        joint[LElbowJ] = V(p.LeftElbow); joint[RElbowJ] = V(p.RightElbow); joint[LHandJ] = V(p.LeftHand); joint[RHandJ] = V(p.RightHand);
+        joint[PelvisForwardJ] = V(p.PelvisForward); joint[PelvisUpJ] = V(p.PelvisUp); joint[ChestForwardJ] = V(p.ChestForward); joint[ChestUpJ] = V(p.ChestUp); joint[HeadForwardJ] = V(p.HeadForward);
+        // After a pause (getting on, a new player model) there is nothing to ease from.
+        var share = now - easedAt > 0.25f ? 1f : 1f - (float)Math.Exp(-frameSeconds / EaseSeconds);
+        easedAt = now;
+        for (var i = 0; i < All; i++)
+        {
+            var fresh = joint[i];
+            var w = i < Points ? fresh - origin : fresh;
+            var local = new Vector3(Vector3.Dot(w, x), Vector3.Dot(w, y), Vector3.Dot(w, z));
+            eased[i] = eased[i] + (local - eased[i]) * share;
+            var back = x * eased[i].x + y * eased[i].y + z * eased[i].z;
+            joint[i] = i < Points ? origin + back : back.sqrMagnitude > 0.0001f ? back.normalized : fresh;
+        }
+        // Halfway between two poses the back would come out shorter than it is: the chest, the neck
+        // and the head are put back on the eased line of the back, at the module's distances.
+        var hips = (joint[LHipJ] + joint[RHipJ]) * 0.5f; var line = joint[ChestUpJ];
+        joint[ChestJ] = hips + line * (float)Rig.SpineLength;
+        joint[NeckJ] = hips + line * (float)(Rig.SpineLength * 1.12);
+        joint[HeadJ] = joint[NeckJ] + line * (float)Rig.NeckToHeadLength;
+    }
 
-    private static void Apply(SkateRiderPose p, Vector3 up, bool legsOnly, float pushDrop, bool pushLeft)
+    private static void Apply(Vector3 up, bool legsOnly)
     {
         var hipsNow = RHip.position - LHip.position; var upNow = spine[0].position - Pelvis.position;
         if (hipsNow.sqrMagnitude > 0.000001f && upNow.sqrMagnitude > 0.000001f)
         {
             var from = Quaternion.LookRotation(Vector3.Cross(hipsNow.normalized, upNow.normalized), upNow.normalized);
-            var to = Quaternion.LookRotation(V(p.PelvisForward), V(p.PelvisUp));
+            var to = Quaternion.LookRotation(joint[PelvisForwardJ], joint[PelvisUpJ]);
             Pelvis.rotation = to * Quaternion.Inverse(from) * Pelvis.rotation;
         }
-        Pelvis.position = Pelvis.position + ((V(p.LeftHip) + V(p.RightHip)) * 0.5f - (LHip.position + RHip.position) * 0.5f);
+        Pelvis.position = Pelvis.position + ((joint[LHipJ] + joint[RHipJ]) * 0.5f - (LHip.position + RHip.position) * 0.5f);
 
         Miss = 0f; MissAt = "";
         if (!legsOnly)
         {
-            var chestUp = V(p.ChestUp);
+            var chestUp = joint[ChestUpJ];
             // The module folds the body at the hip joints; the skeleton's spine starts above them, on
             // the pelvis bone. So the pelvis tips about the line through the hips until the spine's
             // root is where the module's straight back passes, or the neck would be out of reach.
@@ -267,9 +301,18 @@ public static class RiderRig
                 }
             }
             for (var i = 0; i < spine.Length; i++) Aim(spine[i], i + 1 < spine.Length ? spine[i + 1] : Neck, chestUp);
-            Aim(spine[0], Neck, V(p.Neck) - spine[0].position);
-            Aim(Neck, Head, V(p.Head) - V(p.Neck));
-            var chestForward = V(p.ChestForward); var headForward = V(p.HeadForward);
+            // The module turns the chest further toward travel than the pelvis: the spine twists,
+            // bone by bone, until the shoulders are across the module's.
+            var across = RUpper.position - LUpper.position; across = across - chestUp * Vector3.Dot(across, chestUp);
+            var wanted = joint[RShoulderJ] - joint[LShoulderJ]; wanted = wanted - chestUp * Vector3.Dot(wanted, chestUp);
+            if (across.sqrMagnitude > 0.0001f && wanted.sqrMagnitude > 0.0001f)
+            {
+                var twist = (float)(Math.Atan2(Vector3.Dot(Vector3.Cross(across, wanted), chestUp), Vector3.Dot(across, wanted)) * 180.0 / Math.PI);
+                for (var i = 0; i < spine.Length; i++) spine[i].rotation = SkateRide.Turn(twist / spine.Length, chestUp) * spine[i].rotation;
+            }
+            Aim(spine[0], Neck, joint[NeckJ] - spine[0].position);
+            Aim(Neck, Head, joint[HeadJ] - joint[NeckJ]);
+            var chestForward = joint[ChestForwardJ]; var headForward = joint[HeadForwardJ];
             var cf = chestForward - chestUp * Vector3.Dot(chestForward, chestUp); var hf = headForward - chestUp * Vector3.Dot(headForward, chestUp);
             if (cf.sqrMagnitude > 0.0001f && hf.sqrMagnitude > 0.0001f)
             {
@@ -289,19 +332,16 @@ public static class RiderRig
                 Neck.rotation = SkateRide.Turn(lift * 0.35f, foldAxis) * Neck.rotation;
                 Head.rotation = SkateRide.Turn(lift * 0.65f, foldAxis) * Head.rotation;
             }
-            Note(Neck, V(p.Neck), "neck");
-            Limb(LUpper, LFore, LHand, V(p.LeftHand), V(p.LeftElbow), UpperArm, Forearm, "left hand");
-            Limb(RUpper, RFore, RHand, V(p.RightHand), V(p.RightElbow), UpperArm, Forearm, "right hand");
+            Note(Neck, joint[NeckJ], "neck");
+            Limb(LUpper, LFore, LHand, joint[LHandJ], joint[LElbowJ], UpperArm, Forearm, "left hand");
+            Limb(RUpper, RFore, RHand, joint[RHandJ], joint[RElbowJ], UpperArm, Forearm, "right hand");
         }
 
-        // The rear foot pushes on the ground beside the board (the front one when rolling tail first).
-        var lower = up * pushDrop;
-        var la = V(p.LeftAnkle) - (pushLeft ? lower : Vector3.zero); var ra = V(p.RightAnkle) - (pushLeft ? Vector3.zero : lower);
-        Limb(LHip, LKnee, LFoot, la, V(p.LeftKnee), Thigh, Shin, "left ankle");
-        Limb(RHip, RKnee, RFoot, ra, V(p.RightKnee), Thigh, Shin, "right ankle");
+        Limb(LHip, LKnee, LFoot, joint[LAnkleJ], joint[LKneeJ], Thigh, Shin, "left ankle");
+        Limb(RHip, RKnee, RFoot, joint[RAnkleJ], joint[RKneeJ], Thigh, Shin, "right ankle");
         var drop = up * (AnkleHeight - ToeHeight);
-        Aim(LFoot, LToe, V(p.LeftToe) - (pushLeft ? lower : Vector3.zero) - drop - LFoot.position);
-        Aim(RFoot, RToe, V(p.RightToe) - (pushLeft ? Vector3.zero : lower) - drop - RFoot.position);
+        Aim(LFoot, LToe, joint[LToeJ] - drop - LFoot.position);
+        Aim(RFoot, RToe, joint[RToeJ] - drop - RFoot.position);
         Roll(LFoot, (LToe.position - LFoot.position).normalized, lSole, up);
         Roll(RFoot, (RToe.position - RFoot.position).normalized, rSole, up);
     }
