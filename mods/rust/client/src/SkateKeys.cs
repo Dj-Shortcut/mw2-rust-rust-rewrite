@@ -65,7 +65,7 @@ public static class SkateKeys
     public static void EndStep() { JumpPressed = FlipUp = FlipDown = LeftPressed = RightPressed = false; }
 
     // A tap can begin and end between two frames; the key's state alone never shows such a tap.
-    private static bool Down(KeyControl key)
+    public static bool Down(KeyControl key)
     {
         if (key.isPressed) return true;
         if (!taps) return false;

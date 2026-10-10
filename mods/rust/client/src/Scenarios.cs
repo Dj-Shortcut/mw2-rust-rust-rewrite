@@ -83,7 +83,7 @@ public static class Scenarios
     private static void Pose(float s, float now)
     {
         var advance = phase == 0;
-        try { var kb = Keyboard.current; var k = kb != null && kb.kKey.isPressed; if (k && !keyWas) advance = true; keyWas = k; }
+        try { var kb = Keyboard.current; var k = kb != null && SkateKeys.Down(kb.kKey); if (k && !keyWas) advance = true; keyWas = k; }
         catch (Exception) { }
         if (now - stepAt > (phase >= PoseMove ? 7f : 45f)) advance = true;
         // The moving phases hold walking pace, which the server accepts without its skate plugin.
