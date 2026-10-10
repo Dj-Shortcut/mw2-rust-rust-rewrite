@@ -1,6 +1,8 @@
 # Build Il2CppInterop.Runtime 1.5.3 (pinned upstream commit) with the two changed files in rt/.
 # The stock runtime of the loader crashes this client when a plugin registers a component.
 $dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"
+# $pnext is used once, also when this build fails: see build.ps1.
+$next = $pnext; $global:pnext = $null
 $sdk = "$probe\sdk"
 if (-not (Test-Path "$sdk\dotnet.exe")) { 'ABORT: no SDK in the staging folder; run zz setup first'; return }
 $commit = 'dbda1cb353b0f4253345dc45136d170b9e50a5a0'
@@ -24,5 +26,5 @@ if ($LASTEXITCODE -eq 0 -and $dll) {
   Copy-Item $dll.FullName "$probe\rt" -Force
   $stock = gi "$probe\bep788\BepInEx\core\Il2CppInterop.Runtime.dll"
   "built {0} bytes ver={1} | stock {2} bytes ver={3}" -f $dll.Length, $dll.VersionInfo.FileVersion, $stock.Length, $stock.VersionInfo.FileVersion
-  if ($pnext) { $t = $pnext; $global:pnext = $null; zz $t }
+  if ($next) { zz $next }
 }
