@@ -128,7 +128,7 @@ public class WorldProbe : MonoBehaviour
 
     public static bool Push, Mute;
     private float nextLog, boardAt = -1f, pushStart = -1f, pushEnd = -1f, verdictAt = -1f;
-    private int pushes;
+    private int pushes, ticks;
     private BasePlayer local;
     private Rigidbody body;
     private PlayerWalkMovement walk;
@@ -143,7 +143,7 @@ public class WorldProbe : MonoBehaviour
     {
         var now = Time.realtimeSinceStartup;
         if (now < nextLog) return;
-        nextLog = now + 2f;
+        nextLog = now + 1f; ticks++;
         try { Tick(now); }
         catch (Exception e) { Say("tick threw: " + e.GetType().Name + ": " + e.Message); nextLog = now + 6f; }
     }
@@ -164,7 +164,7 @@ public class WorldProbe : MonoBehaviour
                 var d = Vector3.Distance(players[i].transform.position, camPos);
                 if (d < bestD) { bestD = d; best = players[i]; }
             }
-            Say("cam=" + V(camPos) + " players=" + n + (best != null ? " nearest=" + bestD.ToString("F1") + "m name=" + best.gameObject.name : ""));
+            if (ticks % 5 == 1) Say("cam=" + V(camPos) + " players=" + n + (best != null ? " nearest=" + bestD.ToString("F1") + "m name=" + best.gameObject.name : ""));
             if (best == null || bestD > 4f) return;
             local = best;
             body = local.GetComponent<Rigidbody>();
@@ -175,7 +175,7 @@ public class WorldProbe : MonoBehaviour
             return;
         }
         var pos = local.transform.position;
-        Say("pos=" + V(pos) + (body != null ? " vel=" + V(body.linearVelocity) + " kinematic=" + body.isKinematic : "") + (walk != null ? " walkEnabled=" + walk.enabled : "") + " board=" + (board != null));
+        if (ticks % 10 == 0 || pushStart > 0f || verdictAt > 0f) Say("pos=" + V(pos) + (body != null ? " vel=" + V(body.linearVelocity) + " kinematic=" + body.isKinematic : "") + (walk != null ? " walkEnabled=" + walk.enabled : "") + " board=" + (board != null));
         if (!Push || done || body == null) return;
         if (pushStart < 0f && verdictAt < 0f && now - boardAt > 60f + pushes * 40f)
         {

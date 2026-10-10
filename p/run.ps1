@@ -87,5 +87,10 @@ if (Test-Path "$run\LogOutput.log") {
   say ('log lines=' + $l.Count)
   $l | ? { $_ -notmatch 'DobbyDetour|NativeDetour' } | select -Last $(if ($ptail) { $ptail } else { 26 }) | % { if ($_.Length -gt 1500) { $_.Substring(0,1500) } else { $_ } }
 } else { say 'no LogOutput.log' }
-if (Test-Path "$run\probe.log") { say '--- probe.log'; Get-Content "$run\probe.log" | % { if ($_.Length -gt 1900) { $_.Substring(0,1900) } else { $_ } } }
+if (Test-Path "$run\probe.log") {
+  $pl = @(Get-Content "$run\probe.log" | % { if ($_.Length -gt 1900) { $_.Substring(0,1900) } else { $_ } })
+  say ('--- probe.log lines=' + $pl.Count)
+  if ($pl.Count -le 34) { $pl } else { $pl | select -First 8; '...'; $pl | select -Last 24 }
+  $global:pfile = "$run\probe.log"; $global:poff = 0
+}
 if (Test-Path "$run\ErrorLog.log") { say '--- ErrorLog'; Get-Content "$run\ErrorLog.log" | select -First 12 }
