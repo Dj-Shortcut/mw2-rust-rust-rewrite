@@ -59,7 +59,7 @@ that commit and must match the hash; that is for shared code that is ahead on an
 | `SkateKeys.cs` | Keys. |
 | `SkateRide.cs` | Ground, air, grind and bail movement; calls the shared trick module. |
 | `SkateGrind.cs` | Samples the ground around the rider and asks the shared edge module for an edge. |
-| `SkateBoard.cs` | The board and where it sits. |
+| `SkateBoard.cs` | The board, what it is drawn with and where it sits. |
 | `RiderRig.cs` | Writes the shared rider pose onto the player model's skeleton; what is drawn in which view. |
 | `SkateCamera.cs` | View from behind. |
 | `SkateHud.cs`, `SkateSfx.cs` | Text and sounds. |
@@ -96,6 +96,10 @@ change with a Rust update:
 - The local player's full body is set to cast shadows only, and a second set of meshes whose names
   start with `leg-` is what first person shows. The view from behind swaps the two.
 - Only the main camera carries the game's image effects, so the view from behind moves it.
+- `Rust/Standard` is the game's lit shader and can be found by name. A mesh the plugin makes and
+  draws with it takes the world's light and casts a shadow; its colours come from a texture
+  (`_MainTex`), its gloss from `_Glossiness`. `Hidden/Internal-Colored` draws vertex colours without
+  light and is what the board falls back to.
 - A controller is not visible to the plugin as a gamepad; keys are read from the Input System.
 - In the scripted checks, where nothing touches mouse or keyboard, the first ride after waking is
   put back several times during its first two to three seconds, also at walking pace and also

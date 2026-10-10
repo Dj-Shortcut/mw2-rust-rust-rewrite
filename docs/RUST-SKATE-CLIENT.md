@@ -24,11 +24,16 @@ FootLift−ankleHeight (−.085 m for that rig); it does not shift ankle anchors
 
 The local model has 27 full-body skinned meshes normally shadows-only and eight `leg-` meshes
 normally visible in first person. For the view from behind, full-body drawing is switched on and the leg set off.
-Late bone writes rendered stance/push/air-flip/grab/bail/switch/grind/manual **poses** across 19 keyed states,
-stepped with key presses sent from a distance. With the rider module of items 8–10 TryCreate refused nothing
-and every joint met its target (miss .000 m): the adapter tips the pelvis about the hip line so that the
-spine root meets the folded chest, and lifts neck and head when the chest folds more than 20°.
+Late bone writes rendered stance/push/air-flip/grab/bail/switch/grind/manual **poses** across 22 keyed views
+(the push in three places, flip and grab apart, the bail at two moments), stepped with key presses sent from a
+distance. With the rider module of items 8–10 TryCreate refused nothing and joints met their targets within
+.001 m, except the grabbing hand, which ends .06 m short of the deck edge: the adapter tips the pelvis about the
+hip line so that the spine root meets the folded chest, and lifts neck and head when the chest folds more than 20°.
 In a manual the board tips 15° about its rear axle and the footing follows. Bones changed before the next frame, after the rendered picture.
+The **board** is drawn with the game's own `Rust/Standard` shader, found by name, and a texture that gives every
+vertex colour a block of texels: in daylight it took the world's light and cast a shadow. Night was not looked at.
+In daylight the stance reads as hands on hips, the push as a step off sideways, and during a bail the rider holds
+a squat at deck height while the board leaves; [#337](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/337#issuecomment-6096570455) lists what the look still needs.
 Moving the **main camera** late gives a lit/skinned view; a second CopyFrom camera rendered white.
 Scripted tricks: .72 s air, about 1 m peak, 5 m/s impact; Ollie, Kickflip, Frontside 180, Heelflip,
 Backside 180 Grab, switch changes, a held manual (+159) and a banked combo (+418) gave score 1268, the offline total.
