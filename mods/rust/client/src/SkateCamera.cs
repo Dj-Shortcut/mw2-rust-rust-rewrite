@@ -8,8 +8,10 @@ using UnityEngine;
 public static class SkateCamera
 {
     public static bool Chase = true, Fixed;
-    public static float LookYaw, LookPitch, Distance = 3.4f, Bearing = 180f, FixedDistance = 2.7f, FixedHeight = 1.15f;
-    private static bool failed;
+    public const float FollowPitch = 14f, FollowRate = 3.5f;
+    public static float LookYaw, LookPitch, Distance = 3.4f, Bearing = 180f, FixedDistance = 2.7f, FixedHeight = 1.15f, FollowYaw;
+    private static float followAt = -99f;
+    private static bool failed, ahead = true;
 
     public static void Sample()
     {
@@ -37,8 +39,20 @@ public static class SkateCamera
             }
             else
             {
-                var pitch = SkateRide.Clamp(LookPitch, -20f, 60f);
-                var back = Quaternion.Euler(pitch, LookYaw, 0f) * Vector3.forward;
+                float pitch = SkateRide.Clamp(LookPitch, -20f, 60f), yaw = LookYaw;
+                var now = Time.realtimeSinceStartup;
+                if (SkateKeys.Pad)
+                {
+                    // With a controller the right stick is the board, so the camera finds its own
+                    // way: it swings in behind the way the board goes.
+                    if (SkateRide.Speed > 1f) ahead = true; else if (SkateRide.Speed < -1f) ahead = false;
+                    var seconds = SkateRide.Clamp(now - followAt, 0f, 0.1f);
+                    FollowYaw += SkateRide.Delta(FollowYaw, SkateRide.Yaw + (ahead ? 0f : 180f)) * (1f - (float)Math.Exp(-seconds * FollowRate));
+                    yaw = FollowYaw; pitch = FollowPitch;
+                }
+                else { FollowYaw = LookYaw; ahead = true; }
+                followAt = now;
+                var back = Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
                 want = focus - back * Distance + Vector3.up * 0.3f;
                 var dir = want - focus; var len = dir.magnitude;
                 RaycastHit hit;

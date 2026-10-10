@@ -175,9 +175,10 @@ public static class SkateRide
     {
         if (!Grounded) { TakeOff(false, velocity.y + AirGravity * dt); Sense(Position); AirStep(Position, dt); return; }
         var before = Yaw;
-        var steer = (SkateKeys.Left ? -1f : 0f) + (SkateKeys.Right ? 1f : 0f);
         var maxTurn = TurnRate / (1f + Math.Abs(Speed) / 8f) * dt;
-        Yaw += Clamp(Delta(Yaw, SkateKeys.LookYaw + steer * 40f), -maxTurn, maxTurn);
+        // A stick steers by how far it is pushed; keys and the mouse turn the board toward where the rider looks.
+        if (SkateKeys.Analog) Yaw += Clamp(SkateKeys.Steer, -1f, 1f) * maxTurn;
+        else Yaw += Clamp(Delta(Yaw, SkateKeys.LookYaw + ((SkateKeys.Left ? -1f : 0f) + (SkateKeys.Right ? 1f : 0f)) * 40f), -maxTurn, maxTurn);
         var dir = Dir(Yaw);
         var tangent = dir - Normal * Vector3.Dot(dir, Normal);
         tangent = tangent.sqrMagnitude > 0.0001f ? tangent.normalized : dir;
@@ -186,7 +187,7 @@ public static class SkateRide
         if (now - jumpWanted < 0.12f)
         {
             Pops++; jumpWanted = -99f;
-            TakeOff(true, tangent.y * Speed + OlliePop * Normal.y + AirGravity * dt);
+            TakeOff(true, tangent.y * Speed + OlliePop * SkateKeys.PopScale * Normal.y + AirGravity * dt);
             AirStep(Position, dt);
             return;
         }
@@ -356,7 +357,7 @@ public static class SkateRide
         if (now - jumpWanted < 0.12f)
         {
             Pops++; GrindEnds++; jumpWanted = -99f; SkateGrind.Release(dt);
-            TakeOff(true, OlliePop + AirGravity * dt);
+            TakeOff(true, OlliePop * SkateKeys.PopScale + AirGravity * dt);
             AirStep(pos, dt);
             return;
         }

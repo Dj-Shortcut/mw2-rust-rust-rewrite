@@ -47,11 +47,13 @@ public static class SkateHud
             catch (Exception e) { centred = false; Out.Say("HUD centred text unavailable: " + e.GetType().Name); }
         }
         if (Scenarios.Active) Text(40f * k, 110f * k, w - 80f * k, "SKATE TEST  " + Scenarios.Phase, small, smallDark);
-        if (hint) Text(40f * k, 110f * k, w - 80f * k, SkateRig.Ready ? "Skate mod: press K or jump twice to get on the board" : "Skate mod " + SkatePlugin.Version + " loaded", small, smallDark);
+        if (hint) Text(40f * k, 110f * k, w - 80f * k, !SkateRig.Ready ? "Skate mod " + SkatePlugin.Version + " loaded"
+            : SkatePad.Shared ? "Skate mod: press Y on the controller, or K, or jump twice to get on the board" : "Skate mod: press K or jump twice to get on the board", small, smallDark);
         if (SkateRide.On)
         {
             Text(40f * k, h - 270f * k, 700f * k, (Math.Abs(SkateRide.Speed) * 3.6f).ToString("F0") + " km/h" + (SkateRide.Trick.Switch ? "   SWITCH" : ""), side, sideDark);
-            if (SkateRide.Cap < SkateRide.MaxSpeed - 0.25f) Text(40f * k, h - 300f * k, 700f * k, "server limit " + (SkateRide.Cap * 3.6f).ToString("F0") + " km/h", small, smallDark);
+            if (SkateRide.Cap < SkateRide.MaxSpeed - 0.25f)
+                Text(40f * k, h - 300f * k, w - 80f * k, "This server holds the board back to " + (SkateRide.Cap * 3.6f).ToString("F0") + " km/h: it has no skate plugin", small, smallDark);
             Text(40f * k, h - 232f * k, 700f * k, "SCORE " + SkateRide.Trick.TotalPoints.ToString("N0"), side, sideDark);
             var links = SkateRide.Trick.ComboCount + (SkateRide.Trick.Manualing ? 1 : 0);
             if (links > 0 && SkateRide.ComboPoints > 0)
@@ -60,8 +62,16 @@ public static class SkateHud
             else if (SkateRide.Trick.Manualing) Middle(h * 0.28f, "MANUAL  " + SkateRide.Trick.ManualSeconds.ToString("F1") + " s", big, bigDark);
             if (now - MountedAt < 9f && !Scenarios.Active)
             {
-                Text(40f * k, h - 186f * k, w - 80f * k, "W push   S brake   A / D carve   SPACE ollie   hold SHIFT manual   K or hold CTRL get off   L camera", small, smallDark);
-                Text(40f * k, h - 158f * k, w - 80f * k, "In the air: tap W kickflip   tap S heelflip   A / D spin   hold CTRL grab", small, smallDark);
+                if (SkateKeys.Pad)
+                {
+                    Text(40f * k, h - 186f * k, w - 80f * k, "LEFT STICK steer, spin in the air   A / X push   B brake   LT / RT grab   Y get off   R3 camera", small, smallDark);
+                    Text(40f * k, h - 158f * k, w - 80f * k, "RIGHT STICK  back, then flick forward: ollie   flick to a diagonal: kickflip / heelflip   part way back: manual", small, smallDark);
+                }
+                else
+                {
+                    Text(40f * k, h - 186f * k, w - 80f * k, "W push   S brake   A / D carve   SPACE ollie   hold SHIFT manual   K or hold CTRL get off   L camera", small, smallDark);
+                    Text(40f * k, h - 158f * k, w - 80f * k, "In the air: tap W kickflip   tap S heelflip   A / D spin   hold CTRL grab", small, smallDark);
+                }
             }
         }
         if (popup && SkateRide.Mode != RideMode.Grind && !SkateRide.Trick.Manualing && SkateRide.TrickName != "")

@@ -7,13 +7,15 @@ public static class Scenarios
 {
     public static string Name = "", Phase = "";
     public static bool Active { get { return Name != ""; } }
+    // A check that plays a controller rides through the plugin's own input, getting on and off included.
+    public static bool Plays { get { return Name == "pad"; } }
     private static float startAt = -1f, yaw0;
     private static int phase, next, lands;
     private static bool done;
 
     private static void Say(string m) { Out.Say("SCENARIO " + m); }
 
-    public static void Abort() { Restore(); Name = ""; }
+    public static void Abort() { Restore(); SkatePad.FeedEnd(); Name = ""; }
 
     private static void Restore()
     {
@@ -36,6 +38,7 @@ public static class Scenarios
         if (SkateRide.Lands != lands) { lands = SkateRide.Lands; Say("landed: " + SkateRide.LastAir + " | mode=" + SkateRide.Mode + " switch=" + SkateRide.Trick.Switch + " pos=" + Out.V1(SkateRide.Position)); }
         if (Name == "ride") Ride(s);
         else if (Name == "pose") Pose(s, now);
+        else if (Name == "pad") Pad(s, now);
         else Trick(s);
     }
 
@@ -56,7 +59,7 @@ public static class Scenarios
         SkateRide.Dismount("the scenario ended"); Restore();
         System.IO.File.WriteAllText(System.IO.Path.Combine(BepInEx.Paths.PluginPath, "skate.done"), "done");
         Say("DONE top speed=" + SkateRide.Top.ToString("F1") + " pull-backs=" + SkateRide.Resets + " late calls=" + LateDriver.Calls + " pops=" + SkateRide.Pops + " lands=" + SkateRide.Lands + " bails=" + SkateRide.Bails
-            + " refused presses=" + SkateRide.Refused + " score=" + SkateRide.Trick.TotalPoints + " grind scans=" + SkateGrind.Scans + " audio=" + SkateSfx.State + " | loudest output: " + SkateSfx.Heard);
+            + " refused presses=" + SkateRide.Refused + " score=" + SkateRide.Trick.TotalPoints + " grind scans=" + SkateGrind.Scans + " flicks=" + SkatePad.Flicks + " audio=" + SkateSfx.State + " | loudest output: " + SkateSfx.Heard);
     }
 
     private static void Ride(float s)
@@ -129,6 +132,61 @@ public static class Scenarios
         if (v.State == "bail") SkateRide.ModeAt = now - v.Value * SkateRide.BailSeconds;
         if (v.State == "move") { SkateRide.Frozen = false; SkateRide.Mode = RideMode.Ground; }
         if (v.State == "turn") SkateKeys.LookYaw = yaw0 + 180f;
+    }
+
+    // The ride with a controller, without one: its states are played into the plugin as the reader
+    // outside the game would share them, and the keyboard is left to itself. The pace is walking
+    // pace, which the server accepts without its skate plugin.
+    private const string OlliePath = "0:0,-100 250:0,-20 262:0,60 274:0,100 330:0,0", KickflipPath = "0:0,-100 250:-20,-30 262:-55,45 274:-70,70 330:0,0",
+        HeelflipPath = "0:0,-100 250:20,-30 262:55,45 274:70,70 330:0,0";
+    private static readonly float[] padAt = { 1f, 2f, 4.5f, 5.5f, 6.5f, 8f, 10.5f, 13f, 15.5f, 16.9f, 17.6f, 17.75f, 18.4f, 20f, 22f, 23f };
+    private static readonly string[] padDo = { "y", "push", "right", "left", "straight", "ollie", "kickflip", "heelflip", "manual", "release", "ollie", "grab", "release", "brake", "y", "finish" };
+    private static long padUs = 1000000;
+    private static float padLast, padX, padRightY, padTrigger, padTapUntil;
+    private static bool padPush, padBrake;
+
+    private static void Pad(float s, float now)
+    {
+        if (phase == 0)
+        {
+            Enter(1, "controller");
+            SkateKeys.Scripted = false; padLast = now;
+            SkateCamera.Fixed = false; SkateCamera.Chase = true;
+        }
+        padUs += (long)((now - padLast) * 1000000f); padLast = now;
+        while (next < padAt.Length && s >= padAt[next])
+        {
+            var what = padDo[next++];
+            Phase = (next + 1) + " " + what;
+            Say("controller " + what + " | " + SkateRide.Status() + " rides=" + (SkateKeys.Pad ? "controller" : "keyboard") + " flicks=" + SkatePad.Flicks);
+            if (what == "y") padTapUntil = now + 0.12f;
+            if (what == "push") padPush = true;
+            if (what == "right") padX = 0.7f;
+            if (what == "left") padX = -0.7f;
+            if (what == "straight") padX = 0f;
+            if (what == "ollie") Flick(OlliePath, now);
+            if (what == "kickflip") Flick(KickflipPath, now);
+            if (what == "heelflip") Flick(HeelflipPath, now);
+            if (what == "manual") padRightY = -0.45f;
+            if (what == "grab") padTrigger = 1f;
+            if (what == "release") { padRightY = 0f; padTrigger = 0f; }
+            if (what == "brake") { padBrake = true; padPush = false; }
+            if (what == "finish") { SkatePad.FeedEnd(); Finish(); return; }
+        }
+        var buttons = (padPush && SkateRide.On && SkateRide.Mode == RideMode.Ground && SkateRide.Speed < 2.2f ? SkatePad.A : 0) | (padBrake ? SkatePad.B : 0) | (now < padTapUntil ? SkatePad.Y : 0);
+        SkatePad.Feed(padUs, buttons, 0f, padTrigger, padX, 0f, 0f, padRightY, now);
+    }
+
+    // The right stick along a path, milliseconds:x,y in percent, played between two frames.
+    private static void Flick(string path, float now)
+    {
+        var start = padUs;
+        foreach (var part in path.Split(' '))
+        {
+            var a = part.Split(':'); var xy = a[1].Split(',');
+            padUs = start + long.Parse(a[0]) * 1000;
+            SkatePad.Feed(padUs, 0, 0f, padTrigger, padX, 0f, int.Parse(xy[0]) / 100f, int.Parse(xy[1]) / 100f, now);
+        }
     }
 
     private static readonly float[] trickAt = { 3f, 6f, 8.9f, 9f, 9.4f, 11f, 14f, 16.9f, 17f, 17.5f, 20f, 20.12f, 23f, 23.45f, 24.6f, 26.2f, 28f, 30.5f };

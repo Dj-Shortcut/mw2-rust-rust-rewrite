@@ -20,7 +20,10 @@
 #             committed.
 #   $pkeep    keep the client's window in front for the whole session, not only bring it there
 #             once: for a scripted check that nobody watches
+#   $psticks  path of sticks.ps1, the reader that shares the controller with the plugin; without
+#             it the reader is fetched from the branch when these tools were loaded with zz
 $ErrorActionPreference = 'Stop'
+$reader = $null
 if (-not $ptag) { $ptag = 'A' }
 if ($null -eq $plisten) { $plisten = $false }
 if (-not $pwait) { $pwait = 45 }
@@ -113,6 +116,19 @@ try {
   if ($pplug) { Copy-Item "$pplug\*" "$bx\plugins" -Force; say ('plugins: ' + ((ls $pplug | % Name) -join ',')) }
   $cfg = "[IL2CPP]`r`nUpdateInteropAssemblies = false`r`nPreloadIL2CPPInteropAssemblies = " + ([bool]$ppreload).ToString().ToLower() + "`r`n`r`n[Logging]`r`nUnityLogListening = " + $plisten.ToString().ToLower() + "`r`n`r`n[Logging.Disk]`r`nLogLevels = All`r`n`r`n[Logging.Console]`r`nEnabled = false`r`n"
   [IO.File]::WriteAllText("$bx\config\BepInEx.cfg", $cfg)
+  # The controller's reader runs beside the client as a process of its own: Steam must not have
+  # started it, or it would see no more of the controller than the game does.
+  $sticks = "$psticks"
+  if (-not $sticks -and (Get-Command zg -ErrorAction SilentlyContinue)) {
+    $sticks = "$probe\sticks.ps1"
+    [IO.File]::WriteAllText($sticks, ("" + (zg 'sticks.ps1')), (New-Object Text.UTF8Encoding($false)))
+  }
+  if ($sticks -and (Test-Path -LiteralPath $sticks)) {
+    $env:SKATE_PAD_SERVE = 'RustClient'
+    $reader = Start-Process powershell -WindowStyle Hidden -PassThru -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$sticks`""
+    $env:SKATE_PAD_SERVE = $null
+    say 'controller reader started'
+  } else { say 'no controller reader: keyboard only' }
   if ($psteam) {
     $sc = Find-Shortcut $(if ($pshortcut) { $pshortcut } else { 'RustClient' })
     if (-not $sc) { throw 'no Steam shortcut with that name; start without $psteam instead' }
@@ -154,6 +170,8 @@ try {
   Get-Process UnityCrashHandler64 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 } finally {
   Start-Sleep 2
+  # The reader ends by itself when the client has closed; one that never saw a client is ended here.
+  if ($reader -and -not $reader.HasExited) { Stop-Process -Id $reader.Id -Force -ErrorAction SilentlyContinue }
   $bx = Join-Path $rust 'BepInEx'
   if (Test-Path "$bx\plugins\skate.log") { Copy-Item "$bx\plugins\skate.log" $run }
   foreach ($f in 'LogOutput.log','ErrorLog.log') { if (Test-Path "$bx\$f") { Copy-Item "$bx\$f" $run } }

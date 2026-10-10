@@ -12,7 +12,7 @@ $global:pcommit = $null
 if ($pbuilt -ne $rel) { 'ABORT: the released commit did not build; the launcher was left as it was'; return }
 $enc = New-Object Text.UTF8Encoding($false)
 $files = @{}
-foreach ($f in 'session.ps1', 'skate.ps1', 'watch.ps1', 'clean.ps1') {
+foreach ($f in 'session.ps1', 'skate.ps1', 'watch.ps1', 'clean.ps1', 'sticks.ps1') {
   $t = "" + (irm "https://raw.githubusercontent.com/$repo/$rel/mods/rust/client/tools/$f")
   if ($t.Length -lt 200) { "ABORT: could not fetch $f at the released commit; the launcher was left as it was"; return }
   $files[$f] = $t
