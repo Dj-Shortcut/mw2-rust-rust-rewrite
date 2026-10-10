@@ -12,7 +12,7 @@ using Il2CppInterop.Runtime.Attributes;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-[BepInPlugin("claude.loaderprobe", "Loader Probe", "0.7.0")]
+[BepInPlugin("claude.loaderprobe", "Loader Probe", "0.8.0")]
 public class ProbePlugin : BasePlugin
 {
     internal static PLog L = new PLog();
@@ -243,7 +243,7 @@ public class SkateRig : MonoBehaviour
             if (w == null || wd > 4f) return;
             local = best; localT = best.transform; body = w.gameObject.GetComponent<Rigidbody>();
             Say("LOCAL found player=" + V(localT.position) + " body=" + (body != null));
-            if (board == null) { try { board = BuildBoard(); board.SetActive(false); Say("BOARD built"); } catch (Exception e) { Say("board threw " + e.GetType().Name + ": " + e.Message); } }
+            if (board == null) { try { board = BuildBoard(); board.SetActive(false); } catch (Exception e) { Say("board threw " + e.GetType().Name + ": " + e.Message); } }
             return;
         }
         if (wakeAt < 0f)
@@ -291,9 +291,41 @@ public class SkateRig : MonoBehaviour
         catch (Exception e) { Say("board update threw " + e.GetType().Name + ": " + e.Message); board = null; }
     }
 
+    // The shared procedural board (mods/rust/shared/SkateBoardMesh.cs) when the engine's mesh setters
+    // are present in this build, otherwise the same idea from primitives.
+    private static GameObject BuildBoard()
+    {
+        try { var made = BuildMeshBoard(); Say("BOARD from the shared mesh"); return made; }
+        catch (Exception e) { Say("shared mesh unavailable (" + e.GetType().Name + ": " + e.Message + "); using primitives"); return BuildPrimitiveBoard(); }
+    }
+
+    private static GameObject BuildMeshBoard()
+    {
+        var data = Shortcut.RustMod.SkateBoardMesh.Create();
+        var n = data.Positions.Length / 3;
+        var verts = new Vector3[n]; var norms = new Vector3[n]; var cols = new Color[n];
+        for (var i = 0; i < n; i++)
+        {
+            verts[i] = new Vector3(data.Positions[i * 3], data.Positions[i * 3 + 1], data.Positions[i * 3 + 2]);
+            norms[i] = new Vector3(data.Normals[i * 3], data.Normals[i * 3 + 1], data.Normals[i * 3 + 2]);
+            cols[i] = new Color(data.Colours[i * 4], data.Colours[i * 4 + 1], data.Colours[i * 4 + 2], data.Colours[i * 4 + 3]);
+        }
+        var mesh = new Mesh();
+        mesh.vertices = verts; mesh.normals = norms; mesh.colors = cols; mesh.triangles = data.Triangles;
+        mesh.RecalculateBounds();
+        var sh = Shader.Find("Hidden/Internal-Colored");
+        if (sh == null) throw new InvalidOperationException("no vertex-colour shader");
+        var mat = new Material(sh); mat.color = Color.white;
+        var root = new GameObject("skate_board");
+        root.AddComponent<MeshFilter>().sharedMesh = mesh;
+        root.AddComponent<MeshRenderer>().material = mat;
+        UnityEngine.Object.DontDestroyOnLoad(root);
+        return root;
+    }
+
     // A recognisable board from primitives: deck with raised nose and tail, two trucks, four wheels.
     // Origin at the ground contact centre, +Z forward. Unlit colours, because that shader is known to render here.
-    private static GameObject BuildBoard()
+    private static GameObject BuildPrimitiveBoard()
     {
         var root = new GameObject("skate_board");
         var sh = Shader.Find("Hidden/Internal-Colored");

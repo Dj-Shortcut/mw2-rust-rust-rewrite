@@ -16,8 +16,17 @@ $refs += ls $fx -Filter *.dll | ? { ($_.Name -like 'System*' -or $_.Name -in 'ms
 $refs += 'BepInEx.Core.dll','BepInEx.Unity.IL2CPP.dll','BepInEx.Unity.Common.dll','Il2CppInterop.Runtime.dll','Il2CppInterop.Common.dll' | % { "$core\$_" }
 # All generated interop assemblies, so game and engine types resolve without a hand-kept list.
 $refs += ls $gen -Filter *.dll | % FullName
+# Shared sources from another branch, taken at a pinned commit and checked against a SHA-256.
+$shared = @(@{ Path = 'mods/rust/shared/SkateBoardMesh.cs'; Commit = '68ddb15c0090ce880693942823d40e8d69fa8ea2'; Sha = '6391708873a9da2e3b295edee8aff9507d8d0780460af5b1eeaa71d503dbffdc' })
+$extra = @()
+foreach ($f in $shared) {
+  $dst = "$probe\src\" + (Split-Path $f.Path -Leaf)
+  Invoke-WebRequest -Uri ('https://raw.githubusercontent.com/Dj-Shortcut/mw2-rust-rust-rewrite/' + $f.Commit + '/' + $f.Path) -OutFile $dst -UseBasicParsing
+  if ((Get-FileHash $dst -Algorithm SHA256).Hash.ToLower() -ne $f.Sha) { Write-Host ("ABORT: " + $f.Path + " does not match its pinned hash"); return }
+  $extra += $dst
+}
 $rsp = "$probe\src\probe.rsp"
-(@('-nologo','-target:library','-nostdlib','-optimize+','-nowarn:CS1701,CS1702,CS8632',"-out:`"$probe\plugin\LoaderProbe.dll`"") + ($refs | % { "-r:`"$_`"" }) + "`"$src`"") | Out-File $rsp -Encoding ascii
+(@('-nologo','-target:library','-nostdlib','-optimize+','-nowarn:CS1701,CS1702,CS8632',"-out:`"$probe\plugin\LoaderProbe.dll`"") + ($refs | % { "-r:`"$_`"" }) + "`"$src`"" + ($extra | % { "`"$_`"" })) | Out-File $rsp -Encoding ascii
 $csc = (ls "$sdk\sdk" -Directory | select -First 1).FullName + '\Roslyn\bincore\csc.dll'
 $out = & "$sdk\dotnet.exe" $csc "@$rsp" 2>&1
 "csc exit=$LASTEXITCODE refs=" + $refs.Count
