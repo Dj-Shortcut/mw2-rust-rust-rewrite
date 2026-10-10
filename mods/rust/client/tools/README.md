@@ -61,6 +61,7 @@ letters, digits and spaces are all that can be typed into the PC reliably from a
 | `launcher` | Installs or updates the owner's launcher from the commit in [`release.txt`](release.txt). |
 | `launchertest` | Starts the installed launcher, kills it while Rust runs, closes Rust and reports whether the Rust folder was cleaned all the same. |
 | `ping` | Whether the private test server answers on its game port. |
+| `user` | Opens a PowerShell window without administrator rights, with `zz` loaded, for when the window at hand is an administrator's. |
 
 ## A session
 
