@@ -64,6 +64,7 @@ public static class SkateRide
         hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; lastPull = mountAt = Time.realtimeSinceStartup;
         VSpeed = 0f; AirTime = 0f; spinLeft = flipLeft = 0f; SpinDeg = FlipDeg = 0; Jumped = TrickAir = Grab = Braking = Manual = false; PushPhase = 0f; stuck = 0;
         Trick = new SkateTrickState(false); TrickName = ""; ComboPoints = 0; TrickAt = BankedAt = LandAt = jumpWanted = -99f; OffReason = "";
+        SkateHud.Clear();
         Normal = ViewNormal = Vector3.up; Position = b.position;
         SkateGrind.Reset();
         // Getting on while going up (the second press of a double jump) finishes that jump on the
@@ -322,11 +323,13 @@ public static class SkateRide
         {
             TrickName = r.TrickName;
             TrickPoints = r.Points; TrickAt = now;
+            if (r.Points > 0) SkateHud.Landed(r.TrickName, r.Points);
             Out.Say("SKATE trick " + r.TrickName + " +" + r.Points + " combo=" + r.ComboPoints + " x" + Trick.ComboCount + " switch=" + Trick.Switch);
         }
         if ((r.Events & SkateTrickEvents.ComboBanked) != 0)
         {
             Banked = r.BankedPoints; BankedAt = now;
+            SkateHud.Banked(r.BankedPoints, Trick.TotalPoints);
             Out.Say("SKATE combo banked +" + r.BankedPoints + " total=" + Trick.TotalPoints);
         }
     }
@@ -335,6 +338,7 @@ public static class SkateRide
     {
         if (Mode == RideMode.Bail || Mode == RideMode.Off) return;
         SkateTrickResult r; string error;
+        SkateHud.Bailed(ComboPoints);
         if (SkateTricks.TryBail(Trick, out r, out error)) Trick = r.State;
         ComboPoints = 0; Manual = false;
         if (Mode == RideMode.Grind) GrindEnds++;

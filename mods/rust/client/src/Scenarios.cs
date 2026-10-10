@@ -21,6 +21,7 @@ public static class Scenarios
     {
         SkateKeys.Scripted = false; SkateKeys.Reset();
         SkateCamera.Fixed = false; SkateCamera.Chase = true; SkateRide.Frozen = false; SkateRide.Manual = false; SkateBoard.ShowLift = 0f;
+        SkateHud.Staged = false; SkateHud.Clear();
     }
 
     public static void Update(float now)
@@ -98,10 +99,42 @@ public static class Scenarios
         new View("switch stance", 90f, "switch", 0f), new View("grind", 90f, "grind", 0f),
         new View("manual", 90f, "manual", 0f), new View("manual, seen from behind", 180f, "manual", 0f),
         new View("first person", 90f, "first", 0f),
+        new View("score display: rolling", 180f, "hud", 1f), new View("score display: a trick landed", 180f, "hud", 2f),
+        new View("score display: a combo of four", 180f, "hud", 3f), new View("score display: a long combo, in a manual", 180f, "hud", 4f),
+        new View("score display: a grind", 180f, "hud", 5f), new View("score display: banked", 180f, "hud", 6f),
+        new View("score display: a bail", 180f, "hud", 7f), new View("score display: held back by the server, keyboard", 180f, "hud", 8f),
+        new View("score display: controller", 180f, "hud", 9f),
         new View("moving, pushing off", 115f, "move", 0f), new View("moving, turning round", 115f, "turn", 0f),
         new View("finish", 90f, "end", 0f) };
-    private static float stepAt, nearAt;
+    private static float stepAt, nearAt, hudAt;
     private static bool keyWas;
+
+    // The score display in each of its states, with made-up numbers. What fades is shown again
+    // every few seconds, so that it is there whenever the view is looked at.
+    private static void Hud(int state, float now)
+    {
+        var again = now - hudAt > 2.6f;
+        if (again) hudAt = now;
+        var s = new SkateHud.Shown(); s.Riding = true; s.Cap = SkateRide.MaxSpeed; s.Score = 12450; s.Speed = 6.2f;
+        if (state == 1) { s.Speed = 8.1f; if (again) SkateHud.StageLine(new string[0]); }
+        if (state == 2) { s.Base = 300; s.Count = 1; s.Window = 0.2f; if (again) { SkateHud.StageLine(new string[0]); SkateHud.Landed("Backside 180 Kickflip Grab", 300); } }
+        if (state == 3)
+        {
+            s.Base = 900; s.Count = 4; s.Window = 0.7f; s.Switch = true;
+            if (again) { SkateHud.StageLine(new[] { "Kickflip", "Manual", "Ollie Grab" }); SkateHud.Landed("Frontside 180 Heelflip", 250); }
+        }
+        if (state == 4)
+        {
+            s.Base = 1650; s.Count = 6; s.Live = "MANUAL"; s.LiveSeconds = 2.3f; s.LivePoints = 230;
+            if (again) SkateHud.StageLine(new[] { "Ollie", "Kickflip", "Grind", "Backside 180", "Heelflip Grab", "Frontside 180 Kickflip" });
+        }
+        if (state == 5) { s.Base = 400; s.Count = 2; s.Live = "GRIND"; s.LiveSeconds = 1.4f; s.LivePoints = 140; if (again) SkateHud.StageLine(new[] { "Kickflip", "Frontside 180" }); }
+        if (state == 6) { s.Score = 15750; if (again) SkateHud.Banked(3300, 15750); }
+        if (state == 7) { if (again) SkateHud.Bailed(2400); }
+        if (state == 8) { s.Cap = 2.6f; s.Speed = 2.6f; s.Hints = true; if (again) SkateHud.StageLine(new string[0]); }
+        if (state == 9) { s.Speed = 0f; s.Hints = true; s.Pad = true; if (again) SkateHud.StageLine(new string[0]); }
+        SkateHud.Stage = s; SkateHud.Staged = true;
+    }
 
     private static void Pose(float s, float now)
     {
@@ -110,7 +143,8 @@ public static class Scenarios
         catch (Exception) { }
         var state = phase == 0 ? "" : views[phase - 1].State;
         var moving = state == "move" || state == "turn";
-        if (now - stepAt > (moving ? 7f : 45f)) advance = true;
+        if (now - stepAt > (moving ? 7f : state == "hud" ? 12f : 45f)) advance = true;
+        if (state == "hud") Hud((int)views[phase - 1].Value, now);
         // The moving views hold walking pace, which the server accepts without its skate plugin.
         if (moving) SkateKeys.Push = SkateRide.Speed < 2.4f;
         if (state == "bail") SkateRide.ModeAt = now - views[phase - 1].Value * SkateRide.BailSeconds;
@@ -122,6 +156,8 @@ public static class Scenarios
         Enter(phase + 1, v.Label + (still ? "   (K: next)" : ""));
         if (phase == 1) { SkateRig.MountNow(yaw0); SkateRide.Frozen = true; }
         if (v.State == "end") { Finish(); return; }
+        hudAt = -99f; SkateHud.Clear(); SkateHud.Staged = false;
+        if (v.State == "hud") Hud((int)v.Value, now);
         SkateCamera.Fixed = v.State != "first"; SkateCamera.Chase = v.State != "first";
         SkateCamera.Bearing = v.Bearing;
         SkateCamera.FixedHeight = v.State == "above" ? 2.9f : 1.15f; SkateCamera.FixedDistance = v.State == "above" ? 1.6f : 2.7f;
