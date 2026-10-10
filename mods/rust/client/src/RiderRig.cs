@@ -44,9 +44,75 @@ public static class RiderRig
     private static float nextScan, lookRetryAt;
     public static string LookState = "first person";
 
+    // The item in the hands and the first-person arms are drawn right in front of the camera,
+    // wherever it is: behind the rider they would cover him. The game makes a new set for every
+    // item taken in hand, so the set is looked for again several times a second.
+    public const float HeldEvery = 0.15f;
+    private static Renderer[] held = new Renderer[0];
+    private static bool[] heldWas = new bool[0];
+    private static long heldSet;
+    private static float nextHeld;
+    private static bool heldHidden, heldForced = true, heldFailed;
+
+    private static void Held(bool wantThird, float now)
+    {
+        if (heldFailed) return;
+        try
+        {
+            if (wantThird && now >= nextHeld)
+            {
+                nextHeld = now + HeldEvery;
+                var models = UnityEngine.Object.FindObjectsOfType<BaseViewModel>();
+                var found = new System.Collections.Generic.List<Renderer>(); long set = models.Length;
+                for (var i = 0; i < models.Length; i++)
+                {
+                    if (models[i] == null) continue;
+                    var parts = models[i].GetComponentsInChildren<Renderer>(true);
+                    for (var k = 0; k < parts.Length; k++) { found.Add(parts[k]); set = set * 31 + parts[k].Pointer.ToInt64(); }
+                }
+                if (set != heldSet)
+                {
+                    HeldShown(true);
+                    held = found.ToArray(); heldWas = new bool[held.Length]; heldSet = set;
+                    if (held.Length > 0) Say("held item: " + held.Length + " parts out of the camera's way");
+                }
+            }
+            HeldShown(!wantThird);
+        }
+        catch (Exception e)
+        {
+            heldFailed = true; Say("held item threw " + e.GetType().Name + ": " + e.Message);
+            try { HeldShown(true); } catch (Exception) { }
+        }
+    }
+
+    private static void HeldShown(bool show)
+    {
+        if (heldHidden != show) return;
+        heldHidden = !show;
+        for (var i = 0; i < held.Length; i++)
+        {
+            if (held[i] == null) continue;
+            if (heldForced)
+            {
+                // Off without touching what the game itself switches on and off. A client build
+                // without that setter switches the parts themselves off and remembers how they were.
+                try { held[i].forceRenderingOff = !show; continue; }
+                catch (Exception e)
+                {
+                    heldForced = false; Say("held item: no rendering switch in this client (" + e.GetType().Name + "); the parts are switched off instead");
+                    for (var k = 0; k < i; k++) if (held[k] != null) { heldWas[k] = held[k].enabled; held[k].enabled = false; }
+                }
+            }
+            if (show) held[i].enabled = heldWas[i];
+            else { heldWas[i] = held[i].enabled; held[i].enabled = false; }
+        }
+    }
+
     public static void Look(bool wantThird)
     {
         var now = Time.realtimeSinceStartup;
+        Held(wantThird, now);
         if (!Bound || Root == null || lookFailures >= 3 || now < lookRetryAt) return;
         try
         {
@@ -87,6 +153,8 @@ public static class RiderRig
     public static void Unbind()
     {
         try { Show(false, true); } catch (Exception) { }
+        try { HeldShown(true); } catch (Exception) { }
+        held = new Renderer[0]; heldWas = new bool[0]; heldSet = 0;
         Bound = false; body = new SkinnedMeshRenderer[0]; legSet = new SkinnedMeshRenderer[0]; skinSet = 0;
     }
 
