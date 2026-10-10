@@ -47,9 +47,14 @@ public static class RiderRig
     // The item in the hands and the first-person arms are drawn right in front of the camera,
     // wherever it is: behind the rider they would cover him. The game makes a new set for every
     // item taken in hand, so the set is looked for again several times a second.
-    public const float HeldEvery = 0.15f;
+    // Switching the parts off is not enough in this client: with a rock in hand they stayed on the
+    // screen. So the set is also made too small to see. The game may set the size again at any
+    // time, so it is made small again every frame, and the size the game last gave is put back.
+    public const float HeldEvery = 0.15f, HeldSmall = 0.0001f;
     private static Renderer[] held = new Renderer[0];
     private static bool[] heldWas = new bool[0];
+    private static Transform[] heldRoot = new Transform[0];
+    private static Vector3[] heldSize = new Vector3[0];
     private static long heldSet;
     private static float nextHeld;
     private static bool heldHidden, heldForced = true, heldFailed;
@@ -63,21 +68,30 @@ public static class RiderRig
             {
                 nextHeld = now + HeldEvery;
                 var models = UnityEngine.Object.FindObjectsOfType<BaseViewModel>();
-                var found = new System.Collections.Generic.List<Renderer>(); long set = models.Length;
+                var found = new System.Collections.Generic.List<Renderer>(); var roots = new System.Collections.Generic.List<Transform>(); long set = models.Length; var names = "";
                 for (var i = 0; i < models.Length; i++)
                 {
                     if (models[i] == null) continue;
+                    roots.Add(models[i].transform); set = set * 31 + models[i].Pointer.ToInt64();
+                    if (i < 3) names += (names == "" ? "" : ", ") + models[i].gameObject.name;
                     var parts = models[i].GetComponentsInChildren<Renderer>(true);
                     for (var k = 0; k < parts.Length; k++) { found.Add(parts[k]); set = set * 31 + parts[k].Pointer.ToInt64(); }
                 }
                 if (set != heldSet)
                 {
                     HeldShown(true);
-                    held = found.ToArray(); heldWas = new bool[held.Length]; heldSet = set;
-                    if (held.Length > 0) Say("held item: " + held.Length + " parts out of the camera's way");
+                    held = found.ToArray(); heldWas = new bool[held.Length]; heldRoot = roots.ToArray(); heldSize = new Vector3[heldRoot.Length]; heldSet = set;
+                    if (heldRoot.Length > 0) Say("held item: " + names + ", " + held.Length + " parts out of the camera's way");
                 }
             }
             HeldShown(!wantThird);
+            if (heldHidden)
+                for (var i = 0; i < heldRoot.Length; i++)
+                {
+                    if (heldRoot[i] == null) continue;
+                    var size = heldRoot[i].localScale;
+                    if (Math.Abs(size.x) > HeldSmall * 2f || Math.Abs(size.y) > HeldSmall * 2f || Math.Abs(size.z) > HeldSmall * 2f) { heldSize[i] = size; heldRoot[i].localScale = Vector3.one * HeldSmall; }
+                }
         }
         catch (Exception e)
         {
@@ -90,6 +104,12 @@ public static class RiderRig
     {
         if (heldHidden != show) return;
         heldHidden = !show;
+        for (var i = 0; i < heldRoot.Length; i++)
+        {
+            if (heldRoot[i] == null) continue;
+            if (show) heldRoot[i].localScale = heldSize[i];
+            else { heldSize[i] = heldRoot[i].localScale; heldRoot[i].localScale = Vector3.one * HeldSmall; }
+        }
         for (var i = 0; i < held.Length; i++)
         {
             if (held[i] == null) continue;
@@ -107,6 +127,35 @@ public static class RiderRig
             if (show) held[i].enabled = heldWas[i];
             else { heldWas[i] = held[i].enabled; held[i].enabled = false; }
         }
+    }
+
+    // For the scripted pose check: what is drawn within arm's length of the camera, the way to find
+    // out what a client build puts in front of a camera that has left the player's eyes.
+    private static string nearSaid = "";
+
+    public static void Near()
+    {
+        try
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+            var at = cam.transform.position;
+            var all = UnityEngine.Object.FindObjectsOfType<Renderer>();
+            var text = ""; var n = 0;
+            for (var i = 0; i < all.Length; i++)
+            {
+                var r = all[i];
+                if (r == null || !r.enabled) continue;
+                var b = r.bounds;
+                if ((b.center - at).sqrMagnitude > 1.44f || b.extents.sqrMagnitude > 9f) continue;
+                n++;
+                if (n <= 10) text += " | " + r.gameObject.name + " layer=" + r.gameObject.layer + " size=" + r.transform.lossyScale.x.ToString("F4") + " seen=" + r.isVisible + " under " + Out.Chain(r.transform);
+            }
+            var line = n + " drawn parts within 1.2 m of the camera" + text;
+            if (line == nearSaid) return;
+            nearSaid = line; Say("near: " + line);
+        }
+        catch (Exception e) { Say("near threw " + e.GetType().Name + ": " + e.Message); }
     }
 
     public static void Look(bool wantThird)
@@ -154,7 +203,7 @@ public static class RiderRig
     {
         try { Show(false, true); } catch (Exception) { }
         try { HeldShown(true); } catch (Exception) { }
-        held = new Renderer[0]; heldWas = new bool[0]; heldSet = 0;
+        held = new Renderer[0]; heldWas = new bool[0]; heldRoot = new Transform[0]; heldSize = new Vector3[0]; heldSet = 0;
         Bound = false; body = new SkinnedMeshRenderer[0]; legSet = new SkinnedMeshRenderer[0]; skinSet = 0;
     }
 

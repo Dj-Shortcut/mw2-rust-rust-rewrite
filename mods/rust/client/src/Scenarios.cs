@@ -100,7 +100,7 @@ public static class Scenarios
         new View("first person", 90f, "first", 0f),
         new View("moving, pushing off", 115f, "move", 0f), new View("moving, turning round", 115f, "turn", 0f),
         new View("finish", 90f, "end", 0f) };
-    private static float stepAt;
+    private static float stepAt, nearAt;
     private static bool keyWas;
 
     private static void Pose(float s, float now)
@@ -114,6 +114,7 @@ public static class Scenarios
         // The moving views hold walking pace, which the server accepts without its skate plugin.
         if (moving) SkateKeys.Push = SkateRide.Speed < 2.4f;
         if (state == "bail") SkateRide.ModeAt = now - views[phase - 1].Value * SkateRide.BailSeconds;
+        if (now >= nearAt) { nearAt = now + 1f; RiderRig.Near(); }
         if (!advance) return;
         stepAt = now;
         var v = views[phase];
