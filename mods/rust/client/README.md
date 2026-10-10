@@ -122,5 +122,7 @@ installed. After a Rust update it refuses to start and says so, until the mod ha
 the two desktop files and the folder `Downloads\claude-loader-probe`.
 
 On the server, [`ShortcutSkate`](../plugins/SKATE.md) accepts the rider's speed and supplies a
-practice area. Without it the server puts a rider back who goes faster than a player on foot; the
-client then holds a lower top speed.
+practice area. Without it the server allows a rider the pace of a player who walks, about
+10 km/h and a little more downhill, and puts a faster one back. The client finds that limit from
+being put back, holds it, tries a little more now and then, and shows it on screen as
+`server limit`.

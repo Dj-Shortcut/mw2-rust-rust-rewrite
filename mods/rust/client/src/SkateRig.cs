@@ -95,6 +95,7 @@ public class SkateRig : MonoBehaviour
         {
             Say("the player or its movement object is gone; looking again");
             SkateRide.Dismount("the movement object is gone"); RiderRig.Unbind();
+            if (Local == null) SkateRide.ForgetServer();
             // The old driver is queued behind the old walk component, not the next one.
             if (late != null) { UnityEngine.Object.Destroy(late); late = null; }
             Local = null; LocalT = null; Walk = null; Body = null; AwakeAt = -1f; standTicks = 0; tracking = lateAdded = false; lateFailures = 0;

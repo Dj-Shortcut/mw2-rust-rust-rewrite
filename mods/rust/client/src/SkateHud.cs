@@ -51,6 +51,7 @@ public static class SkateHud
         if (SkateRide.On)
         {
             Text(40f * k, h - 270f * k, 700f * k, (Math.Abs(SkateRide.Speed) * 3.6f).ToString("F0") + " km/h" + (SkateRide.Trick.Switch ? "   SWITCH" : ""), side, sideDark);
+            if (SkateRide.Cap < SkateRide.MaxSpeed - 0.25f) Text(40f * k, h - 300f * k, 700f * k, "server limit " + (SkateRide.Cap * 3.6f).ToString("F0") + " km/h", small, smallDark);
             Text(40f * k, h - 232f * k, 700f * k, "SCORE " + SkateRide.Trick.TotalPoints.ToString("N0"), side, sideDark);
             var links = SkateRide.Trick.ComboCount + (SkateRide.Trick.Manualing ? 1 : 0);
             if (links > 0 && SkateRide.ComboPoints > 0)

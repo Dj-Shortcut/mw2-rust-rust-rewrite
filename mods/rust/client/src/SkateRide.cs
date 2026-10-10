@@ -13,7 +13,7 @@ public enum RideMode { Off, Ground, Air, Grind, Bail }
 public static class SkateRide
 {
     public const float PushAccel = 6f, MaxPush = 8f, BrakeDecel = 12f, RollDecel = 0.45f, MaxSpeed = 13f, MaxReverse = 6f, TurnRate = 150f, SlopeGain = 1.6f;
-    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 0.9f, PushPeriod = 0.8f, SeaLevel = -0.6f, FootPace = 5.5f, ManualPace = 1f;
+    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 0.9f, PushPeriod = 0.8f, SeaLevel = -0.6f, LowestCap = 1.5f, ManualPace = 1f;
     private const float RayLift = 0.6f, FeetProbe = 0.3f, AirProbe = 3f;
     public static readonly int GroundMask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
 
@@ -32,8 +32,8 @@ public static class SkateRide
     public static int Steps, Resets, Pops, Lands, Bails, Pushes, GrindStarts, GrindEnds, Refused;
     private static Rigidbody body;
     private static Vector3 lastPos, lastDir, velocity;
-    private static float lastSpeed, lastPull = -999f, now, mountAt, takeOffY, spinLeft, flipLeft, jumpWanted = -99f;
-    private static bool hasLast;
+    private static float lastSpeed, lastPull = -999f, raisedAt = -999f, putBackAt = -999f, raiseWait = 20f, now, mountAt, takeOffY, spinLeft, flipLeft, jumpWanted = -99f;
+    private static bool hasLast, refusedSinceRaise;
     private static int stuck;
 
     public static Vector3 Dir(float yaw) { return Quaternion.Euler(0f, yaw, 0f) * Vector3.forward; }
@@ -53,13 +53,15 @@ public static class SkateRide
     public static bool TailFirst { get { return Trick.Switch != (Speed < -0.3f); } }
     public static bool Rotating { get { return Math.Abs(spinLeft) > 0.001f || Math.Abs(flipLeft) > 0.001f; } }
 
+    public static void ForgetServer() { Cap = MaxSpeed; raiseWait = 20f; refusedSinceRaise = false; raisedAt = putBackAt = -999f; }
+
     public static void Mount(Rigidbody b, float yaw)
     {
         body = b; Yaw = yaw;
         var v = b.linearVelocity; velocity = v; var rise = v.y; v.y = 0f;
         Speed = Vector3.Dot(v, Dir(yaw));
         SkateKeys.EndStep();
-        hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; Cap = MaxSpeed; lastPull = mountAt = Time.realtimeSinceStartup;
+        hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; lastPull = mountAt = Time.realtimeSinceStartup;
         VSpeed = 0f; AirTime = 0f; spinLeft = flipLeft = 0f; SpinDeg = FlipDeg = 0; Jumped = TrickAir = Grab = Braking = Manual = false; PushPhase = 0f; stuck = 0;
         Trick = new SkateTrickState(false); TrickName = ""; ComboPoints = 0; TrickAt = BankedAt = LandAt = jumpWanted = -99f; OffReason = "";
         Normal = ViewNormal = Vector3.up; Position = b.position;
@@ -106,7 +108,12 @@ public static class SkateRide
             else if (Mode == RideMode.Grind) GrindStep(pos, dt);
             else BailStep(game, dt);
             if (Mode == RideMode.Off) return;
-            if (Cap < MaxSpeed && now - lastPull > 20f) { Cap = Math.Min(MaxSpeed, Cap + 1f); lastPull = now; }
+            if (Cap < MaxSpeed && now - lastPull > raiseWait)
+            {
+                Cap = Math.Min(MaxSpeed, Cap + (refusedSinceRaise ? 0.5f : 1f));
+                if (!refusedSinceRaise) raiseWait = 20f;
+                refusedSinceRaise = false; lastPull = raisedAt = now;
+            }
             if (Speed > Top) Top = Speed;
             body.linearVelocity = velocity;
             lastPos = pos; lastDir = Dir(Yaw); lastSpeed = Speed; hasLast = true; Steps++;
@@ -125,12 +132,20 @@ public static class SkateRide
         Actual = Vector3.Dot(moved, lastDir) / dt;
         if ((lastSpeed > 1f && Actual < -3f) || (lastSpeed < -1f && Actual > 3f))
         {
-            // The server put the player back. Above the pace it allows on foot that is a refused
-            // speed: stay under it and try a little more later. At or below that pace it is something
-            // else (it happens in the first seconds after waking up) and the cap is left alone.
+            // The server put the player back. Without its skate plugin it allows walking pace and
+            // refuses more, tick after tick, until the rider is slower: two in a row lower the cap,
+            // and a raise that is refused again is tried less and less often. One on its own is
+            // left alone, and so is a ride's start: after waking the first seconds are put back at
+            // any speed.
             Resets++;
             Out.Say("SKATE put back #" + Resets + ", " + (now - mountAt).ToString("F2") + " s after getting on: moved " + Out.V3(pos - lastPos) + " in a step at speed " + lastSpeed.ToString("F1"));
-            if (Math.Abs(lastSpeed) > FootPace) { lastPull = now; Cap = Math.Max(FootPace, Math.Min(Cap, Math.Abs(lastSpeed) * 0.8f)); }
+            var again = now - putBackAt < 1f; putBackAt = now;
+            if (again && now - mountAt > 3f && Math.Abs(lastSpeed) > LowestCap)
+            {
+                if (!refusedSinceRaise && now - raisedAt < 45f) raiseWait = Math.Min(raiseWait * 2f, 480f);
+                refusedSinceRaise = true; lastPull = now;
+                Cap = Math.Max(LowestCap, Math.Min(Cap, Math.Abs(lastSpeed)) * 0.85f);
+            }
             // Being put back is not an obstacle: the board keeps what speed the cap allows.
             Speed = Clamp(Speed, -Cap, Cap);
             return;
