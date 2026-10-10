@@ -51,82 +51,124 @@ public static class RiderRig
     // screen. So the set is also made too small to see. The game may set the size again at any
     // time, so it is made small again every frame, and the size the game last gave is put back.
     public const float HeldEvery = 0.15f, HeldSmall = 0.0001f;
-    private static Renderer[] held = new Renderer[0];
-    private static bool[] heldWas = new bool[0];
-    private static Transform[] heldRoot = new Transform[0];
-    private static Vector3[] heldSize = new Vector3[0];
+    private const int HeldTries = 5, HeldScans = 3;
+
+    // One thing of the set: the object that carries it (Root) or one drawn part of it (Part). What
+    // was changed on it stays noted until it has been put back, each thing on its own: one that
+    // throws is tried again later and never leaves the others small or off. A thing of a set that
+    // has been replaced is only ever put back (Old).
+    private sealed class HeldThing
+    {
+        public Transform Root; public Renderer Part;
+        public Vector3 Size; public bool Was, Changed, Forced, Old;
+        public int Tries;
+    }
+    private static HeldThing[] held = new HeldThing[0];
     private static long heldSet;
     private static float nextHeld;
-    private static bool heldHidden, heldForced = true, heldFailed;
+    private static bool heldForced = true;
+    private static int heldScanFailures;
 
     private static void Held(bool wantThird, float now)
     {
-        if (heldFailed) return;
-        try
+        if (wantThird && now >= nextHeld && heldScanFailures < HeldScans)
         {
-            if (wantThird && now >= nextHeld)
+            nextHeld = now + HeldEvery;
+            try
             {
-                nextHeld = now + HeldEvery;
                 var models = UnityEngine.Object.FindObjectsOfType<BaseViewModel>();
-                var found = new System.Collections.Generic.List<Renderer>(); var roots = new System.Collections.Generic.List<Transform>(); long set = models.Length; var names = "";
+                var found = new System.Collections.Generic.List<HeldThing>(); long set = models.Length; var names = ""; var parts = 0;
                 for (var i = 0; i < models.Length; i++)
                 {
                     if (models[i] == null) continue;
-                    roots.Add(models[i].transform); set = set * 31 + models[i].Pointer.ToInt64();
+                    found.Add(new HeldThing { Root = models[i].transform }); set = set * 31 + models[i].Pointer.ToInt64();
                     if (i < 3) names += (names == "" ? "" : ", ") + models[i].gameObject.name;
-                    var parts = models[i].GetComponentsInChildren<Renderer>(true);
-                    for (var k = 0; k < parts.Length; k++) { found.Add(parts[k]); set = set * 31 + parts[k].Pointer.ToInt64(); }
+                    var drawn = models[i].GetComponentsInChildren<Renderer>(true);
+                    for (var k = 0; k < drawn.Length; k++) { found.Add(new HeldThing { Part = drawn[k] }); set = set * 31 + drawn[k].Pointer.ToInt64(); parts++; }
                 }
                 if (set != heldSet)
                 {
-                    HeldShown(true);
-                    held = found.ToArray(); heldWas = new bool[held.Length]; heldRoot = roots.ToArray(); heldSize = new Vector3[heldRoot.Length]; heldSet = set;
-                    if (heldRoot.Length > 0) Say("held item: " + names + ", " + held.Length + " parts out of the camera's way");
+                    HeldRestore(false);
+                    HeldKeep(found);
+                    held = found.ToArray(); heldSet = set;
+                    if (parts > 0 || names != "") Say("held item: " + names + ", " + parts + " parts out of the camera's way");
+                }
+                heldScanFailures = 0;
+            }
+            catch (Exception e)
+            {
+                heldScanFailures++;
+                Say("held item: looking for it threw " + e.GetType().Name + ": " + e.Message + (heldScanFailures >= HeldScans ? "; given up until the rider is found anew" : ""));
+            }
+        }
+        if (wantThird) HeldHide();
+        HeldRestore(wantThird);
+    }
+
+    // What could not be put back yet goes along with the next set, to be tried again.
+    private static void HeldKeep(System.Collections.Generic.List<HeldThing> into)
+    {
+        for (var i = 0; i < held.Length; i++)
+            if (held[i].Changed) { held[i].Old = true; into.Add(held[i]); }
+    }
+
+    private static void HeldHide()
+    {
+        for (var i = 0; i < held.Length; i++)
+        {
+            var t = held[i];
+            if (t.Old || t.Tries >= HeldTries) continue;
+            try
+            {
+                if (t.Root != null)
+                {
+                    var size = t.Root.localScale;
+                    if (Math.Abs(size.x) > HeldSmall * 2f || Math.Abs(size.y) > HeldSmall * 2f || Math.Abs(size.z) > HeldSmall * 2f)
+                    { t.Size = size; t.Changed = true; t.Root.localScale = Vector3.one * HeldSmall; }
+                }
+                else if (t.Part != null && !t.Changed)
+                {
+                    // Off without touching what the game itself switches on and off. A client build
+                    // without that setter switches the part itself off and remembers how it was.
+                    if (heldForced)
+                    {
+                        try { t.Part.forceRenderingOff = true; t.Forced = true; t.Changed = true; continue; }
+                        catch (Exception e) { heldForced = false; Say("held item: no rendering switch in this client (" + e.GetType().Name + "); the parts are switched off instead"); }
+                    }
+                    t.Was = t.Part.enabled; t.Forced = false; t.Changed = true; t.Part.enabled = false;
                 }
             }
-            HeldShown(!wantThird);
-            if (heldHidden)
-                for (var i = 0; i < heldRoot.Length; i++)
-                {
-                    if (heldRoot[i] == null) continue;
-                    var size = heldRoot[i].localScale;
-                    if (Math.Abs(size.x) > HeldSmall * 2f || Math.Abs(size.y) > HeldSmall * 2f || Math.Abs(size.z) > HeldSmall * 2f) { heldSize[i] = size; heldRoot[i].localScale = Vector3.one * HeldSmall; }
-                }
-        }
-        catch (Exception e)
-        {
-            heldFailed = true; Say("held item threw " + e.GetType().Name + ": " + e.Message);
-            try { HeldShown(true); } catch (Exception) { }
+            catch (Exception e) { HeldTrouble(t, "taking it out of the way", e); }
         }
     }
 
-    private static void HeldShown(bool show)
+    // oldOnly: while the view is behind the rider, only what is left of a replaced set is put back.
+    private static void HeldRestore(bool oldOnly)
     {
-        if (heldHidden != show) return;
-        heldHidden = !show;
-        for (var i = 0; i < heldRoot.Length; i++)
-        {
-            if (heldRoot[i] == null) continue;
-            if (show) heldRoot[i].localScale = heldSize[i];
-            else { heldSize[i] = heldRoot[i].localScale; heldRoot[i].localScale = Vector3.one * HeldSmall; }
-        }
         for (var i = 0; i < held.Length; i++)
         {
-            if (held[i] == null) continue;
-            if (heldForced)
+            var t = held[i];
+            if (!t.Changed || (oldOnly && !t.Old)) continue;
+            try
             {
-                // Off without touching what the game itself switches on and off. A client build
-                // without that setter switches the parts themselves off and remembers how they were.
-                try { held[i].forceRenderingOff = !show; continue; }
-                catch (Exception e)
-                {
-                    heldForced = false; Say("held item: no rendering switch in this client (" + e.GetType().Name + "); the parts are switched off instead");
-                    for (var k = 0; k < i; k++) if (held[k] != null) { heldWas[k] = held[k].enabled; held[k].enabled = false; }
-                }
+                if (!ReferenceEquals(t.Root, null)) { if (t.Root != null) t.Root.localScale = t.Size; }
+                else if (t.Part != null) { if (t.Forced) t.Part.forceRenderingOff = false; else t.Part.enabled = t.Was; }
+                t.Changed = false; t.Tries = 0;
             }
-            if (show) held[i].enabled = heldWas[i];
-            else { heldWas[i] = held[i].enabled; held[i].enabled = false; }
+            catch (Exception e)
+            {
+                HeldTrouble(t, "putting it back", e);
+                // Given up: an object the engine no longer lets anyone touch has nothing left to put back.
+                if (t.Tries >= HeldTries) t.Changed = false;
+            }
         }
+    }
+
+    private static void HeldTrouble(HeldThing t, string doing, Exception e)
+    {
+        t.Tries++;
+        if (t.Tries == 1 || t.Tries == HeldTries)
+            Say("held item: " + doing + " threw " + e.GetType().Name + ": " + e.Message + (t.Tries >= HeldTries ? "; left alone from here on" : "; tried again"));
     }
 
     // For the scripted pose check: what is drawn within arm's length of the camera, the way to find
@@ -202,8 +244,10 @@ public static class RiderRig
     public static void Unbind()
     {
         try { Show(false, true); } catch (Exception) { }
-        try { HeldShown(true); } catch (Exception) { }
-        held = new Renderer[0]; heldWas = new bool[0]; heldRoot = new Transform[0]; heldSize = new Vector3[0]; heldSet = 0;
+        // What cannot be put back now is kept, and tried again from the next frame on.
+        HeldRestore(false);
+        var left = new System.Collections.Generic.List<HeldThing>(); HeldKeep(left);
+        held = left.ToArray(); heldSet = 0; heldScanFailures = 0; nextHeld = 0f;
         Bound = false; body = new SkinnedMeshRenderer[0]; legSet = new SkinnedMeshRenderer[0]; skinSet = 0;
     }
 
