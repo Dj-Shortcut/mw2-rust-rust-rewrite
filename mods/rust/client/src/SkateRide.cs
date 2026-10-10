@@ -19,7 +19,7 @@ public static class SkateRide
 
     public static RideMode Mode = RideMode.Off;
     public static bool On { get { return Mode != RideMode.Off; } }
-    public static bool Grounded, Braking, Jumped, TrickAir, Grab, Manual;
+    public static bool Grounded, Braking, Jumped, TrickAir, Grab, Manual, Jiggle;
     public static bool Frozen;
     public static float Speed, Yaw, Lean, VSpeed, AirTime, AirPeak, Clearance = 99f, Actual, ActualV, Top, Cap = MaxSpeed, ModeAt, LandAt = -99f, LandImpact, PushPhase;
     public static Vector3 Normal = Vector3.up, Tangent = Vector3.forward, ViewNormal = Vector3.up, Position;
@@ -190,6 +190,7 @@ public static class SkateRide
             if (PushPhase >= 1f) PushPhase = 0f;
         }
         velocity = dir * Speed;
+        if (Jiggle && Math.Abs(Speed) < 0.05f) velocity = dir * ((Steps & 1) == 0 ? 0.2f : -0.2f);
         velocity.y = tangent.y * Speed - Clamp(Clearance * 8f, 0f, 3f);
         Lean += (Clamp(Delta(before, Yaw) / dt * 0.12f, -25f, 25f) - Lean) * 0.2f;
         TrickTick(false, false, 0, 0, 0, dt);

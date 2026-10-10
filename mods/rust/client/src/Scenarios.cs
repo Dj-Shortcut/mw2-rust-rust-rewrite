@@ -36,6 +36,7 @@ public static class Scenarios
         if (SkateRide.Lands != lands) { lands = SkateRide.Lands; Say("landed: " + SkateRide.LastAir + " | mode=" + SkateRide.Mode + " switch=" + SkateRide.Trick.Switch + " pos=" + Out.V1(SkateRide.Position)); }
         if (Name == "ride") Ride(s);
         else if (Name == "pose") Pose(s, now);
+        else if (Name == "starts") Starts(s);
         else Trick(s);
     }
 
@@ -108,6 +109,32 @@ public static class Scenarios
         if (phase == PoseMove) { SkateRide.Frozen = false; SkateRide.Mode = RideMode.Ground; }
         if (phase == PoseTurn) SkateKeys.LookYaw = yaw0 + 180f;
     }
+
+    // Temporary: when does the server put a rider back who starts to move? After standing still
+    // for a short or a long time, with and without a slight to-and-fro, and after getting on.
+    private static readonly float[] startsAt = { 0f, 3f, 3.8f, 6.8f, 12.6f, 15.6f, 16.2f, 21.2f, 21.4f, 24.4f, 25.2f, 30.4f, 33.4f, 34.5f };
+    private static readonly string[] startDo = { "mount+push A (long wait before getting on)", "brake", "push B (half a second still)", "brake", "push C (six seconds still)", "brake", "jiggle on", "jiggle off", "push D (five seconds still, moving to and fro)", "brake", "off", "mount+push E (five seconds off the board)", "brake", "finish" };
+
+    private static void Starts(float s)
+    {
+        if (phase == 0) { Enter(1, "starts"); SkateCamera.Fixed = true; SkateCamera.Bearing = 100f; SkateCamera.FixedDistance = 4.4f; SkateCamera.FixedHeight = 1.4f; }
+        if (SkateKeys.Push && SkateRide.Speed >= 2.4f) SkateKeys.Push = false;
+        else if (pushing && SkateRide.On && SkateRide.Speed < 2.3f && !SkateKeys.Brake) SkateKeys.Push = true;
+        while (next < startsAt.Length && s >= startsAt[next])
+        {
+            var what = startDo[next++];
+            Phase = (next + 1) + " " + what;
+            Say("do " + what + " | put-backs so far " + SkateRide.Resets + " | " + SkateRide.Status());
+            if (what.StartsWith("mount")) SkateRig.MountNow(yaw0);
+            if (what.Contains("push")) { pushing = true; SkateKeys.Brake = false; SkateKeys.Push = true; }
+            if (what == "brake") { pushing = false; SkateKeys.Push = false; SkateKeys.Brake = true; }
+            if (what == "jiggle on") { SkateKeys.Brake = false; SkateRide.Jiggle = true; }
+            if (what == "jiggle off") SkateRide.Jiggle = false;
+            if (what == "off") { SkateKeys.Brake = false; SkateRide.Dismount("the scenario stepped off"); }
+            if (what == "finish") Finish();
+        }
+    }
+    private static bool pushing;
 
     private static readonly float[] trickAt = { 3f, 6f, 8.9f, 9f, 9.4f, 11f, 14f, 16.9f, 17f, 17.5f, 20f, 20.12f, 23f, 23.45f, 24.6f, 26.2f, 28f, 30.5f };
     private static readonly string[] trickDo = { "ollie", "ollie+kick", "left", "ollie", "release", "turn", "ollie+heel", "right+grab", "ollie", "release", "ollie+kick", "kick", "ollie", "kick", "manual", "release", "brake", "finish" };
