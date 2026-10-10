@@ -44,8 +44,7 @@ lasts long enough to finish it. Tricks score when landed, grinds and manuals by 
 in a row multiply, and the combo is banked after a moment of plain rolling. Coming down faster than 12 m/s, or with a
 rotation unfinished, is a bail: the combo is lost and the rider steps off. Water, death, a seat or
 a vehicle also end the ride. Nothing is read from the keyboard while the cursor is free (console,
-chat, inventory). The board cannot be got on in the first eight seconds after waking; the text on
-screen offers `K` from then on.
+chat, inventory).
 
 ## Sources
 
@@ -98,9 +97,10 @@ change with a Rust update:
   start with `leg-` is what first person shows. The view from behind swaps the two.
 - Only the main camera carries the game's image effects, so the view from behind moves it.
 - A controller is not visible to the plugin as a gamepad; keys are read from the Input System.
-- A ride that starts within a few seconds of waking is put back several times during its first two
-  seconds, also at walking pace; one that starts later is not. The cause is not known, so the
-  client holds off getting on.
+- In the scripted checks, where nothing touches mouse or keyboard, the first ride after waking is
+  put back several times during its first two to three seconds, also at walking pace and also
+  when it starts eight seconds after waking. A check whose first movement came two and a half
+  minutes after waking was not put back, nor was a second ride. The cause is not known.
 - Engine methods the game never calls can be missing from the client and throw when called.
 
 ## Playing it: the owner's launcher

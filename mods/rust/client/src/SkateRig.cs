@@ -21,11 +21,7 @@ public class SkateRig : MonoBehaviour
     public static PlayerWalkMovement Walk;
     public static float AwakeAt = -1f;
     public static bool Ready { get { return Body != null && AwakeAt > 0f; } }
-    // A ride that starts in the first seconds after waking is put back again and again for about two
-    // seconds, also at walking pace; one that starts later is not. Why is not known.
-    public const float WakeGuard = 8f;
-    public static bool Settled { get { return Ready && Time.realtimeSinceStartup - AwakeAt >= WakeGuard; } }
-    public static bool CanMount { get { return Settled && late != null && Walk != null && Walk.enabled && !SkateRide.On && Time.realtimeSinceStartup - offAt > 0.7f; } }
+    public static bool CanMount { get { return Ready && late != null && Walk != null && Walk.enabled && !SkateRide.On && Time.realtimeSinceStartup - offAt > 0.7f; } }
 
     private static GameObject board;
     private static LateDriver late;
