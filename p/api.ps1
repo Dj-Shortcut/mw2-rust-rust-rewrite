@@ -10,7 +10,9 @@ $gen = "$probe\gen-$pb\out"
 if (-not (Test-Path "$gen\Assembly-CSharp.dll")) { "no interop set for build $pb"; return }
 $inner = "$probe\api-inner.ps1"
 @'
-param([string]$Gen, [string]$Core, [string]$Types, [string]$Pat, [string]$Find, [string]$Out)
+param([string]$ArgsFile)
+$q = Get-Content $ArgsFile -Raw | ConvertFrom-Json
+$Gen = $q.Gen; $Core = $q.Core; $Types = $q.Types; $Pat = $q.Pat; $Find = $q.Find; $Out = $q.Out
 $ErrorActionPreference = 'SilentlyContinue'
 foreach ($n in 'Il2CppInterop.Common','Il2CppInterop.Runtime') { [void][Reflection.Assembly]::LoadFrom("$Core\$n.dll") }
 [AppDomain]::CurrentDomain.add_AssemblyResolve([ResolveEventHandler]{ param($s, $e)
@@ -52,6 +54,9 @@ if ($Find) {
 $out = "$probe\api-out.txt"
 $find = ''; if ($pfind) { $find = $pt }
 $pat = '.'; if ($pp) { $pat = $pp }
-& "$dl\codex-bep788-probe\pwsh-diag\pwsh.exe" -NoLogo -NoProfile -File $inner -Gen $gen -Core "$probe\bep788\BepInEx\core" -Types "$pt" -Pat $pat -Find $find -Out $out
+$argsFile = "$probe\api-args.json"
+@{ Gen = $gen; Core = "$probe\bep788\BepInEx\core"; Types = "$pt"; Pat = $pat; Find = $find; Out = $out } | ConvertTo-Json | Out-File $argsFile -Encoding utf8
+if (Test-Path $out) { Clear-Content $out }
+& "$dl\codex-bep788-probe\pwsh-diag\pwsh.exe" -NoLogo -NoProfile -File $inner -ArgsFile $argsFile
 $global:pfile = $out; $global:poff = 0
 zz more
