@@ -56,6 +56,7 @@ letters, digits and spaces are all that can be typed into the PC reliably from a
 | `log`, `logall` | The plugin's log of the last session, without or with its once-a-second status lines. `$pinc` filters. |
 | `file` | Another file of the last session, by default the game's `Player.log`. |
 | `more` | The next page of whatever was shown last. |
+| `last` | Makes the newest session folder the one that `log`, `logall` and `file` show, and sums up its ride: seconds on the board, top speed, the lowest speed cap, how often the server put the rider back, tricks and bails. For a session of the owner's launcher, which runs in a window of its own. |
 | `clean` | Moves a loader that these tools left in the Rust folder out of it. |
 | `survey` | Lists what the interop set of the installed build offers for given type names. |
 | `launcher` | Installs or updates the owner's launcher from the commit in [`release.txt`](release.txt). |
@@ -128,6 +129,6 @@ Set by the scripts for one another; `sv name value` sets one by hand.
 | `$psteam`, `$pshortcut` | `session` | Start through the Steam shortcut of that name. |
 | `$pconnect` | `session` | Join the server in `server.txt` at start (direct start only). |
 | `$pkeep` | `session` | Keep the game's window in front for the whole session; without it the window is brought to the front once. |
-| `$plast`, `$pfile` | `log`, `file`, `more` | The last session's folder, the file being paged. |
+| `$plast`, `$pfile` | `log`, `file`, `more`, `last` | The last session's folder (`last` sets it to the newest one on the PC), the file being paged. |
 | `$pinc`, `$pname` | `log`, `file` | Filter expression, file name. |
 | `$pt`, `$pp`, `$pfind` | `survey` | Type names, member filter, type-name search. |
