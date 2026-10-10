@@ -49,21 +49,31 @@ function say($m) { Write-Host $m }
 # A client that comes up behind the window these tools run in never gets the keyboard. Its window
 # is brought to the front once; after that the player switches windows as he likes. Windows lets a
 # program take the foreground only right after a key press, and a tap of Alt counts as one.
+function InFront {
+  if (-not ('ShortcutSkate.Front' -as [type])) {
+    Add-Type -Namespace ShortcutSkate -Name Front -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, uint f, System.UIntPtr e);'
+  }
+  return [ShortcutSkate.Front]::GetForegroundWindow()
+}
+function ToFront($h) {
+  if ((InFront) -eq $h) { return 'in front' }
+  [ShortcutSkate.Front]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [ShortcutSkate.Front]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+  [ShortcutSkate.Front]::SetForegroundWindow($h) | Out-Null
+  Start-Sleep -Milliseconds 400
+  if ([ShortcutSkate.Front]::GetForegroundWindow() -eq $h) { return 'brought to the front' }
+  return 'still behind another window'
+}
 function Front($proc) {
   try {
-    if (-not ('ShortcutSkate.Front' -as [type])) {
-      Add-Type -Namespace ShortcutSkate -Name Front -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, uint f, System.UIntPtr e);'
-    }
     $proc.Refresh(); $h = $proc.MainWindowHandle
     if ($h -eq [IntPtr]::Zero) { return $null }
-    if ([ShortcutSkate.Front]::GetForegroundWindow() -eq $h) { return 'in front' }
-    [ShortcutSkate.Front]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [ShortcutSkate.Front]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
-    [ShortcutSkate.Front]::SetForegroundWindow($h) | Out-Null
-    Start-Sleep -Milliseconds 400
-    if ([ShortcutSkate.Front]::GetForegroundWindow() -eq $h) { return 'brought to the front' }
-    return 'still behind another window'
+    return ToFront $h
   } catch { return 'not brought to the front: ' + $_.Exception.Message }
 }
+# A check that keeps the game in front is typed into a window from a distance, and whoever typed it
+# can only type on in that window: it is noted here and brought back to the front at the end.
+$typed = [IntPtr]::Zero
+if ($pkeep) { try { $typed = InFront } catch { } }
 # Steam keeps non-Steam shortcuts in a binary file. Returns the 64-bit id that steam://rungameid
 # expects for the shortcut with this name, plus its target, or nothing when there is none.
 function Find-Shortcut($name) {
@@ -187,6 +197,10 @@ try {
   if (-not ($roots | ? { Test-Path -LiteralPath (Join-Path $rust $_) })) { Remove-Item -LiteralPath $mark -ErrorAction SilentlyContinue }
   say ('rollback clean=' + ($before -eq $after))
   if ($before -ne $after) { say "before=$before"; say "after=$after" }
+  if ($typed -ne [IntPtr]::Zero) {
+    $back = try { ToFront $typed } catch { 'not brought to the front: ' + $_.Exception.Message }
+    if ($back -ne 'in front') { say ('the window this was typed into: ' + $back) }
+  }
 }
 $global:plast = $run
 say "run dir: $run"

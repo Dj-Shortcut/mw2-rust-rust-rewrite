@@ -88,7 +88,8 @@ those files, where present and readable, still read the same: another mod loader
 is left alone. The loader's archive is unpacked beside the stage and renamed when complete.
 
 A client that comes up behind another window never gets the keyboard, so `session` brings the
-game's window to the front once it exists. A scripted check keeps it there (`$pkeep`).
+game's window to the front once it exists. A scripted check keeps it there (`$pkeep`) and, when it
+ends, puts the window that was in front when it began back there: the one it was typed into.
 
 Before the client, `session` starts [`sticks.ps1`](sticks.ps1) as a hidden process of its own: the
 reader that shares the controller with the plugin
