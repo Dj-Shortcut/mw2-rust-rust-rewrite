@@ -10,4 +10,4 @@ $line = '$global:pref=''' + $branch + '''; iex (irm https://raw.githubuserconten
 $cmd = "$probe\user.cmd"
 Set-Content -LiteralPath $cmd -Encoding ascii -Value ('@powershell -NoExit -Command "' + $line + '"')
 Start-Process explorer.exe ('"' + $cmd + '"')
-'asked the desktop for a window without administrator rights; go on in that window'
+'asked the desktop for a window without administrator rights; it opens behind this one, so type exit here and go on there'

@@ -1,8 +1,10 @@
 # Readiness of this PC for a session: Steam, the installed Rust build, the interop set for that
 # build, leftovers in the Rust folder, the patched runtime, the built plugin and the launcher.
+$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+'this window has administrator rights=' + $admin + $(if ($admin) { ' (Steam and Rust started from it get them too; zz user opens a window without)' } else { '' })
 if (-not (Get-Process steam -ErrorAction SilentlyContinue)) {
-  Start-Process 'C:\Program Files (x86)\Steam\steam.exe' -ArgumentList '-silent'
-  'steam was not running; started it'; Start-Sleep 30
+  if ($admin) { 'steam is not running and is not started from a window with administrator rights' }
+  else { Start-Process 'C:\Program Files (x86)\Steam\steam.exe' -ArgumentList '-silent'; 'steam was not running; started it'; Start-Sleep 30 }
 }
 'steam running=' + [bool](Get-Process steam -ErrorAction SilentlyContinue) + ' webhelpers=' + @(Get-Process steamwebhelper -ErrorAction SilentlyContinue).Count
 $acf = gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf'

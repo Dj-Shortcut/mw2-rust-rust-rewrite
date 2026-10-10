@@ -44,7 +44,7 @@ letters, digits and spaces are all that can be typed into the PC reliably from a
 | `zz` | What it does |
 | --- | --- |
 | `setup` | Once: copies the SDK and the interop generator into the staging folder. |
-| `status` | Steam, the installed Rust build, whether an interop set exists for it, leftovers in the Rust folder, what is built and installed. Starts Steam when it is not running. |
+| `status` | Whether the window has administrator rights, Steam, the installed Rust build, whether an interop set exists for it, leftovers in the Rust folder, what is built and installed. Starts Steam when it is not running, except from an administrator's window. |
 | `interop` | Generates the interop set for the installed Rust build in the background. Needed once after every Rust update. |
 | `progress` | Progress of that generation; done when the log ends with `GEN DONE`. |
 | `runtime` | Builds the changed `Il2CppInterop.Runtime.dll` from the pinned upstream source and [`rt/`](rt/README.md). Needed once. |
