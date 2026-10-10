@@ -2,18 +2,20 @@
 // (assets/prefabs/player/player_model.prefab) with a humanoid Animator, so bones are looked up
 // through Unity's humanoid mapping instead of by name. The shared rider module turns the ride's
 // state into joint positions; here they become bone rotations, late in the frame after the game's
-// own animation: every bone is turned so that it points at its child's target. Run R (10 October
-// 2026, issue #337) showed that a pose written at that point is what gets drawn.
+// own animation: every bone is turned so that it points at its child's target. Runs R to R3
+// (10 October 2026, issue #337) showed that a pose written at that point is what gets drawn, on
+// the real skeleton and in the shadow. Something adjusts the skeleton again before the next
+// frame begins (the pelvis shifts about 0.17 m and tips some ten degrees), after the picture is
+// made; writing the pose once more from the engine's pre-cull callback changed nothing.
 // The module's ankles are the skeleton's ankle joints: it is given the plane those joints rest on
 // when the soles are on the deck.
 using System;
-using Il2CppInterop.Runtime;
 using Shortcut.RustMod;
 using UnityEngine;
 
 public static class RiderRig
 {
-    public const float AnkleHeight = 0.095f, ToeHeight = 0.025f, DeckTop = 0.085f;
+    public const float AnkleHeight = 0.095f, ToeHeight = 0.025f, DeckTop = 0.085f, HeelShift = 0.055f;
     public static bool Bound, Enabled = true;
     public static Animator Anim;
     public static Transform Root, Pelvis, Neck, Head, LHip, LKnee, LFoot, LToe, RHip, RKnee, RFoot, RToe, LUpper, LFore, LHand, RUpper, RFore, RHand;
@@ -189,7 +191,11 @@ public static class RiderRig
             if (fl < 0.2) return;
             fx /= fl; fy /= fl; fz /= fl;
             var upV = new Vector3((float)ux, (float)uy, (float)uz);
-            var plane = feet + upV * (DeckTop + AnkleHeight - (float)SkatePose.FootLift);
+            // The module stands the ankles on the board's centre line with the toes toward its right
+            // edge. A foot is longer than the deck is wide, so the rider stands a little toward the
+            // heel edge and the feet sit across the middle of the deck.
+            var toToes = new Vector3((float)(uy * fz - uz * fy), (float)(uz * fx - ux * fz), (float)(ux * fy - uy * fx));
+            var plane = feet + upV * (DeckTop + AnkleHeight - (float)SkatePose.FootLift) - toToes * HeelShift;
 
             var now = Time.realtimeSinceStartup;
             var mode = SkateRide.Mode;
@@ -214,51 +220,10 @@ public static class RiderRig
             // down the foot is follows the module's stroke: down by a quarter, up again at the end.
             var phase = input.PushPhase; var down = 0f;
             if (input.Pushing) down = phase < 0.25 ? Smooth((float)phase / 0.25f) : phase < 0.85 ? 1f : 1f - Smooth(((float)phase - 0.85f) / 0.15f);
-            lastPose = pose; lastUp = upV; lastLegsOnly = legsOnly; lastDrop = down * DeckTop; lastPushLeft = SkateRide.TailFirst; hasPose = true;
-            Apply(pose, upV, legsOnly, lastDrop, lastPushLeft);
+            Apply(pose, upV, legsOnly, down * DeckTop, SkateRide.TailFirst);
             Applied++;
         }
         catch (Exception e) { failed = true; Say("pose threw " + e.GetType().Name + ": " + e.Message); }
-    }
-
-    // An experiment for the test sessions: write the same pose once more from the engine's
-    // pre-cull callback, the last moment before the main camera draws, in case something still
-    // changes the bones after the late pass.
-    public static bool PreCullOn;
-    public static int PreCullCalls, PreCullApplied;
-    private static Action<Camera> preCullManaged;
-    private static Camera.CameraCallback preCull;
-    private static SkateRiderPose lastPose;
-    private static Vector3 lastUp;
-    private static float lastDrop;
-    private static bool lastLegsOnly, lastPushLeft, hasPose;
-
-    public static string HookPreCull()
-    {
-        if (preCull != null) return "already hooked";
-        try
-        {
-            preCullManaged = new Action<Camera>(OnPreCull);
-            preCull = DelegateSupport.ConvertDelegate<Camera.CameraCallback>(preCullManaged);
-            var current = Camera.onPreCull;
-            Camera.onPreCull = current == null ? preCull : Il2CppSystem.Delegate.Combine(current, preCull).Cast<Camera.CameraCallback>();
-            return "hooked" + (current == null ? " (first handler)" : " (after the game's handlers)");
-        }
-        catch (Exception e) { preCull = null; return "hook threw " + e.GetType().Name + ": " + e.Message; }
-    }
-
-    private static void OnPreCull(Camera cam)
-    {
-        try
-        {
-            PreCullCalls++;
-            if (!PreCullOn || !hasPose || !Bound || failed || !SkateRide.On || cam == null) return;
-            var main = Camera.main;
-            if (main == null || cam.Pointer != main.Pointer) return;
-            Apply(lastPose, lastUp, lastLegsOnly, lastDrop, lastPushLeft);
-            PreCullApplied++;
-        }
-        catch (Exception e) { PreCullOn = false; Say("pre-cull threw " + e.GetType().Name + ": " + e.Message); }
     }
 
     private static float Smooth(float t) { t = t < 0f ? 0f : t > 1f ? 1f : t; return t * t * (3f - 2f * t); }

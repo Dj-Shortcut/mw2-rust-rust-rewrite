@@ -7,7 +7,7 @@ using UnityEngine;
 public static class SkateHud
 {
     public static float MountedAt = -99f;
-    private static GUIStyle big, bigDark, mid, midDark, small, smallDark;
+    private static GUIStyle big, bigDark, mid, midDark, side, sideDark, small, smallDark;
     private static bool centred;
 
     private static GUIStyle Make(int size, Color colour)
@@ -46,15 +46,15 @@ public static class SkateHud
         {
             var dark = new Color(0f, 0f, 0f, 0.85f);
             int b = (int)(44 * k), m = (int)(27 * k), s = (int)(19 * k);
-            big = Make(b, Color.white); bigDark = Make(b, dark); mid = Make(m, Color.white); midDark = Make(m, dark); small = Make(s, Color.white); smallDark = Make(s, dark);
+            big = Make(b, Color.white); bigDark = Make(b, dark); mid = Make(m, Color.white); midDark = Make(m, dark); side = Make(m, Color.white); sideDark = Make(m, dark); small = Make(s, Color.white); smallDark = Make(s, dark);
             try { big.alignment = bigDark.alignment = mid.alignment = midDark.alignment = TextAnchor.UpperCenter; centred = true; }
             catch (Exception e) { centred = false; Out.Say("HUD centred text unavailable: " + e.GetType().Name); }
         }
         if (Scenarios.Active) Text(40f * k, 110f * k, w - 80f * k, "SKATE TEST  " + Scenarios.Phase, small, smallDark);
         if (SkateRide.On)
         {
-            Text(40f * k, h - 270f * k, 700f * k, (Math.Abs(SkateRide.Speed) * 3.6f).ToString("F0") + " km/h" + (SkateRide.Trick.Switch ? "   SWITCH" : ""), mid, midDark);
-            Text(40f * k, h - 232f * k, 700f * k, "SCORE " + SkateRide.Trick.TotalPoints.ToString("N0"), mid, midDark);
+            Text(40f * k, h - 270f * k, 700f * k, (Math.Abs(SkateRide.Speed) * 3.6f).ToString("F0") + " km/h" + (SkateRide.Trick.Switch ? "   SWITCH" : ""), side, sideDark);
+            Text(40f * k, h - 232f * k, 700f * k, "SCORE " + SkateRide.Trick.TotalPoints.ToString("N0"), side, sideDark);
             if (SkateRide.Trick.ComboCount > 0)
                 Middle(h * 0.28f + 60f * k, "COMBO " + (SkateRide.Trick.ComboBasePoints * SkateRide.Trick.ComboCount).ToString("N0") + "   x" + SkateRide.Trick.ComboCount, mid, midDark);
             if (SkateRide.Mode == RideMode.Grind) Middle(h * 0.28f, "GRIND  " + SkateRide.Trick.GrindSeconds.ToString("F1") + " s", big, bigDark);
