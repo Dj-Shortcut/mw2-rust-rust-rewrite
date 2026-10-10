@@ -21,7 +21,7 @@ public enum RideMode { Off, Ground, Air, Grind, Bail }
 public static class SkateRide
 {
     public const float PushAccel = 6f, MaxPush = 8f, BrakeDecel = 12f, RollDecel = 0.45f, MaxSpeed = 13f, MaxReverse = 6f, TurnRate = 150f, SlopeGain = 1.6f;
-    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 0.9f, PushPeriod = 0.8f, SeaLevel = -0.6f;
+    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 0.9f, PushPeriod = 0.8f, SeaLevel = -0.6f, FootPace = 5.5f;
     private const float RayLift = 0.6f, FeetProbe = 0.3f, AirProbe = 3f;
     // Everything except the player's own layers, triggers, water, ragdolls and invisible helpers.
     public static readonly int GroundMask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
@@ -139,9 +139,11 @@ public static class SkateRide
         Actual = Vector3.Dot(moved, lastDir) / dt;
         if ((lastSpeed > 1f && Actual < -3f) || (lastSpeed < -1f && Actual > 3f))
         {
-            // The server refused the last stretch. Stay under the speed it refused, and try a little more later.
-            Resets++; lastPull = now;
-            Cap = Math.Max(2.6f, Math.Min(Cap, Math.Abs(lastSpeed) * 0.8f));
+            // The server put the player back. Above the pace it allows on foot that is a refused
+            // speed: stay under it and try a little more later. At or below that pace it is something
+            // else (it happens in the first seconds after waking up) and the cap is left alone.
+            Resets++;
+            if (Math.Abs(lastSpeed) > FootPace) { lastPull = now; Cap = Math.Max(FootPace, Math.Min(Cap, Math.Abs(lastSpeed) * 0.8f)); }
         }
         // An obstacle takes the speed away, in either direction of travel.
         if (Speed > 0f) { var limit = (Actual > 0f ? Actual : 0f) + 2f; if (Speed > limit) Speed = limit; }

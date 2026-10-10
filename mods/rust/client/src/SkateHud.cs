@@ -66,6 +66,6 @@ public static class SkateHud
         }
         if (popup && SkateRide.Mode != RideMode.Grind && SkateRide.TrickName != "")
             Middle(h * 0.28f, SkateRide.TrickName == "Bail" ? "BAIL" : SkateRide.TrickName + (SkateRide.TrickPoints > 0 ? "   +" + SkateRide.TrickPoints.ToString("N0") : ""), big, bigDark);
-        if (now - SkateRide.BankedAt < 2.2f) Middle(h * 0.28f + 60f * k, "BANKED  +" + SkateRide.Banked.ToString("N0"), mid, midDark);
+        if (now - SkateRide.BankedAt < 2.2f) Middle(h * 0.28f + 100f * k, "BANKED  +" + SkateRide.Banked.ToString("N0"), mid, midDark);
     }
 }

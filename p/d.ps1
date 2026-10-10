@@ -13,8 +13,11 @@ New-Item -ItemType Directory -Force "$probe\plugin","$probe\src" | Out-Null
 $repo = 'Dj-Shortcut/mw2-rust-rust-rewrite'
 # One API request for the head of this branch; every file then comes from the raw host at that
 # exact commit, which cannot be stale. Lines with their own commit and SHA-256 are pinned shared code.
-$head = ("" + (irm -Headers @{ Accept = 'application/vnd.github.sha' } "https://api.github.com/repos/$repo/commits/claude-loader-probe")).Trim()
-if ($head -notmatch '^[0-9a-f]{40}$') { Write-Host 'ABORT: could not read the branch head'; return }
+# $pcommit builds that exact commit instead (the launcher's released build).
+$head = "$pcommit"
+if (-not $head) { $head = ("" + (irm -Headers @{ Accept = 'application/vnd.github.sha' } "https://api.github.com/repos/$repo/commits/claude-loader-probe")).Trim() }
+if ($head -notmatch '^[0-9a-f]{40}$') { Write-Host 'ABORT: could not read the commit to build'; return }
+$global:pbuilt = $null
 $list = ("" + (irm "https://raw.githubusercontent.com/$repo/$head/mods/rust/client/sources.txt")) -split "`n"
 Remove-Item "$probe\src\*.cs" -ErrorAction SilentlyContinue
 $files = @()
@@ -42,4 +45,5 @@ $out = & "$sdk\dotnet.exe" $csc "@$rsp" 2>&1
 $out | select -First 25 | % { $s = "$_"; if ($s.Length -gt 260) { $s.Substring(0,260) } else { $s } }
 ls "$probe\plugin" | % { "{0} {1}" -f $_.Name, $_.Length }
 
+if ($LASTEXITCODE -eq 0) { $global:pbuilt = $head }
 if ($LASTEXITCODE -eq 0 -and $pnext) { zz $pnext }
