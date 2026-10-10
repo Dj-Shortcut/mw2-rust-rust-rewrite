@@ -128,7 +128,13 @@ public static class SkatePadReader1
 }
 '@
 if (-not ('SkatePadReader1' -as [type])) { Add-Type -TypeDefinition $code -ReferencedAssemblies 'System.Core' }
-if ($pserve) { [SkatePadReader1]::Serve("$pserve", 600) }
+# A reader started as a process of its own is told through the environment whom to serve.
+$serve = "$pserve"; if (-not $serve) { $serve = "$env:SKATE_PAD_SERVE" }
+if ($serve) {
+  $said = [SkatePadReader1]::Serve($serve, 600)
+  (Get-Date -Format 's') + ' ' + $said | Out-File "$HOME\Downloads\claude-loader-probe\sticks.log" -Append -Encoding utf8
+  $said
+}
 else {
   $n = 10; if ($pwatch) { $n = [int]$pwatch }
   Write-Host "watching the controller for $n seconds: move both sticks, press buttons"
