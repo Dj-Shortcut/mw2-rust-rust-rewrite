@@ -344,7 +344,7 @@ public static class Skate
         body = b; Yaw = yaw;
         var v = b.linearVelocity; v.y = 0f;
         Speed = Vector3.Dot(v, Dir(yaw));
-        hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; On = true;
+        hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; Cap = MaxSpeed; lastPull = Time.realtimeSinceStartup; On = true;
     }
 
     public static void Dismount() { On = false; }
