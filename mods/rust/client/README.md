@@ -22,8 +22,7 @@ nothing to the server: to the server the rider is a player who moves.
 - The mod loader is in the Rust folder only while one session runs. Every way of starting a
   session here puts it there and takes it out again; see [the tools](tools/README.md#a-session).
   Rust must not be started normally while the loader is in its folder.
-- The server address, the key with which the PC reads this repository, game files, built binaries
-  and logs stay out of this repository.
+- The server address, game files, built binaries and logs stay out of this repository.
 
 ## Controls
 

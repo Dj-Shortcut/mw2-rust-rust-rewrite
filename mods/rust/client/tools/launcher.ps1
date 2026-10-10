@@ -12,7 +12,7 @@ if ($pbuilt -ne $rel) { 'ABORT: the released commit did not build; the launcher 
 $enc = New-Object Text.UTF8Encoding($false)
 $files = @{}
 foreach ($f in 'session.ps1', 'skate.ps1', 'watch.ps1', 'clean.ps1', 'sticks.ps1') {
-  $t = "" + (irm -Headers (zh 'application/vnd.github.raw') (zu "mods/rust/client/tools/$f" $rel))
+  $t = "" + (irm (zu "mods/rust/client/tools/$f" $rel))
   if ($t.Length -lt 200) { "ABORT: could not fetch $f at the released commit; the launcher was left as it was"; return }
   $files[$f] = $t
 }
