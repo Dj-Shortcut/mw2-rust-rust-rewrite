@@ -26,7 +26,7 @@ public static class Scenarios
         if (done) return;
         if (startAt < 0f)
         {
-            if (now - SkateRig.AwakeAt < 4f) return;
+            if (!SkateRig.Settled) return;
             startAt = now; yaw0 = SkateCamera.LookYaw;
             SkateKeys.Scripted = true; SkateKeys.Reset(); SkateKeys.LookYaw = yaw0;
             Say(Name + " begins, view yaw=" + yaw0.ToString("F0") + " at " + Out.V1(SkateRig.LocalT.position));
