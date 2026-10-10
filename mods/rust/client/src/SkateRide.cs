@@ -32,7 +32,7 @@ public static class SkateRide
     public static int Steps, Resets, Pops, Lands, Bails, Pushes, GrindStarts, GrindEnds, Refused;
     private static Rigidbody body;
     private static Vector3 lastPos, lastDir, velocity;
-    private static float lastSpeed, lastPull = -999f, now, takeOffY, spinLeft, flipLeft, jumpWanted = -99f;
+    private static float lastSpeed, lastPull = -999f, now, mountAt, takeOffY, spinLeft, flipLeft, jumpWanted = -99f;
     private static bool hasLast;
     private static int stuck;
 
@@ -60,7 +60,7 @@ public static class SkateRide
         var v = b.linearVelocity; velocity = v; v.y = 0f;
         Speed = Vector3.Dot(v, Dir(yaw));
         SkateKeys.EndStep();
-        hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; Cap = MaxSpeed; lastPull = Time.realtimeSinceStartup;
+        hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; Cap = MaxSpeed; lastPull = mountAt = Time.realtimeSinceStartup;
         VSpeed = 0f; AirTime = 0f; spinLeft = flipLeft = 0f; SpinDeg = FlipDeg = 0; Jumped = TrickAir = Grab = Braking = false; PushPhase = 0f; stuck = 0;
         Trick = new SkateTrickState(false); TrickName = ""; TrickAt = BankedAt = LandAt = jumpWanted = -99f; OffReason = "";
         Normal = ViewNormal = Vector3.up; Position = b.position;
@@ -128,6 +128,7 @@ public static class SkateRide
             // speed: stay under it and try a little more later. At or below that pace it is something
             // else (it happens in the first seconds after waking up) and the cap is left alone.
             Resets++;
+            Out.Say("SKATE put back #" + Resets + ", " + (now - mountAt).ToString("F2") + " s after getting on: moved " + Out.V3(pos - lastPos) + " in a step at speed " + lastSpeed.ToString("F1"));
             if (Math.Abs(lastSpeed) > FootPace) { lastPull = now; Cap = Math.Max(FootPace, Math.Min(Cap, Math.Abs(lastSpeed) * 0.8f)); }
             // Being put back is not an obstacle: the board keeps what speed the cap allows.
             Speed = Clamp(Speed, -Cap, Cap);

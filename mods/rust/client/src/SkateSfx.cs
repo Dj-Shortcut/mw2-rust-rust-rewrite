@@ -1,4 +1,5 @@
 using System;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Shortcut.RustMod;
 using UnityEngine;
 
@@ -11,7 +12,9 @@ public static class SkateSfx
     private static AudioClip push, ollie, landing, bail;
     private static int pops, lands, bails, pushes;
     private static float rollVolume, grindVolume;
-    private static bool failed;
+    private static bool failed, deaf;
+    private static Il2CppStructArray<float> block;
+    public static float RollHeard, GrindHeard, ShotsHeard;
 
     private static AudioClip Clip(SkateSound sound, uint seed)
     {
@@ -49,6 +52,29 @@ public static class SkateSfx
     }
 
     private static void Sync() { pops = SkateRide.Pops; lands = SkateRide.Lands; bails = SkateRide.Bails; pushes = SkateRide.Pushes; }
+
+    // The loudest sample each source has put out so far, as the engine reports it: what a scripted
+    // check can know about sound without ears.
+    public static void Listen()
+    {
+        if (!Ready || failed || deaf) return;
+        try
+        {
+            if (block == null) block = new Il2CppStructArray<float>(256);
+            RollHeard = Math.Max(RollHeard, Peak(roll)); GrindHeard = Math.Max(GrindHeard, Peak(grind)); ShotsHeard = Math.Max(ShotsHeard, Peak(shots));
+        }
+        catch (Exception e) { deaf = true; Out.Say("AUDIO output cannot be read back: " + e.GetType().Name + ": " + e.Message); }
+    }
+
+    private static float Peak(AudioSource source)
+    {
+        source.GetOutputData(block, 0);
+        var peak = 0f;
+        for (var i = 0; i < block.Length; i++) { var v = Math.Abs(block[i]); if (v > peak) peak = v; }
+        return peak;
+    }
+
+    public static string Heard { get { return deaf ? "unreadable" : "roll " + RollHeard.ToString("F3") + " grind " + GrindHeard.ToString("F3") + " one-shots " + ShotsHeard.ToString("F3"); } }
 
     public static void Update(float frameSeconds)
     {

@@ -32,6 +32,7 @@ public static class Scenarios
             Say(Name + " begins, view yaw=" + yaw0.ToString("F0") + " at " + Out.V1(SkateRig.LocalT.position));
         }
         var s = now - startAt;
+        SkateSfx.Listen();
         if (SkateRide.Lands != lands) { lands = SkateRide.Lands; Say("landed: " + SkateRide.LastAir + " | mode=" + SkateRide.Mode + " switch=" + SkateRide.Trick.Switch + " pos=" + Out.V1(SkateRide.Position)); }
         if (Name == "ride") Ride(s);
         else if (Name == "pose") Pose(s, now);
@@ -55,7 +56,7 @@ public static class Scenarios
         SkateRide.Dismount("the scenario ended"); Restore();
         System.IO.File.WriteAllText(System.IO.Path.Combine(BepInEx.Paths.PluginPath, "skate.done"), "done");
         Say("DONE top speed=" + SkateRide.Top.ToString("F1") + " pull-backs=" + SkateRide.Resets + " late calls=" + LateDriver.Calls + " pops=" + SkateRide.Pops + " lands=" + SkateRide.Lands + " bails=" + SkateRide.Bails
-            + " refused presses=" + SkateRide.Refused + " score=" + SkateRide.Trick.TotalPoints + " grind scans=" + SkateGrind.Scans + " audio=" + SkateSfx.State);
+            + " refused presses=" + SkateRide.Refused + " score=" + SkateRide.Trick.TotalPoints + " grind scans=" + SkateGrind.Scans + " audio=" + SkateSfx.State + " | loudest output: " + SkateSfx.Heard);
     }
 
     private static void Ride(float s)
