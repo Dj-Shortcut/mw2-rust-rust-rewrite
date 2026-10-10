@@ -6,6 +6,8 @@
 #   $pplug    directory with plugin DLLs to install (default none)
 #   $psteps   comma separated probe steps written to plugins\steps.txt
 #   $ppreload PreloadIL2CPPInteropAssemblies (default false)
+#   $pdone    seconds to keep the client running until the plugin writes plugins\probe.done
+#             (an interactive in-world session; replaces $pwait)
 $ErrorActionPreference = 'Stop'
 if (-not $ptag) { $ptag = 'A' }
 if ($null -eq $plisten) { $plisten = $false }
@@ -47,14 +49,16 @@ try {
   $p = Start-Process -FilePath (Join-Path $rust 'RustClient.exe') -WorkingDirectory $rust -PassThru
   $log = "$bx\LogOutput.log"
   $t0 = Get-Date; $seen = $null; $state = 'timeout-before-chainloader'
-  while (((Get-Date) - $t0).TotalSeconds -lt 240) {
+  $limit = 240; if ($pdone) { $limit = [int]$pdone }
+  while (((Get-Date) - $t0).TotalSeconds -lt $limit) {
     Start-Sleep 3
     if ($p.HasExited) { $state = 'exited code=' + $p.ExitCode + ' at ' + [int]((Get-Date) - $t0).TotalSeconds + 's'; break }
     if (-not $seen -and (Test-Path $log)) {
       $txt = Get-Content $log -Raw -ErrorAction SilentlyContinue
       if ($txt -match 'Chainloader startup complete') { $seen = Get-Date }
     }
-    if ($seen -and ((Get-Date) - $seen).TotalSeconds -ge $pwait) { $state = 'alive ' + $pwait + 's after chainloader; responding=' + $p.Responding; break }
+    if ($pdone -and (Test-Path "$bx\plugins\probe.done")) { $state = 'plugin reported done at ' + [int]((Get-Date) - $t0).TotalSeconds + 's; responding=' + $p.Responding; break }
+    if (-not $pdone -and $seen -and ((Get-Date) - $seen).TotalSeconds -ge $pwait) { $state = 'alive ' + $pwait + 's after chainloader; responding=' + $p.Responding; break }
   }
   say ("RESULT[$ptag]: " + $state + '; chainloaderSeen=' + [bool]$seen)
   if (-not $p.HasExited) { $p.CloseMainWindow() | Out-Null; Start-Sleep 5; if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }; Start-Sleep 3 }

@@ -14,7 +14,8 @@ $src = "$probe\src\Probe.cs"
 $refs = @()
 $refs += ls $fx -Filter *.dll | ? { ($_.Name -like 'System*' -or $_.Name -in 'mscorlib.dll','netstandard.dll','Microsoft.CSharp.dll') -and $_.Name -notlike '*.Native.dll' } | % FullName
 $refs += 'BepInEx.Core.dll','BepInEx.Unity.IL2CPP.dll','BepInEx.Unity.Common.dll','Il2CppInterop.Runtime.dll','Il2CppInterop.Common.dll' | % { "$core\$_" }
-$refs += 'UnityEngine.CoreModule.dll','Il2Cppmscorlib.dll','Il2CppSystem.dll','Il2CppSystem.Core.dll' | % { "$gen\$_" }
+# All generated interop assemblies, so game and engine types resolve without a hand-kept list.
+$refs += ls $gen -Filter *.dll | % FullName
 $rsp = "$probe\src\probe.rsp"
 (@('-nologo','-target:library','-nostdlib','-optimize+','-nowarn:CS1701,CS1702,CS8632',"-out:`"$probe\plugin\LoaderProbe.dll`"") + ($refs | % { "-r:`"$_`"" }) + "`"$src`"") | Out-File $rsp -Encoding ascii
 $csc = (ls "$sdk\sdk" -Directory | select -First 1).FullName + '\Roslyn\bincore\csc.dll'
