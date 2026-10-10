@@ -1,11 +1,12 @@
 // Entry point of the Shortcut skate client, a BepInEx IL2CPP plugin for the Rust PC client.
 // The launch script writes plugins\steps.txt (comma separated) to choose what runs:
-//   skate        the playable controller
+//   skate        the playable mod
 //   skatetest    a scripted ride, out and back, that ends the session by itself
-//   posetest     a scripted ride that shows the rider pose from a side camera and the chase camera
-//                and tries the console command route
+//   posetest     the rider and board in each state, standing still and moving, from fixed cameras
+//   tricktest    a scripted ride with ollies, flips, spins and a grab
 //   modeldump    log what the rider model is made of
 //   mute         silence the game
+//   nogrind      leave edge grinding off
 //   api, ptr, max, uver, prod, frame, plat, log, inject   loader diagnostics from issue #289
 // Every line also goes straight to plugins\probe.log, so a native crash cannot lose it.
 using System;
@@ -14,7 +15,7 @@ using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using UnityEngine;
 
-[BepInPlugin("shortcut.skate.client", "Shortcut Skate Client", "0.9.0")]
+[BepInPlugin("shortcut.skate.client", "Shortcut Skate Client", "0.10.0")]
 public class SkatePlugin : BasePlugin
 {
     internal static SkatePlugin Instance;
@@ -42,6 +43,8 @@ public class SkatePlugin : BasePlugin
             case "skate": return "added=" + (AddComponent<SkateRig>() != null);
             case "skatetest": Scenarios.Name = "ride"; return "added=" + (AddComponent<SkateRig>() != null);
             case "posetest": Scenarios.Name = "pose"; return "added=" + (AddComponent<SkateRig>() != null);
+            case "tricktest": Scenarios.Name = "trick"; return "added=" + (AddComponent<SkateRig>() != null);
+            case "nogrind": SkateGrind.Enabled = false; return "grinding off";
             case "modeldump": Scenarios.Name = "dump"; return "added=" + (AddComponent<SkateRig>() != null);
             case "mute": SkateRig.Mute = true; AudioListener.volume = 0f; return "volume=" + AudioListener.volume;
             default: return LoaderSteps.Run(this, s);

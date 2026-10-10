@@ -179,6 +179,29 @@ public static class ModelDump
         if (budget <= 0) Say("bone dump cut short");
     }
 
+    // The rider model's skinned meshes and how each is drawn. The local player's model is set up
+    // for first person; this shows what the chase camera has to work with.
+    public static void Renderers()
+    {
+        try
+        {
+            if (!RiderRig.Bound && SkateRig.LocalT != null) RiderRig.Bind(SkateRig.LocalT);
+            if (!RiderRig.Bound) { Say("no rider model bound"); return; }
+            var skins = RiderRig.Root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            var line = "";
+            for (var i = 0; i < skins.Length && i < 48; i++)
+            {
+                var s = skins[i];
+                line += s.gameObject.name + "[" + (s.gameObject.activeInHierarchy ? "a" : "-") + (s.enabled ? "e" : "-") + " shadows=" + Out.Try(() => ((int)s.shadowCastingMode).ToString()) + "] ";
+                if (line.Length > 900) { Say("renderers: " + line); line = ""; }
+            }
+            Say("renderers (" + skins.Length + "): " + line);
+            Say("head bone scale=" + Out.V(RiderRig.Head.localScale) + " neck scale=" + Out.V(RiderRig.Neck.localScale) + " model root at " + Out.V3(SkateRig.LocalT.InverseTransformPoint(RiderRig.Root.position))
+                + " head at " + Out.V3(SkateRig.LocalT.InverseTransformPoint(RiderRig.Head.position)) + " pelvis at " + Out.V3(SkateRig.LocalT.InverseTransformPoint(RiderRig.Pelvis.position)));
+        }
+        catch (Exception e) { Say("renderer scan threw " + e.GetType().Name + ": " + e.Message); }
+    }
+
     private static void Tree(Transform t, int depth)
     {
         if (budget-- <= 0) return;

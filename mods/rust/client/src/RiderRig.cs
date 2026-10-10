@@ -1,23 +1,38 @@
 // The rider's pose. The local player's model is a separate root object
 // (assets/prefabs/player/player_model.prefab) with a humanoid Animator, so bones are looked up
-// through Unity's humanoid mapping instead of by name (probe run M, 10 October 2026: pelvis,
-// spine1-3, neck, head, l_hip/l_knee/l_foot/l_toe, clavicle/upperarm/forearm/hand).
-// Each frame, after the game's own animation, joint targets are turned into bone rotations:
-// every bone is turned so that it points at its child's target. Limb lengths are measured on the
-// real skeleton once. The stance generator here is a placeholder until the shared SkateRider
-// module (issue #337) supplies joint positions.
+// through Unity's humanoid mapping instead of by name. The shared rider module turns the ride's
+// state into joint positions; here they become bone rotations, late in the frame after the game's
+// own animation: every bone is turned so that it points at its child's target. Run R (10 October
+// 2026, issue #337) showed that a pose written at that point is what gets drawn.
+// The module's ankles are the skeleton's ankle joints: it is given the plane those joints rest on
+// when the soles are on the deck.
 using System;
+using Shortcut.RustMod;
 using UnityEngine;
 
 public static class RiderRig
 {
+    public const float AnkleHeight = 0.095f, ToeHeight = 0.025f, DeckTop = 0.085f;
     public static bool Bound, Enabled = true;
     public static Animator Anim;
-    public static Transform Root, Pelvis, Spine1, Spine2, Spine3, Neck, Head, LHip, LKnee, LFoot, LToe, RHip, RKnee, RFoot, RToe, LUpper, LFore, LHand, RUpper, RFore, RHand;
-    public static float Thigh, Shin, Foot, UpperArm, Forearm, HipHalf, HipDrop, Spine, NeckLen, Ankle;
-    private static bool failed;
+    public static Transform Root, Pelvis, Neck, Head, LHip, LKnee, LFoot, LToe, RHip, RKnee, RFoot, RToe, LUpper, LFore, LHand, RUpper, RFore, RHand;
+    public static SkateRiderRig Rig;
+    public static float Thigh, Shin, Foot, UpperArm, Forearm, Crouch = 0.18f;
+    // Checks for the test sessions: how far the joints ended up from where the module wanted them,
+    // and how far they had moved again by the start of the next frame.
+    public static float Miss, Drift;
+    public static string MissAt = "", DriftAt = "", Error = "";
+    public static int Applied, Refusals;
+    private static Transform[] spine = new Transform[0];
+    private static Vector3 lSole, rSole;
+    private static readonly Transform[] marks = new Transform[9];
+    private static readonly Vector3[] markAt = new Vector3[9];
+    private static readonly string[] markName = { "left ankle", "right ankle", "left knee", "right knee", "neck", "head", "left hand", "right hand", "pelvis" };
+    private static bool failed, marked;
 
     private static void Say(string m) { Out.Say("RIDER " + m); }
+    private static float Dist(Transform a, Transform b) { return Vector3.Distance(a.position, b.position); }
+    private static Vector3 V(SkateVector v) { return new Vector3((float)v.X, (float)v.Y, (float)v.Z); }
 
     // Finds the player model nearest to the player and measures it. Returns false until there is one.
     public static bool Bind(Transform playerT)
@@ -34,35 +49,58 @@ public static class RiderRig
         var a = best.GetComponentInChildren<Animator>(true);
         if (a == null || !a.isHuman) { Say("model without a humanoid animator"); return false; }
         Anim = a; Root = best.transform;
-        Pelvis = a.GetBoneTransform(HumanBodyBones.Hips); Spine1 = a.GetBoneTransform(HumanBodyBones.Spine); Spine2 = a.GetBoneTransform(HumanBodyBones.Chest); Spine3 = a.GetBoneTransform(HumanBodyBones.UpperChest);
-        Neck = a.GetBoneTransform(HumanBodyBones.Neck); Head = a.GetBoneTransform(HumanBodyBones.Head);
+        Pelvis = a.GetBoneTransform(HumanBodyBones.Hips); Neck = a.GetBoneTransform(HumanBodyBones.Neck); Head = a.GetBoneTransform(HumanBodyBones.Head);
         LHip = a.GetBoneTransform(HumanBodyBones.LeftUpperLeg); LKnee = a.GetBoneTransform(HumanBodyBones.LeftLowerLeg); LFoot = a.GetBoneTransform(HumanBodyBones.LeftFoot); LToe = a.GetBoneTransform(HumanBodyBones.LeftToes);
         RHip = a.GetBoneTransform(HumanBodyBones.RightUpperLeg); RKnee = a.GetBoneTransform(HumanBodyBones.RightLowerLeg); RFoot = a.GetBoneTransform(HumanBodyBones.RightFoot); RToe = a.GetBoneTransform(HumanBodyBones.RightToes);
         LUpper = a.GetBoneTransform(HumanBodyBones.LeftUpperArm); LFore = a.GetBoneTransform(HumanBodyBones.LeftLowerArm); LHand = a.GetBoneTransform(HumanBodyBones.LeftHand);
         RUpper = a.GetBoneTransform(HumanBodyBones.RightUpperArm); RFore = a.GetBoneTransform(HumanBodyBones.RightLowerArm); RHand = a.GetBoneTransform(HumanBodyBones.RightHand);
-        if (Pelvis == null || Spine1 == null || Neck == null || Head == null || LHip == null || LKnee == null || LFoot == null || RHip == null || RKnee == null || RFoot == null
+        if (Pelvis == null || Neck == null || Head == null || LHip == null || LKnee == null || LFoot == null || LToe == null || RHip == null || RKnee == null || RFoot == null || RToe == null
             || LUpper == null || LFore == null || LHand == null || RUpper == null || RFore == null || RHand == null)
         { Say("humanoid mapping incomplete"); return false; }
+
+        // The spine is every bone between the pelvis and the neck, whatever the avatar calls them.
+        var chain = new System.Collections.Generic.List<Transform>();
+        var t = Neck.parent;
+        while (t != null && t != Pelvis && chain.Count < 8) { chain.Insert(0, t); t = t.parent; }
+        if (t != Pelvis || chain.Count == 0) { Say("no spine between the pelvis and the neck"); return false; }
+        spine = chain.ToArray();
+        var back = Dist(Pelvis, spine[0]);
+        for (var i = 0; i < spine.Length; i++) back += Dist(spine[i], i + 1 < spine.Length ? spine[i + 1] : Neck);
+
         Thigh = (Dist(LHip, LKnee) + Dist(RHip, RKnee)) * 0.5f; Shin = (Dist(LKnee, LFoot) + Dist(RKnee, RFoot)) * 0.5f;
-        Foot = LToe != null && RToe != null ? (Dist(LFoot, LToe) + Dist(RFoot, RToe)) * 0.5f : 0.16f;
+        Foot = (Dist(LFoot, LToe) + Dist(RFoot, RToe)) * 0.5f;
         UpperArm = (Dist(LUpper, LFore) + Dist(RUpper, RFore)) * 0.5f; Forearm = (Dist(LFore, LHand) + Dist(RFore, RHand)) * 0.5f;
-        HipHalf = Dist(LHip, RHip) * 0.5f;
-        HipDrop = Vector3.Distance(Pelvis.position, (LHip.position + RHip.position) * 0.5f);
-        Spine = Dist(Pelvis, Neck); NeckLen = Dist(Neck, Head);
-        Ankle = 0.095f;
-        failed = false; Bound = true;
-        Say("bound to " + Root.gameObject.name + " thigh=" + Thigh.ToString("F3") + " shin=" + Shin.ToString("F3") + " foot=" + Foot.ToString("F3") + " upperArm=" + UpperArm.ToString("F3") + " forearm=" + Forearm.ToString("F3")
-            + " hipHalf=" + HipHalf.ToString("F3") + " hipDrop=" + HipDrop.ToString("F3") + " spine=" + Spine.ToString("F3") + " neck=" + NeckLen.ToString("F3"));
+        var hipWidth = Dist(LHip, RHip);
+        var hipDrop = Vector3.Distance(Pelvis.position, (LHip.position + RHip.position) * 0.5f);
+        var drop = AnkleHeight - ToeHeight;
+        var footFlat = (float)Math.Sqrt(Math.Max(0.0001f, Foot * Foot - drop * drop));
+        // The module puts the neck 0.12 of the spine above the chest, and the chest a spine above the hips.
+        Rig = new SkateRiderRig((Thigh + Shin) * 0.945f, hipWidth, Thigh, Shin, footFlat, (back + hipDrop) / 1.12f, Dist(LUpper, RUpper), UpperArm, Forearm, Dist(Neck, Head));
+        // Which way the soles face, seen from each foot bone, while the player stands.
+        var up = Root.rotation * Vector3.up;
+        lSole = Quaternion.Inverse(LFoot.rotation) * up; rSole = Quaternion.Inverse(RFoot.rotation) * up;
+        marks[0] = LFoot; marks[1] = RFoot; marks[2] = LKnee; marks[3] = RKnee; marks[4] = Neck; marks[5] = Head; marks[6] = LHand; marks[7] = RHand; marks[8] = Pelvis;
+        failed = false; marked = false; Bound = true; Error = "";
+        Say("bound to " + Root.gameObject.name + " spine bones=" + spine.Length + " thigh=" + Thigh.ToString("F3") + " shin=" + Shin.ToString("F3") + " foot=" + Foot.ToString("F3") + " upperArm=" + UpperArm.ToString("F3")
+            + " forearm=" + Forearm.ToString("F3") + " hips=" + hipWidth.ToString("F3") + " hipDrop=" + hipDrop.ToString("F3") + " back=" + back.ToString("F3") + " shoulders=" + Rig.ShoulderWidth.ToString("F3")
+            + " neck=" + Rig.NeckToHeadLength.ToString("F3") + " headScale=" + Out.V(Head.localScale));
         return true;
     }
-
-    private static float Dist(Transform a, Transform b) { return Vector3.Distance(a.position, b.position); }
 
     // Turn a bone so that the line to its child points along the wanted direction.
     private static void Aim(Transform bone, Transform child, Vector3 want)
     {
         var cur = child.position - bone.position;
         if (cur.sqrMagnitude < 0.000001f || want.sqrMagnitude < 0.000001f) return;
+        bone.rotation = Quaternion.FromToRotation(cur, want) * bone.rotation;
+    }
+
+    // Roll a bone about its own axis until the given bone-local direction points as near to `want` as that roll allows.
+    private static void Roll(Transform bone, Vector3 axis, Vector3 local, Vector3 want)
+    {
+        var cur = bone.rotation * local;
+        cur = cur - axis * Vector3.Dot(cur, axis); want = want - axis * Vector3.Dot(want, axis);
+        if (cur.sqrMagnitude < 0.0001f || want.sqrMagnitude < 0.0001f) return;
         bone.rotation = Quaternion.FromToRotation(cur, want) * bone.rotation;
     }
 
@@ -80,67 +118,142 @@ public static class RiderRig
         return root + axis * along + side * (float)Math.Sqrt(h2 > 0f ? h2 : 0f);
     }
 
-    // Called late in the frame, after the game has animated the model.
-    public static void Apply(Vector3 boardPos, Vector3 f, Vector3 u, float lean, float crouch, bool legsOnly)
+    // Called late in the frame, after the game has animated the model. `feet` is where the board
+    // touches the ground under the rider, `up` the board's unflipped up direction.
+    public static void Frame(Vector3 feet, Vector3 up, bool legsOnly, float frameSeconds)
     {
         if (!Bound || !Enabled || failed) return;
         try
         {
             if (Pelvis == null) { Bound = false; return; }
-            var r = Vector3.Cross(u, f);
-            // Regular stance: left foot leads, chest toward the board's right, opened a little toward travel.
-            var c = (r * 0.82f + f * 0.57f).normalized;
-            var bodyRight = Vector3.Cross(u, c);
-            var deck = boardPos + u * 0.10f;
-            var leftAnkle = deck + f * 0.21f + u * Ankle;
-            var rightAnkle = deck - f * 0.21f + u * Ankle;
-            var reach = Thigh + Shin;
-            var leanRad = lean * (float)Math.PI / 180f;
-            var pelvis = deck + u * (Ankle + reach * (0.84f - 0.22f * crouch) + HipDrop) + c * (0.05f + 0.10f * crouch) + r * (float)Math.Sin(leanRad) * 0.25f;
-            if (legsOnly) pelvis = pelvis - c * 0.05f;
+            double ux = up.x, uy = up.y, uz = up.z;
+            var ul = Math.Sqrt(ux * ux + uy * uy + uz * uz);
+            if (ul < 0.5 || uy / ul < 0.2) { ux = 0; uy = 1; uz = 0; ul = 1; }
+            ux /= ul; uy /= ul; uz /= ul;
+            var rad = SkateRide.NoseYaw * Math.PI / 180.0;
+            double fx = Math.Sin(rad), fy = 0, fz = Math.Cos(rad);
+            var d = fx * ux + fy * uy + fz * uz;
+            fx -= ux * d; fy -= uy * d; fz -= uz * d;
+            var fl = Math.Sqrt(fx * fx + fy * fy + fz * fz);
+            if (fl < 0.2) return;
+            fx /= fl; fy /= fl; fz /= fl;
+            var upV = new Vector3((float)ux, (float)uy, (float)uz);
+            var plane = feet + upV * (DeckTop + AnkleHeight - (float)SkatePose.FootLift);
 
-            // Pelvis: place it, then turn it so the hips line up with the body's right and the spine starts upward.
-            var hipsNow = RHip.position - LHip.position; var upNow = Spine1.position - Pelvis.position;
-            if (hipsNow.sqrMagnitude > 0.000001f && upNow.sqrMagnitude > 0.000001f)
+            var now = Time.realtimeSinceStartup;
+            var mode = SkateRide.Mode;
+            // Tucked in the air, folded right down to reach the board for a grab.
+            var want = mode == RideMode.Air ? (SkateRide.Grab ? 0.95f : 0.5f) : mode == RideMode.Grind ? 0.38f : SkateRide.Braking ? 0.4f : 0.18f;
+            var since = now - SkateRide.LandAt;
+            if (mode == RideMode.Ground && since < 0.35f) want += (1f - since / 0.35f) * SkateRide.Clamp(SkateRide.LandImpact / 8f, 0.2f, 1f) * 0.45f;
+            Crouch += (SkateRide.Clamp(want, 0f, 1f) - Crouch) * SkateRide.Clamp(frameSeconds * 14f, 0f, 1f);
+            // The module leans toward the board's own right; the ride leans toward the right of travel.
+            var lean = SkateRide.Clamp(SkateRide.Trick.Switch ? -SkateRide.Lean : SkateRide.Lean, -(float)SkatePose.MaximumLean, (float)SkatePose.MaximumLean);
+            var speed = Math.Min((float)SkateMotion.MaximumGroundSpeed, Math.Abs(SkateRide.Speed));
+            var input = new SkateRiderInput(new SkateVector(plane.x, plane.y, plane.z), new SkateVector(fx, fy, fz), new SkateVector(ux, uy, uz), SkateStance.Regular, SkateRide.TailFirst,
+                speed, lean, Crouch, mode == RideMode.Air, mode == RideMode.Ground && SkateRide.PushPhase > 0f, SkateRide.Clamp(SkateRide.PushPhase, 0f, 1f),
+                SkateRide.FlipDeg, SkateRide.Grab, mode == RideMode.Bail, SkateKeys.LookYaw % 360f);
+            SkateRiderPose pose; string error;
+            if (!SkateRider.TryCreate(Rig, input, out pose, out error))
             {
-                var fromFwd = Vector3.Cross(hipsNow.normalized, upNow.normalized);
-                var toFwd = Vector3.Cross(bodyRight, u);
-                var from = Quaternion.LookRotation(fromFwd, upNow.normalized);
-                var to = Quaternion.LookRotation(toFwd, u);
-                Pelvis.rotation = to * Quaternion.Inverse(from) * Pelvis.rotation;
+                if (Refusals++ == 0 || error != Error) Say("pose refused: " + error);
+                Error = error; return;
             }
-            Pelvis.position = pelvis;
-
-            if (!legsOnly)
-            {
-                var bend = (12f + 22f * crouch) * (float)Math.PI / 180f;
-                var spineDir = (u * (float)Math.Cos(bend) + c * (float)Math.Sin(bend) + r * (float)Math.Sin(leanRad) * 0.6f).normalized;
-                Aim(Spine1, Spine2 != null ? Spine2 : Neck, spineDir);
-                if (Spine2 != null) Aim(Spine2, Spine3 != null ? Spine3 : Neck, spineDir);
-                if (Spine3 != null) Aim(Spine3, Neck, spineDir);
-                Aim(Neck, Head, (u * 0.9f + c * 0.25f + f * 0.2f).normalized);
-            }
-
-            // Legs.
-            var lk = Bend(LHip.position, leftAnkle, Thigh, Shin, (c + f * 0.35f).normalized);
-            Aim(LHip, LKnee, lk - LHip.position); Aim(LKnee, LFoot, leftAnkle - LKnee.position);
-            var rk = Bend(RHip.position, rightAnkle, Thigh, Shin, (c - f * 0.35f).normalized);
-            Aim(RHip, RKnee, rk - RHip.position); Aim(RKnee, RFoot, rightAnkle - RKnee.position);
-            if (LToe != null) Aim(LFoot, LToe, (c + f * 0.25f).normalized * Foot - u * (Ankle - 0.02f));
-            if (RToe != null) Aim(RFoot, RToe, c * Foot - u * (Ankle - 0.02f));
-
-            if (!legsOnly)
-            {
-                // Arms: leading hand ahead and out, trailing hand behind and out, elbows low.
-                var arm = (UpperArm + Forearm) * 0.9f;
-                var lh = LUpper.position + (f * 0.55f - u * 0.72f + c * 0.25f).normalized * arm;
-                var le = Bend(LUpper.position, lh, UpperArm, Forearm, (-u * 0.7f - c * 0.4f).normalized);
-                Aim(LUpper, LFore, le - LUpper.position); Aim(LFore, LHand, lh - LFore.position);
-                var rh = RUpper.position + (-f * 0.55f - u * 0.72f + c * 0.25f).normalized * arm;
-                var re = Bend(RUpper.position, rh, UpperArm, Forearm, (-u * 0.7f - c * 0.4f).normalized);
-                Aim(RUpper, RFore, re - RUpper.position); Aim(RFore, RHand, rh - RFore.position);
-            }
+            // The module keeps the pushing foot at deck height; the ground is a deck lower. How far
+            // down the foot is follows the module's stroke: down by a quarter, up again at the end.
+            var phase = input.PushPhase; var down = 0f;
+            if (input.Pushing) down = phase < 0.25 ? Smooth((float)phase / 0.25f) : phase < 0.85 ? 1f : 1f - Smooth(((float)phase - 0.85f) / 0.15f);
+            Apply(pose, upV, legsOnly, down * DeckTop, SkateRide.TailFirst);
+            Applied++;
         }
         catch (Exception e) { failed = true; Say("pose threw " + e.GetType().Name + ": " + e.Message); }
+    }
+
+    private static float Smooth(float t) { t = t < 0f ? 0f : t > 1f ? 1f : t; return t * t * (3f - 2f * t); }
+
+    private static void Apply(SkateRiderPose p, Vector3 up, bool legsOnly, float pushDrop, bool pushLeft)
+    {
+        // Pelvis: turn it so the hips line up with the pose and the spine starts upward, then move
+        // it so the middle of the hip joints is where the pose has it.
+        var hipsNow = RHip.position - LHip.position; var upNow = spine[0].position - Pelvis.position;
+        if (hipsNow.sqrMagnitude > 0.000001f && upNow.sqrMagnitude > 0.000001f)
+        {
+            var from = Quaternion.LookRotation(Vector3.Cross(hipsNow.normalized, upNow.normalized), upNow.normalized);
+            var to = Quaternion.LookRotation(V(p.PelvisForward), V(p.PelvisUp));
+            Pelvis.rotation = to * Quaternion.Inverse(from) * Pelvis.rotation;
+        }
+        Pelvis.position = Pelvis.position + ((V(p.LeftHip) + V(p.RightHip)) * 0.5f - (LHip.position + RHip.position) * 0.5f);
+
+        Miss = 0f; MissAt = "";
+        if (!legsOnly)
+        {
+            // Spine: straight along the chest's up, then swung as one piece so the neck is on its target.
+            var chestUp = V(p.ChestUp);
+            for (var i = 0; i < spine.Length; i++) Aim(spine[i], i + 1 < spine.Length ? spine[i + 1] : Neck, chestUp);
+            Aim(spine[0], Neck, V(p.Neck) - spine[0].position);
+            Aim(Neck, Head, V(p.Head) - V(p.Neck));
+            // The head turns toward where the rider looks, as far as a neck goes.
+            var chestForward = V(p.ChestForward); var headForward = V(p.HeadForward);
+            var cf = chestForward - chestUp * Vector3.Dot(chestForward, chestUp); var hf = headForward - chestUp * Vector3.Dot(headForward, chestUp);
+            if (cf.sqrMagnitude > 0.0001f && hf.sqrMagnitude > 0.0001f)
+            {
+                cf = cf.normalized; hf = hf.normalized;
+                var turn = (float)(Math.Atan2(Vector3.Dot(Vector3.Cross(cf, hf), chestUp), Vector3.Dot(cf, hf)) * 180.0 / Math.PI);
+                turn = SkateRide.Clamp(turn, -75f, 75f);
+                Neck.rotation = SkateRide.Turn(turn * 0.4f, chestUp) * Neck.rotation;
+                Head.rotation = SkateRide.Turn(turn * 0.6f, chestUp) * Head.rotation;
+            }
+            Note(Neck, V(p.Neck), "neck");
+            Limb(LUpper, LFore, LHand, V(p.LeftHand), V(p.LeftElbow), UpperArm, Forearm, "left hand");
+            Limb(RUpper, RFore, RHand, V(p.RightHand), V(p.RightElbow), UpperArm, Forearm, "right hand");
+        }
+
+        // The rear foot pushes on the ground beside the board (the front one when rolling tail first).
+        var lower = up * pushDrop;
+        var la = V(p.LeftAnkle) - (pushLeft ? lower : Vector3.zero); var ra = V(p.RightAnkle) - (pushLeft ? Vector3.zero : lower);
+        Limb(LHip, LKnee, LFoot, la, V(p.LeftKnee), Thigh, Shin, "left ankle");
+        Limb(RHip, RKnee, RFoot, ra, V(p.RightKnee), Thigh, Shin, "right ankle");
+        // Feet: toes toward the pose's toes, lowered from the ankle plane to the sole, soles flat.
+        var drop = up * (AnkleHeight - ToeHeight);
+        Aim(LFoot, LToe, V(p.LeftToe) - (pushLeft ? lower : Vector3.zero) - drop - LFoot.position);
+        Aim(RFoot, RToe, V(p.RightToe) - (pushLeft ? Vector3.zero : lower) - drop - RFoot.position);
+        Roll(LFoot, (LToe.position - LFoot.position).normalized, lSole, up);
+        Roll(RFoot, (RToe.position - RFoot.position).normalized, rSole, up);
+
+        for (var i = 0; i < marks.Length; i++) markAt[i] = marks[i].position - (i == 8 ? Root.position : Pelvis.position);
+        marked = true;
+    }
+
+    // A two-bone limb onto its target, bending toward the pose's middle joint.
+    private static void Limb(Transform a, Transform b, Transform c, Vector3 target, Vector3 hint, float upper, float lower, string name)
+    {
+        var mid = Bend(a.position, target, upper, lower, hint - a.position);
+        Aim(a, b, mid - a.position);
+        Aim(b, c, target - b.position);
+        Note(c, target, name);
+    }
+
+    private static void Note(Transform bone, Vector3 target, string name)
+    {
+        var miss = Vector3.Distance(bone.position, target);
+        if (miss > Miss) { Miss = miss; MissAt = name; }
+    }
+
+    // At the start of the next frame, before the game animates again: has anything moved the joints since the pose was written?
+    public static void Check()
+    {
+        if (!marked || !Bound || failed) return;
+        marked = false;
+        try
+        {
+            if (Pelvis == null || Root == null) return;
+            Drift = 0f; DriftAt = "";
+            for (var i = 0; i < marks.Length; i++)
+            {
+                var d = Vector3.Distance(marks[i].position - (i == 8 ? Root.position : Pelvis.position), markAt[i]);
+                if (d > Drift) { Drift = d; DriftAt = markName[i]; }
+            }
+        }
+        catch (Exception e) { failed = true; Say("check threw " + e.GetType().Name + ": " + e.Message); }
     }
 }

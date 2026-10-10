@@ -1,12 +1,15 @@
 // The board the rider stands on. Built once from the shared procedural mesh
 // (mods/rust/shared/SkateBoardMesh.cs) when the engine's mesh setters are present in this client
-// build, otherwise from primitives. Origin at the ground contact centre, +Z forward. Unlit vertex
-// colours through Hidden/Internal-Colored, the one shader known to render plugin-made objects here.
+// build, otherwise from primitives. Origin at the ground contact centre, +Z toward the nose. Unlit
+// vertex colours through Hidden/Internal-Colored, the one shader known to render plugin-made
+// objects here.
 using System;
 using UnityEngine;
 
 public static class SkateBoard
 {
+    // Test sessions can draw the board and rider this far above the ground to show air poses standing still.
+    public static float ShowLift;
     private static void Say(string m) { Out.Say("SKATE " + m); }
 
     public static GameObject Build()
@@ -15,16 +18,38 @@ public static class SkateBoard
         catch (Exception e) { Say("shared mesh unavailable (" + e.GetType().Name + ": " + e.Message + "); using primitives"); return FromPrimitives(); }
     }
 
-    // Shown only while riding; sits at the player's feet, follows the ground and leans into turns.
+    // Where the board touches the ground under the rider this frame.
+    public static Vector3 Contact(Transform playerT) { return playerT.position + Vector3.up * ShowLift; }
+
+    // Shown only while riding. Sits under the rider's feet, follows the ground, leans into turns,
+    // and turns and flips with the tricks.
     public static void Follow(GameObject board, Transform playerT)
     {
-        if (board.activeSelf != SkateRide.On) board.SetActive(SkateRide.On);
-        if (!SkateRide.On || playerT == null) return;
-        var dir = SkateRide.Dir(SkateRide.Yaw);
-        var n = SkateRide.Normal;
-        var fwd = dir - n * Vector3.Dot(dir, n);
-        board.transform.position = playerT.position;
-        board.transform.rotation = Quaternion.LookRotation(fwd.sqrMagnitude > 0.0001f ? fwd.normalized : dir, n) * Quaternion.Euler(0f, 0f, -SkateRide.Lean);
+        var show = SkateRide.On && playerT != null;
+        if (board.activeSelf != show) board.SetActive(show);
+        if (!show) return;
+        var n = SkateRide.ViewNormal;
+        var travel = SkateRide.Dir(SkateRide.Yaw);
+        travel = travel - n * Vector3.Dot(travel, n);
+        travel = travel.sqrMagnitude > 0.0001f ? travel.normalized : SkateRide.Dir(SkateRide.Yaw);
+        // The lean rolls the board about its direction of travel, right side down in a right turn.
+        var up = SkateRide.Turn(-SkateRide.Lean, travel) * n;
+        var nose = SkateRide.Dir(SkateRide.NoseYaw);
+        nose = nose - up * Vector3.Dot(nose, up);
+        nose = nose.sqrMagnitude > 0.0001f ? nose.normalized : travel;
+        var flip = (float)SkateRide.FlipDeg;
+        var at = Contact(playerT);
+        if (SkateRide.Mode == RideMode.Bail)
+        {
+            // The board gets away from the rider and tumbles to a stop.
+            var t = Time.realtimeSinceStartup - SkateRide.ModeAt;
+            flip = t * 540f;
+            at = at + travel * (t * 1.6f) + Vector3.up * (0.25f * (float)Math.Sin(Math.Min(1f, t / SkateRide.BailSeconds) * Math.PI));
+        }
+        var rot = Quaternion.LookRotation(nose, up) * SkateRide.Turn(flip, Vector3.forward);
+        // A flip turns the board about the middle of the deck, not about the wheels.
+        board.transform.rotation = rot;
+        board.transform.position = at + up * RiderRig.DeckTop - (rot * Vector3.up) * RiderRig.DeckTop;
     }
 
     private static GameObject FromMesh()
