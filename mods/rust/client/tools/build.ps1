@@ -1,7 +1,8 @@
 # Compile the skate client plugin with the staged SDK's compiler. The sources are those listed in
 # mods/rust/client/sources.txt at the head of the branch in $pref, or at the commit in $pcommit.
 $dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"
-$sdk = "$dl\codex-bep788-probe\interop-nested-build-20261007-c5ab5f\source-build\sdk"
+$sdk = "$probe\sdk"
+if (-not (Test-Path "$sdk\dotnet.exe")) { Write-Host 'ABORT: no SDK in the staging folder; run zz setup first'; return }
 # The interop set must have been generated for the installed Steam build. A set from another build
 # resolves wrappers to the wrong native methods and crashes the client, so there is no fallback:
 # generate first with `zz interop`.

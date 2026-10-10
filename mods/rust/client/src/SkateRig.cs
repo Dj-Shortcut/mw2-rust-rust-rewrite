@@ -151,6 +151,7 @@ public class SkateRig : MonoBehaviour
         var frame = SkateRide.Clamp(now - lastFrame, 0.001f, 0.1f); lastFrame = now;
         SkateCamera.Sample();
         if (!SkateKeys.Scripted) SkateKeys.LookYaw = SkateCamera.LookYaw;
+        SkateBoard.Tip += ((SkateRide.On && SkateRide.Manual ? 1f : 0f) - SkateBoard.Tip) * SkateRide.Clamp(frame * 9f, 0f, 1f);
         if (board != null)
         {
             try { SkateBoard.Follow(board, LocalT); }
@@ -160,7 +161,9 @@ public class SkateRig : MonoBehaviour
         RiderRig.Look(third);
         if (!SkateRide.On || LocalT == null) return;
         var at = SkateBoard.Contact(LocalT);
-        RiderRig.Frame(at, SkateRide.ViewNormal, !third, frame);
+        var feet = at; var up = SkateRide.ViewNormal;
+        SkateBoard.Tilt(ref feet, ref up);
+        RiderRig.Frame(feet, up, !third, frame);
         SkateCamera.Apply(at);
     }
 

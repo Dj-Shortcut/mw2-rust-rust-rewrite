@@ -18,7 +18,7 @@ public static class Scenarios
     private static void Restore()
     {
         SkateKeys.Scripted = false; SkateKeys.Reset();
-        SkateCamera.Fixed = false; SkateCamera.Chase = true; SkateRide.Frozen = false; SkateBoard.ShowLift = 0f;
+        SkateCamera.Fixed = false; SkateCamera.Chase = true; SkateRide.Frozen = false; SkateRide.Manual = false; SkateBoard.ShowLift = 0f;
     }
 
     public static void Update(float now)
@@ -74,9 +74,9 @@ public static class Scenarios
     private static readonly string[] poseLabels = {
         "stance, seen from the rider's front", "stance, seen along the board from behind", "stance, seen from the rider's back", "stance, seen along the board from ahead", "stance, seen from above",
         "push, foot on the ground", "push, seen from behind", "air, half a kickflip", "air, quarter flip with a grab", "air with a grab, seen from behind", "bail", "switch stance", "grind",
-        "first person", "moving, pushing off", "moving, turning round", "finish" };
-    private static readonly float[] poseBearing = { 90f, 180f, 270f, 0f, 90f, 90f, 180f, 120f, 90f, 180f, 90f, 90f, 90f, 90f, 115f, 115f, 90f };
-    private const int PosePush = 6, PoseFlip = 8, PoseGrab = 9, PoseBail = 11, PoseSwitch = 12, PoseGrind = 13, PoseFirst = 14, PoseMove = 15, PoseTurn = 16, PoseEnd = 17;
+        "manual", "manual, seen from behind", "first person", "moving, pushing off", "moving, turning round", "finish" };
+    private static readonly float[] poseBearing = { 90f, 180f, 270f, 0f, 90f, 90f, 180f, 120f, 90f, 180f, 90f, 90f, 90f, 90f, 180f, 90f, 115f, 115f, 90f };
+    private const int PosePush = 6, PoseFlip = 8, PoseGrab = 9, PoseBail = 11, PoseSwitch = 12, PoseGrind = 13, PoseManual = 14, PoseFirst = 16, PoseMove = 17, PoseTurn = 18, PoseEnd = 19;
     private static float stepAt;
     private static bool keyWas;
 
@@ -102,14 +102,15 @@ public static class Scenarios
         SkateRide.PushPhase = phase == PosePush || phase == PosePush + 1 ? 0.45f : 0f;
         SkateRide.FlipDeg = phase == PoseFlip ? 180 : air ? 90 : 0;
         SkateRide.Grab = phase == PoseGrab || phase == PoseGrab + 1;
+        SkateRide.Manual = phase == PoseManual || phase == PoseManual + 1;
         SkateBoard.ShowLift = air ? 0.7f : 0f;
         SkateRide.Trick = new SkateTrickState(phase == PoseSwitch);
         if (phase == PoseMove) { SkateRide.Frozen = false; SkateRide.Mode = RideMode.Ground; }
         if (phase == PoseTurn) SkateKeys.LookYaw = yaw0 + 180f;
     }
 
-    private static readonly float[] trickAt = { 3f, 6f, 8.9f, 9f, 9.4f, 11f, 14f, 16.9f, 17f, 17.5f, 20f, 20.12f, 23f, 23.45f, 26f, 28.5f };
-    private static readonly string[] trickDo = { "ollie", "ollie+kick", "left", "ollie", "release", "turn", "ollie+heel", "right+grab", "ollie", "release", "ollie+kick", "kick", "ollie", "kick", "brake", "finish" };
+    private static readonly float[] trickAt = { 3f, 6f, 8.9f, 9f, 9.4f, 11f, 14f, 16.9f, 17f, 17.5f, 20f, 20.12f, 23f, 23.45f, 24.6f, 26.2f, 28f, 30.5f };
+    private static readonly string[] trickDo = { "ollie", "ollie+kick", "left", "ollie", "release", "turn", "ollie+heel", "right+grab", "ollie", "release", "ollie+kick", "kick", "ollie", "kick", "manual", "release", "brake", "finish" };
 
     private static void Trick(float s)
     {
@@ -131,7 +132,8 @@ public static class Scenarios
             if (what.Contains("left")) { SkateKeys.Left = true; SkateKeys.LeftPressed = true; }
             if (what.Contains("right")) { SkateKeys.Right = true; SkateKeys.RightPressed = true; }
             if (what.Contains("grab")) SkateKeys.Crouch = true;
-            if (what == "release") SkateKeys.Left = SkateKeys.Right = SkateKeys.Crouch = false;
+            if (what == "manual") SkateKeys.Manual = true;
+            if (what == "release") SkateKeys.Left = SkateKeys.Right = SkateKeys.Crouch = SkateKeys.Manual = false;
             if (what == "turn") SkateKeys.LookYaw = yaw0 + 180f;
             if (what == "brake") SkateKeys.Brake = true;
             if (what == "finish") Finish();

@@ -2,7 +2,7 @@
 // written there is what gets drawn. The game still adjusts the skeleton before the next frame
 // starts, so nothing may be read back from the bones as if it were this module's pose.
 // The rider module is given the plane the ankle joints rest on, not the deck: its ankles are the
-// skeleton's ankle joints.
+// skeleton's ankle joints. Where the deck is below that plane goes in separately, for the grab.
 using System;
 using Shortcut.RustMod;
 using UnityEngine;
@@ -215,7 +215,7 @@ public static class RiderRig
             var speed = Math.Min((float)SkateMotion.MaximumGroundSpeed, Math.Abs(SkateRide.Speed));
             var input = new SkateRiderInput(new SkateVector(plane.x, plane.y, plane.z), new SkateVector(fx, fy, fz), new SkateVector(ux, uy, uz), SkateStance.Regular, SkateRide.TailFirst,
                 speed, lean, Crouch, mode == RideMode.Air, mode == RideMode.Ground && SkateRide.PushPhase > 0f, SkateRide.Clamp(SkateRide.PushPhase, 0f, 1f),
-                SkateRide.FlipDeg, SkateRide.Grab, mode == RideMode.Bail, SkateKeys.LookYaw % 360f);
+                SkateRide.FlipDeg, SkateRide.Grab, mode == RideMode.Bail, SkateKeys.LookYaw % 360f, SkatePose.FootLift - AnkleHeight);
             SkateRiderPose pose; string error;
             if (!SkateRider.TryCreate(Rig, input, out pose, out error))
             {
@@ -248,6 +248,23 @@ public static class RiderRig
         if (!legsOnly)
         {
             var chestUp = V(p.ChestUp);
+            // The module folds the body at the hip joints; the skeleton's spine starts above them, on
+            // the pelvis bone. So the pelvis tips about the line through the hips until the spine's
+            // root is where the module's straight back passes, or the neck would be out of reach.
+            var hipLine = RHip.position - LHip.position;
+            var hips = (LHip.position + RHip.position) * 0.5f;
+            if (hipLine.sqrMagnitude > 0.000001f)
+            {
+                hipLine = hipLine.normalized;
+                var now = spine[0].position - hips; now = now - hipLine * Vector3.Dot(now, hipLine);
+                var want = chestUp - hipLine * Vector3.Dot(chestUp, hipLine);
+                if (now.sqrMagnitude > 0.000001f && want.sqrMagnitude > 0.000001f)
+                {
+                    var tip = Quaternion.FromToRotation(now, want);
+                    Pelvis.rotation = tip * Pelvis.rotation;
+                    Pelvis.position = hips + tip * (Pelvis.position - hips);
+                }
+            }
             for (var i = 0; i < spine.Length; i++) Aim(spine[i], i + 1 < spine.Length ? spine[i + 1] : Neck, chestUp);
             Aim(spine[0], Neck, V(p.Neck) - spine[0].position);
             Aim(Neck, Head, V(p.Head) - V(p.Neck));

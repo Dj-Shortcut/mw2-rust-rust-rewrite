@@ -1,7 +1,8 @@
 # Build Il2CppInterop.Runtime 1.5.3 (pinned upstream commit) with the two changed files in rt/.
 # The stock runtime of the loader crashes this client when a plugin registers a component.
-$dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"; $cx = "$dl\codex-bep788-probe"
-$sdk = "$cx\interop-nested-build-20261007-c5ab5f\source-build\sdk"
+$dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"
+$sdk = "$probe\sdk"
+if (-not (Test-Path "$sdk\dotnet.exe")) { 'ABORT: no SDK in the staging folder; run zz setup first'; return }
 $commit = 'dbda1cb353b0f4253345dc45136d170b9e50a5a0'
 $root = "$probe\rtsrc"; $src = "$root\Il2CppInterop-$commit"
 if (-not (Test-Path "$src\Il2CppInterop.sln")) {

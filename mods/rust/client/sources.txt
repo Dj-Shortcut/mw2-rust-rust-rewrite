@@ -1,6 +1,6 @@
-# Source files of the skate client plugin, one per line.
-# A bare path is taken from this branch. A line with a commit and a SHA-256 is taken from that
-# commit (shared code owned by another branch) and must match the hash.
+# Source files of the skate client plugin, one per line, taken from the commit that is built.
+# A line can instead name a commit and a SHA-256 after the path: that file is then taken from
+# that commit and must match the hash (shared code that is ahead on another branch).
 mods/rust/client/src/Plugin.cs
 mods/rust/client/src/SkateRig.cs
 mods/rust/client/src/SkateKeys.cs
@@ -12,11 +12,11 @@ mods/rust/client/src/SkateCamera.cs
 mods/rust/client/src/SkateHud.cs
 mods/rust/client/src/SkateSfx.cs
 mods/rust/client/src/Scenarios.cs
-mods/rust/shared/SkateBoardMesh.cs 5a9ed6e550a405365c8a18746dfd276a310b6848 6391708873a9da2e3b295edee8aff9507d8d0780460af5b1eeaa71d503dbffdc
-mods/rust/shared/SkateMotion.cs 5a9ed6e550a405365c8a18746dfd276a310b6848 ca08c6ef45c6f019e752f89754a641e2a3f77420b7ccbd3c8f348e84b0a975ee
-mods/rust/shared/SkateRails.cs 5a9ed6e550a405365c8a18746dfd276a310b6848 a8607c321c239a8b0819798accb2426a1462c83d216d284bc7472f9a21bc57ae
-mods/rust/shared/SkatePose.cs 5a9ed6e550a405365c8a18746dfd276a310b6848 3c9edcc8ae1863ed4e4a4dbb0c48ea17cc5977c0e4b1e3191a9bbd9758962145
-mods/rust/shared/SkateTricks.cs e389224b486cf6c20158d501926a485ccd6e70fb 454ce47170277f2374fb5bb6c898c8868e077367b507ec016857fa0831477496
-mods/rust/shared/SkateRider.cs 5a9ed6e550a405365c8a18746dfd276a310b6848 d472616ff3b5207697b54c105695d27e5a919d12eaba8c14b2c52339c4ece793
-mods/rust/shared/SkateEdges.cs 5a9ed6e550a405365c8a18746dfd276a310b6848 fd9b0d22ed09a3511eef9d576a11bd462a9b6075d70b53099eb248e2c3d5d7a6
-mods/rust/shared/SkateAudio.cs 5a9ed6e550a405365c8a18746dfd276a310b6848 917f26f4586b17c780b272bccfbcd8602c64122edfd2745c49f1fb5ecbd9bccd
+mods/rust/shared/SkateBoardMesh.cs
+mods/rust/shared/SkateMotion.cs
+mods/rust/shared/SkateRails.cs
+mods/rust/shared/SkatePose.cs
+mods/rust/shared/SkateTricks.cs
+mods/rust/shared/SkateRider.cs
+mods/rust/shared/SkateEdges.cs
+mods/rust/shared/SkateAudio.cs

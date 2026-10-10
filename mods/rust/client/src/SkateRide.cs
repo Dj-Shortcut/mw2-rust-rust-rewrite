@@ -13,13 +13,13 @@ public enum RideMode { Off, Ground, Air, Grind, Bail }
 public static class SkateRide
 {
     public const float PushAccel = 6f, MaxPush = 8f, BrakeDecel = 12f, RollDecel = 0.45f, MaxSpeed = 13f, MaxReverse = 6f, TurnRate = 150f, SlopeGain = 1.6f;
-    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 0.9f, PushPeriod = 0.8f, SeaLevel = -0.6f, FootPace = 5.5f;
+    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 0.9f, PushPeriod = 0.8f, SeaLevel = -0.6f, FootPace = 5.5f, ManualPace = 1f;
     private const float RayLift = 0.6f, FeetProbe = 0.3f, AirProbe = 3f;
     public static readonly int GroundMask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
 
     public static RideMode Mode = RideMode.Off;
     public static bool On { get { return Mode != RideMode.Off; } }
-    public static bool Grounded, Braking, Jumped, TrickAir, Grab;
+    public static bool Grounded, Braking, Jumped, TrickAir, Grab, Manual;
     public static bool Frozen;
     public static float Speed, Yaw, Lean, VSpeed, AirTime, AirPeak, Clearance = 99f, Actual, ActualV, Top, Cap = MaxSpeed, ModeAt, LandAt = -99f, LandImpact, PushPhase;
     public static Vector3 Normal = Vector3.up, Tangent = Vector3.forward, ViewNormal = Vector3.up, Position;
@@ -27,7 +27,7 @@ public static class SkateRide
     public static double SpinDeg, FlipDeg;
     public static SkateTrickState Trick;
     public static string TrickName = "", LastAir = "", OffReason = "";
-    public static long TrickPoints, Banked;
+    public static long TrickPoints, Banked, ComboPoints;
     public static float TrickAt = -99f, BankedAt = -99f;
     public static int Steps, Resets, Pops, Lands, Bails, Pushes, GrindStarts, GrindEnds, Refused;
     private static Rigidbody body;
@@ -60,8 +60,8 @@ public static class SkateRide
         Speed = Vector3.Dot(v, Dir(yaw));
         SkateKeys.EndStep();
         hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; Cap = MaxSpeed; lastPull = mountAt = Time.realtimeSinceStartup;
-        VSpeed = 0f; AirTime = 0f; spinLeft = flipLeft = 0f; SpinDeg = FlipDeg = 0; Jumped = TrickAir = Grab = Braking = false; PushPhase = 0f; stuck = 0;
-        Trick = new SkateTrickState(false); TrickName = ""; TrickAt = BankedAt = LandAt = jumpWanted = -99f; OffReason = "";
+        VSpeed = 0f; AirTime = 0f; spinLeft = flipLeft = 0f; SpinDeg = FlipDeg = 0; Jumped = TrickAir = Grab = Braking = Manual = false; PushPhase = 0f; stuck = 0;
+        Trick = new SkateTrickState(false); TrickName = ""; ComboPoints = 0; TrickAt = BankedAt = LandAt = jumpWanted = -99f; OffReason = "";
         Normal = ViewNormal = Vector3.up; Position = b.position;
         SkateGrind.Reset();
         // Getting on while going up (the second press of a double jump) finishes that jump on the
@@ -72,7 +72,7 @@ public static class SkateRide
     public static void Dismount(string reason)
     {
         if (Mode == RideMode.Off) return;
-        Mode = RideMode.Off; OffReason = reason; Grab = false;
+        Mode = RideMode.Off; OffReason = reason; Grab = Manual = false;
         SkateKeys.EndStep();
     }
 
@@ -176,7 +176,9 @@ public static class SkateRide
             return;
         }
         Speed += Vector3.Dot(Physics.gravity, tangent) * SlopeGain * dt;
-        var pushing = SkateKeys.Push && !SkateKeys.Brake && Speed < MaxPush;
+        // A manual is held on the back wheels: it needs some speed and leaves no foot free to push.
+        Manual = SkateKeys.Manual && !SkateKeys.Brake && Math.Abs(Speed) > ManualPace;
+        var pushing = SkateKeys.Push && !SkateKeys.Brake && !Manual && Speed < MaxPush;
         if (pushing) Speed = Math.Min(MaxPush, Speed + PushAccel * dt);
         if (SkateKeys.Brake) Speed = Toward(Speed, 0f, BrakeDecel * dt);
         Speed = Toward(Speed, 0f, RollDecel * dt);
@@ -196,7 +198,7 @@ public static class SkateRide
     private static void TakeOff(bool jumped, float vertical)
     {
         Enter(RideMode.Air);
-        Jumped = jumped; TrickAir = jumped; VSpeed = vertical; AirTime = 0f; AirPeak = 0f; takeOffY = Position.y;
+        Jumped = jumped; TrickAir = jumped; Manual = false; VSpeed = vertical; AirTime = 0f; AirPeak = 0f; takeOffY = Position.y;
         spinLeft = flipLeft = 0f; PushPhase = 0f; Braking = false; stuck = 0;
     }
 
@@ -291,15 +293,16 @@ public static class SkateRide
     private static void TrickTick(bool airborne, bool grinding, float spinAxis, float flipAxis, float impact, float dt)
     {
         SkateTrickResult r; string error;
-        if (!SkateTricks.TryStep(Trick, new SkateTrickInput(spinAxis, flipAxis, Grab, airborne, grinding, impact), dt, BailImpact, out r, out error))
+        var input = new SkateTrickInput(spinAxis, flipAxis, Grab, airborne, grinding, impact, Manual && !airborne && !grinding, Math.Abs(Speed));
+        if (!SkateTricks.TryStep(Trick, input, dt, BailImpact, out r, out error))
         {
             Out.Say("SKATE trick step refused: " + error);
             return;
         }
-        Trick = r.State;
+        Trick = r.State; ComboPoints = r.ComboPoints;
         SpinDeg = airborne ? r.BoardSpin : 0; FlipDeg = airborne ? r.BoardFlip : 0;
         if ((r.Events & SkateTrickEvents.Bailed) != 0) { Bail(); return; }
-        if ((r.Events & (SkateTrickEvents.Landed | SkateTrickEvents.GrindEnded)) != 0)
+        if ((r.Events & (SkateTrickEvents.Landed | SkateTrickEvents.GrindEnded | SkateTrickEvents.ManualEnded)) != 0)
         {
             TrickName = r.TrickName;
             TrickPoints = r.Points; TrickAt = now;
@@ -317,6 +320,7 @@ public static class SkateRide
         if (Mode == RideMode.Bail || Mode == RideMode.Off) return;
         SkateTrickResult r; string error;
         if (SkateTricks.TryBail(Trick, out r, out error)) Trick = r.State;
+        ComboPoints = 0; Manual = false;
         if (Mode == RideMode.Grind) GrindEnds++;
         Enter(RideMode.Bail); Bails++;
         TrickName = "Bail"; TrickPoints = 0; TrickAt = now;

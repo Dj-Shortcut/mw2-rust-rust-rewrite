@@ -3,9 +3,9 @@
 # Follow it with `zz progress`; the set is complete when its log ends with GEN DONE.
 # With $pgentest the set goes to a folder of its own (gentest-<build>), to try the generation
 # without replacing a set that is in use.
-$dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"; $cx = "$dl\codex-bep788-probe"
-$prep = "$cx\interop-callee-prepared-20261009-007748-v1"
-$sdk = "$cx\interop-nested-build-20261007-c5ab5f\source-build\sdk"
+$dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"
+$prep = "$probe\generator"; $sdk = "$probe\sdk"
+if (-not ((Test-Path "$sdk\dotnet.exe") -and (Test-Path "$prep\dotnet-host\dotnet.exe"))) { 'ABORT: no SDK or generator in the staging folder; run zz setup first'; return }
 $rust = 'C:\Program Files (x86)\Steam\steamapps\common\Rust'
 $acf = gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf'
 $build = (($acf | sls '"buildid"').Line -split '"')[3]

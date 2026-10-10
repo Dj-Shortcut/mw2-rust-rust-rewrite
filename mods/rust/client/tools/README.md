@@ -16,13 +16,12 @@ All of it lives under the user's `Downloads` folder and none of it is in this re
 | Path under `Downloads` | What it is |
 | --- | --- |
 | `BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.788+5b766a3.zip` | The official mod loader build ([identity](../../../../docs/RUST-CLIENT-LOADER.md)). |
-| `codex-bep788-probe\interop-nested-build-20261007-c5ab5f\source-build\sdk` | The .NET SDK whose compiler builds the plugin and the generator's front end. |
-| `codex-bep788-probe\interop-callee-prepared-20261009-007748-v1` | The corrected interop generator built from [`../generator`](../generator/README.md), with its own .NET host. |
-| `codex-bep788-probe\pwsh-diag\pwsh.exe` | PowerShell 7, used by `survey` only. |
-| `claude-loader-probe\` | The staging folder of these tools. Created as needed. |
+| `codex-bep788-probe\` | What the build of the corrected interop generator ([`../generator`](../generator/README.md)) left behind: a .NET SDK, the generator with its own .NET host, and PowerShell 7 (`pwsh-diag\pwsh.exe`, used by `survey` only). |
+| `claude-loader-probe\` | The staging folder of these tools. `setup` copies the SDK and the generator into it; the rest is created as needed. |
 
-The staging folder holds `bep788\` (the unpacked loader), `gen-<build>\` (one interop set per Rust
-build), `rt\` (the changed runtime library), `plugin\` (the last build), `play\` (the released
+The staging folder holds `sdk\` and `generator\` (the copies made by `setup`), `bep788\` (the
+unpacked loader), `unity-libs-<version>\` (Unity's base libraries), `gen-<build>\` (one interop set
+per Rust build), `rt\` (the changed runtime library), `plugin\` (the last build), `play\` (the released
 plugin), `launcher\` (the owner's launcher), `run-<tag>-<time>\` (one folder per session with its
 logs and the loader files taken back out of the Rust folder) and `server.txt` (the address of the
 private test server as `ip:port`; it is read by `ping` and `session` and is never committed).
@@ -44,6 +43,7 @@ letters, digits and spaces are all that can be typed into the PC reliably from a
 
 | `zz` | What it does |
 | --- | --- |
+| `setup` | Once: copies the SDK and the interop generator into the staging folder. |
 | `status` | Steam, the installed Rust build, whether an interop set exists for it, leftovers in the Rust folder, what is built and installed. Starts Steam when it is not running. |
 | `interop` | Generates the interop set for the installed Rust build in the background. Needed once after every Rust update. |
 | `progress` | Progress of that generation; done when the log ends with `GEN DONE`. |

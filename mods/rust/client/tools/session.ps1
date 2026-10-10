@@ -113,6 +113,7 @@ try {
     if ($pdone -and (Test-Path "$bx\plugins\skate.done")) { $state = 'plugin reported done at ' + [int]((Get-Date) - $t0).TotalSeconds + 's; responding=' + $p.Responding; break }
     if (-not $pdone -and $seen -and ((Get-Date) - $seen).TotalSeconds -ge $pwait) { $state = 'alive ' + $pwait + 's after chainloader; responding=' + $p.Responding; break }
   }
+  if ($seen -and $state -eq 'timeout-before-chainloader') { $state = 'ended at its time limit of ' + $limit + ' s' }
   say ("RESULT[$ptag]: " + $state + '; chainloaderSeen=' + [bool]$seen)
   if (-not $p.HasExited) { $p.CloseMainWindow() | Out-Null; Start-Sleep 5; if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }; Start-Sleep 3 }
   Get-Process UnityCrashHandler64 -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue

@@ -35,12 +35,13 @@ A controller reaches the client as these keys, through the Steam Input layout of
 | `A` / `D` | Carve | Frontside / backside 180 |
 | Mouse | The board turns toward the view | |
 | `Space` | Ollie; on a grind, ollie off | |
+| `Shift` | Held while rolling: manual | |
 | `Ctrl` or `C` | Held for a moment: get off | Held: grab |
 | `L` | View from behind or the game's first person | |
 
 Coming down over an edge while moving along it starts a grind. A trick only starts when the jump
-lasts long enough to finish it. Tricks score when landed; landed tricks in a row multiply, and the
-combo is banked after a moment of plain rolling. Coming down faster than 12 m/s, or with a
+lasts long enough to finish it. Tricks score when landed, grinds and manuals by the second; tricks
+in a row multiply, and the combo is banked after a moment of plain rolling. Coming down faster than 12 m/s, or with a
 rotation unfinished, is a bail: the combo is lost and the rider steps off. Water, death, a seat or
 a vehicle also end the ride. Nothing is read from the keyboard while the cursor is free (console,
 chat, inventory).
@@ -49,8 +50,7 @@ chat, inventory).
 
 [`sources.txt`](sources.txt) lists what is compiled into `ShortcutSkateClient.dll`. A bare path is
 taken from the commit that is built. A line with a commit and a SHA-256 takes shared code from
-that commit and must match the hash, so that a build is exactly what was checked even while the
-shared modules move on.
+that commit and must match the hash; that is for shared code that is ahead on another branch.
 
 | File | Part |
 | --- | --- |
@@ -75,7 +75,7 @@ file it runs `skate`.
 | `skate` | The mod as the owner plays it. |
 | `ride` | Scripted: ride out, brake, turn round, ride back, get off. |
 | `pose` | Scripted: rider and board in each state, standing still, from fixed cameras; `K` steps on. |
-| `trick` | Scripted: ollie, kickflip, heelflip, both spins, a grab and two presses that come too late. |
+| `trick` | Scripted: ollie, kickflip, heelflip, both spins, a grab, two presses that come too late and a manual. |
 | `mute` | Turns the whole client down until nothing can be heard. |
 | `nogrind` | No grinding. |
 

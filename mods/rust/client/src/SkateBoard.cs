@@ -5,7 +5,8 @@ using UnityEngine;
 
 public static class SkateBoard
 {
-    public static float ShowLift;
+    public const float TipDegrees = 15f, Axle = 0.23f;
+    public static float ShowLift, Tip;
     private static void Say(string m) { Out.Say("SKATE " + m); }
 
     public static GameObject Build()
@@ -16,12 +17,29 @@ public static class SkateBoard
 
     public static Vector3 Contact(Transform playerT) { return playerT.position + Vector3.up * ShowLift; }
 
+    // A manual lifts the end that leads: the board, and the rider's footing with it, pitches about
+    // the ground under the trailing axle.
+    public static void Tilt(ref Vector3 at, ref Vector3 up)
+    {
+        if (Tip < 0.001f) return;
+        var lead = SkateRide.Dir(SkateRide.Yaw);
+        lead = lead - up * Vector3.Dot(lead, up);
+        if (lead.sqrMagnitude < 0.0001f) return;
+        lead = SkateRide.Speed >= 0f ? lead.normalized : -lead.normalized;
+        var turn = SkateRide.Turn(Tip * TipDegrees, Vector3.Cross(lead, up));
+        var pivot = at - lead * Axle;
+        at = pivot + turn * (at - pivot);
+        up = turn * up;
+    }
+
     public static void Follow(GameObject board, Transform playerT)
     {
         var show = SkateRide.On && playerT != null;
         if (board.activeSelf != show) board.SetActive(show);
         if (!show) return;
         var n = SkateRide.ViewNormal;
+        var at = Contact(playerT);
+        Tilt(ref at, ref n);
         var travel = SkateRide.Dir(SkateRide.Yaw);
         travel = travel - n * Vector3.Dot(travel, n);
         travel = travel.sqrMagnitude > 0.0001f ? travel.normalized : SkateRide.Dir(SkateRide.Yaw);
@@ -31,7 +49,6 @@ public static class SkateBoard
         nose = nose - up * Vector3.Dot(nose, up);
         nose = nose.sqrMagnitude > 0.0001f ? nose.normalized : travel;
         var flip = (float)SkateRide.FlipDeg;
-        var at = Contact(playerT);
         if (SkateRide.Mode == RideMode.Bail)
         {
             var t = Time.realtimeSinceStartup - SkateRide.ModeAt;

@@ -52,16 +52,18 @@ public static class SkateHud
         {
             Text(40f * k, h - 270f * k, 700f * k, (Math.Abs(SkateRide.Speed) * 3.6f).ToString("F0") + " km/h" + (SkateRide.Trick.Switch ? "   SWITCH" : ""), side, sideDark);
             Text(40f * k, h - 232f * k, 700f * k, "SCORE " + SkateRide.Trick.TotalPoints.ToString("N0"), side, sideDark);
-            if (SkateRide.Trick.ComboCount > 0)
-                Middle(h * 0.28f + 60f * k, "COMBO " + (SkateRide.Trick.ComboBasePoints * SkateRide.Trick.ComboCount).ToString("N0") + "   x" + SkateRide.Trick.ComboCount, mid, midDark);
+            var links = SkateRide.Trick.ComboCount + (SkateRide.Trick.Manualing ? 1 : 0);
+            if (links > 0 && SkateRide.ComboPoints > 0)
+                Middle(h * 0.28f + 60f * k, "COMBO " + SkateRide.ComboPoints.ToString("N0") + "   x" + links, mid, midDark);
             if (SkateRide.Mode == RideMode.Grind) Middle(h * 0.28f, "GRIND  " + SkateRide.Trick.GrindSeconds.ToString("F1") + " s", big, bigDark);
+            else if (SkateRide.Trick.Manualing) Middle(h * 0.28f, "MANUAL  " + SkateRide.Trick.ManualSeconds.ToString("F1") + " s", big, bigDark);
             if (now - MountedAt < 9f && !Scenarios.Active)
             {
-                Text(40f * k, h - 186f * k, w - 80f * k, "W push   S brake   A / D carve   SPACE ollie   K or hold CTRL get off   L camera", small, smallDark);
+                Text(40f * k, h - 186f * k, w - 80f * k, "W push   S brake   A / D carve   SPACE ollie   hold SHIFT manual   K or hold CTRL get off   L camera", small, smallDark);
                 Text(40f * k, h - 158f * k, w - 80f * k, "In the air: tap W kickflip   tap S heelflip   A / D spin   hold CTRL grab", small, smallDark);
             }
         }
-        if (popup && SkateRide.Mode != RideMode.Grind && SkateRide.TrickName != "")
+        if (popup && SkateRide.Mode != RideMode.Grind && !SkateRide.Trick.Manualing && SkateRide.TrickName != "")
             Middle(h * 0.28f, SkateRide.TrickName == "Bail" ? "BAIL" : SkateRide.TrickName + (SkateRide.TrickPoints > 0 ? "   +" + SkateRide.TrickPoints.ToString("N0") : ""), big, bigDark);
         if (now - SkateRide.BankedAt < 2.2f) Middle(h * 0.28f + 100f * k, "BANKED  +" + SkateRide.Banked.ToString("N0"), mid, midDark);
     }
