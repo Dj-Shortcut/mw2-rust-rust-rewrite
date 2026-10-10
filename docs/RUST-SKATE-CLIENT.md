@@ -33,7 +33,7 @@ For the reported game-owned vertical route, a Drive adapter must preserve achiev
 jump, pass Jump=false and consume only desired X/Z after the game step. This adaptation
 still needs client verification; full XYZ ownership requires one exclusive gravity/jump owner.
 Feed actual support transitions and pre-contact impact to Tricks; apply spin to rider/board,
-flip only the board. Measure the real rig and map Rider joints into bones without fighting Animator.
+flip only the board. Keep Drive travel heading separate from nose heading on switch; measure/map the rig.
 Edges needs real sampled heights plus contact/proximity/upright/clearance checks before capture;
 Audio needs probed playback and cached clips. No pose, trick, grind, HUD or sound integration is proven.
 [Server acceptance](../mods/rust/plugins/SKATE.md) defaults to automatic bounded eligibility;
