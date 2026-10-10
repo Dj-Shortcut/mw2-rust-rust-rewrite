@@ -13,7 +13,7 @@ public enum RideMode { Off, Ground, Air, Grind, Bail }
 public static class SkateRide
 {
     public const float PushAccel = 6f, MaxPush = 8f, BrakeDecel = 12f, RollDecel = 0.45f, MaxSpeed = 13f, MaxReverse = 6f, TurnRate = 150f, SlopeGain = 1.6f;
-    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 1.3f, BailDecel = 10f, PushPeriod = 0.8f, SeaLevel = -0.6f, LowestCap = 1.5f, ManualPace = 1f;
+    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 1.3f, BailDecel = 10f, PushPeriod = 0.8f, SeaLevel = -0.6f, LowestCap = 1.5f, ManualPace = 1f, HopGrace = 0.3f;
     private const float RayLift = 0.6f, FeetProbe = 0.3f, AirProbe = 3f;
     public static readonly int GroundMask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
 
@@ -233,7 +233,8 @@ public static class SkateRide
         // Read while the board still rolls: which end leads decides which way is frontside.
         spinSide = TailFirst ? -1f : 1f;
         Enter(RideMode.Air);
-        Jumped = jumped; TrickAir = jumped; Manual = NoseManual = false; VSpeed = vertical; AirTime = 0f; AirPeak = 0f; takeOffY = Position.y;
+        // A manual survives a hop over a bump; a jump ends it, and so does a longer fall below.
+        Jumped = jumped; TrickAir = jumped; if (jumped) Manual = NoseManual = false; VSpeed = vertical; AirTime = 0f; AirPeak = 0f; takeOffY = Position.y;
         flipLeft = shoveLeft = 0f; spinning = false; PushPhase = 0f; Braking = false; stuck = 0;
         popKind = jumped ? wantKind : SkatePopKind.Ollie; pendFlip = jumped ? wantFlip : 0; pendShove = jumped ? wantShove : 0f;
         wantFlip = 0; wantShove = 0f; wantKind = SkatePopKind.Ollie;
@@ -248,6 +249,7 @@ public static class SkateRide
     private static void AirStep(Vector3 pos, float dt)
     {
         AirTime += dt;
+        if (AirTime > HopGrace) Manual = NoseManual = false;
         VSpeed -= AirGravity * dt; if (VSpeed < -MaxFall) VSpeed = -MaxFall;
         if (pos.y - takeOffY > AirPeak) AirPeak = pos.y - takeOffY;
         var dir = Dir(Yaw);
