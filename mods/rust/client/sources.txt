@@ -1,0 +1,22 @@
+# Source files of the skate client plugin, one per line, taken from the commit that is built.
+# A line can instead name a commit and a SHA-256 after the path: that file is then taken from
+# that commit and must match the hash (shared code that is ahead on another branch).
+mods/rust/client/src/Plugin.cs
+mods/rust/client/src/SkateRig.cs
+mods/rust/client/src/SkateKeys.cs
+mods/rust/client/src/SkateRide.cs
+mods/rust/client/src/SkateGrind.cs
+mods/rust/client/src/SkateBoard.cs
+mods/rust/client/src/RiderRig.cs
+mods/rust/client/src/SkateCamera.cs
+mods/rust/client/src/SkateHud.cs
+mods/rust/client/src/SkateSfx.cs
+mods/rust/client/src/Scenarios.cs
+mods/rust/shared/SkateBoardMesh.cs
+mods/rust/shared/SkateMotion.cs
+mods/rust/shared/SkateRails.cs
+mods/rust/shared/SkatePose.cs
+mods/rust/shared/SkateTricks.cs
+mods/rust/shared/SkateRider.cs
+mods/rust/shared/SkateEdges.cs
+mods/rust/shared/SkateAudio.cs
