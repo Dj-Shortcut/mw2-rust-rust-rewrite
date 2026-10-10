@@ -10,7 +10,8 @@ $val = { param($k) (($acf | sls ('"' + $k + '"') | select -First 1).Line -split 
 $pb = & $val 'buildid'
 'rust build=' + $pb + ' stateflags=' + (& $val 'StateFlags') + ' target=' + (& $val 'TargetBuildID')
 $probe = "$HOME\Downloads\claude-loader-probe"
-'interop for this build=' + (Test-Path "$probe\gen-$pb\out\Assembly-CSharp.dll") + ' | sets: ' + ((ls $probe -Directory -Filter 'gen-*' | % Name) -join ',')
+'interop for this build=' + ((Test-Path "$probe\gen-$pb\out\Assembly-CSharp.dll") -and [bool](sls -Path "$probe\gen-$pb\gen.log" -Pattern 'GEN DONE.* errors=0( |$)' -Quiet -ErrorAction SilentlyContinue)) + ' | sets: ' + ((ls $probe -Directory -Filter 'gen-*' | % Name) -join ',')
+'last line of its log: ' + $(if (Test-Path "$probe\gen-$pb\gen.log") { $t = "" + (gc "$probe\gen-$pb\gen.log" -Tail 1); if ($t.Length -gt 160) { $t.Substring(0, 160) } else { $t } } else { 'no log' })
 $rust = 'C:\Program Files (x86)\Steam\steamapps\common\Rust'
 'loader files in the rust folder: ' + (('BepInEx','dotnet','winhttp.dll','doorstop_config.ini','.doorstop_version','changelog.txt' | ? { Test-Path -LiteralPath (Join-Path $rust $_) }) -join ',') + ' (empty means clean)'
 'rust running=' + [bool](Get-Process RustClient -ErrorAction SilentlyContinue) + ' free GB=' + [int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB) + ' total GB=' + [int]((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB)

@@ -31,9 +31,12 @@ $zip = "$dl\BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.788+5b766a3.zip"
 # generate first with `zz interop`.
 $pb = ((gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf' | sls '"buildid"').Line -split '"')[3]
 $gen = "$dl\claude-loader-probe\gen-$pb\out"
-if (-not ((Test-Path "$gen\Assembly-CSharp.dll") -and (sls -Path "$dl\claude-loader-probe\gen-$pb\gen.log" -Pattern 'GEN DONE' -Quiet))) { Write-Host "ABORT: no completed interop set for installed build $pb; run zz interop first"; return }
+if (-not ((Test-Path "$gen\Assembly-CSharp.dll") -and (sls -Path "$dl\claude-loader-probe\gen-$pb\gen.log" -Pattern 'GEN DONE.* errors=0( |$)' -Quiet))) { Write-Host "ABORT: no complete, error-free interop set for installed build $pb; run zz interop first"; return }
 $run = "$probe\run-$ptag-" + (Get-Date -Format 'HHmmss')
 $roots = 'BepInEx','dotnet','winhttp.dll','doorstop_config.ini','.doorstop_version','changelog.txt'
+# While this file exists, a loader in the Rust folder is one that these tools put there. clean.ps1
+# moves a loader out only then: one that somebody installed for another mod is left alone.
+$mark = "$probe\loader-in-rust-folder.txt"
 function say($m) { Write-Host $m }
 # Steam keeps non-Steam shortcuts in a binary file. Returns the 64-bit id that steam://rungameid
 # expects for the shortcut with this name, plus its target, or nothing when there is none.
@@ -68,6 +71,7 @@ if (-not (Test-Path "$stage\winhttp.dll")) { Expand-Archive -LiteralPath $zip -D
 $stRoots = ls $stage -Force | % Name
 say ('stage roots: ' + ($stRoots -join ','))
 try {
+  Set-Content -LiteralPath $mark -Value ('put there ' + (Get-Date -Format 's') + ' by session ' + $run)
   foreach ($n in $stRoots) { Copy-Item -LiteralPath (Join-Path $stage $n) -Destination $rust -Recurse }
   $bx = Join-Path $rust 'BepInEx'
   New-Item -ItemType Directory -Force "$bx\interop","$bx\config","$bx\plugins" | Out-Null
@@ -126,6 +130,7 @@ try {
     if (Test-Path -LiteralPath $src) { Move-Item -LiteralPath $src -Destination "$run\removed" }
   }
   $after = (ls $rust -Force | % Name | sort) -join '|'
+  if (-not ($roots | ? { Test-Path -LiteralPath (Join-Path $rust $_) })) { Remove-Item -LiteralPath $mark -ErrorAction SilentlyContinue }
   say ('rollback clean=' + ($before -eq $after))
   if ($before -ne $after) { say "before=$before"; say "after=$after" }
 }

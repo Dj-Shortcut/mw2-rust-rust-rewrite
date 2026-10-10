@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# First-boot bootstrap for a private Rust PC / Oxide test server (issues #266, #289).
+# First-boot bootstrap for a private Rust PC / Oxide test server.
 # Target: Ubuntu 24.04 x86_64 with 16 GB RAM, for example a Hetzner CX43. Run once as root,
 # normally from cloud-init. It installs the official dedicated server (Steam app 258550) and the
 # matching stable Oxide release, starts the server EAC-disabled for the owner's RustClient.exe,
@@ -27,7 +27,6 @@ OWNER_STEAMID=${OWNER_STEAMID:-}
 ALLOW_FROM=${ALLOW_FROM:-any}
 STEAMCMD_URL=${STEAMCMD_URL:-https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz}
 OXIDE_API=${OXIDE_API:-https://api.github.com/repos/OxideMod/Oxide.Rust/releases/latest}
-OXIDE_FALLBACK_URL=${OXIDE_FALLBACK_URL:-https://github.com/OxideMod/Oxide.Rust/releases/latest/download/Oxide.Rust-linux.zip}
 # Project plugin, pinned to a commit of this repository and checked against its SHA-256.
 PLUGIN_URL=${PLUGIN_URL:-https://raw.githubusercontent.com/Dj-Shortcut/mw2-rust-rust-rewrite/fd97f10736c4f0749f07e799ee50442f2ddff01b/mods/rust/plugins/ShortcutLoadouts.cs}
 PLUGIN_SHA256=${PLUGIN_SHA256:-ade96d31d5c03fc2adaa7f09e192211fb8511dcdb34539db8ceccac311bdf95e}
@@ -111,15 +110,12 @@ if url == expected and re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
     print(tag, url, digest[7:])
 ' <<<"$meta" || true)
   fi
-  if [[ -n $oxide_line ]]; then
-    read -r oxide_tag oxide_url oxide_sha <<<"$oxide_line"
-    echo "oxide release $oxide_tag"
-    retry 5 15 curl -fsSL "$oxide_url" -o "$oxide_zip"
-    echo "$oxide_sha  $oxide_zip" | sha256sum -c -
-  else
-    echo "WARNING: no usable release metadata; downloading the latest Oxide archive without a publisher digest check"
-    retry 5 15 curl -fsSL "$OXIDE_FALLBACK_URL" -o "$oxide_zip"
-  fi
+  # The archive is code that the server will run: without the publisher's digest it is not installed.
+  [[ -n $oxide_line ]] || die "no Oxide release with a published digest could be read from GitHub; run this script again later"
+  read -r oxide_tag oxide_url oxide_sha <<<"$oxide_line"
+  echo "oxide release $oxide_tag"
+  retry 5 15 curl -fsSL "$oxide_url" -o "$oxide_zip"
+  echo "$oxide_sha  $oxide_zip" | sha256sum -c - || die "the Oxide archive does not match its published digest"
   as_rust unzip -oq "$oxide_zip" -d "$ROOT"
   [[ -f $ROOT/RustDedicated_Data/Managed/Oxide.Rust.dll ]] || die "Oxide overlay did not produce Oxide.Rust.dll"
 

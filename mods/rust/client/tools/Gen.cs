@@ -1,7 +1,7 @@
-// Offline interop generation for the currently installed Rust build (issue #289).
-// Mirrors BepInEx be.788 Il2CppInteropManager, but uses the patched Cpp2IL BuildInteropSourceModels
-// entry point and the patched Il2CppInterop generator already staged on Shadow. Reads the game
-// files only; writes only to the given fresh output directory.
+// Offline interop generation for the installed Rust build. It does what the loader's own
+// Il2CppInteropManager does, through the corrected Cpp2IL entry point BuildInteropSourceModels and
+// the corrected Il2CppInterop generator (../generator). Reads the game files only; writes only to
+// the given fresh output directory. The log ends with GEN DONE only for a set without errors.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,7 +26,10 @@ public static class Gen
         try
         {
             string ga = a[0], meta = a[1], unityLibs = a[2], outDir = a[3];
-            if (Directory.Exists(outDir) && Directory.GetFileSystemEntries(outDir).Length > 0) { Say("FAIL output directory is not empty"); return 2; }
+            var unity = a[4].Split('.');
+            var version = new UnityVersion(ushort.Parse(unity[0]), ushort.Parse(unity[1]), ushort.Parse(unity[2]));
+            if (Directory.Exists(outDir) && Directory.GetFileSystemEntries(outDir).Length > 0) { Say("GEN FAILED the output directory is not empty"); return 2; }
+            if (!File.Exists(Path.Combine(unityLibs, "UnityEngine.CoreModule.dll"))) { Say("GEN FAILED no Unity base libraries in " + unityLibs); return 2; }
             InstructionSetRegistry.RegisterInstructionSet<X86InstructionSet>(DefaultInstructionSets.X86_32);
             InstructionSetRegistry.RegisterInstructionSet<X86InstructionSet>(DefaultInstructionSets.X86_64);
             LibCpp2IlBinaryRegistry.RegisterBuiltInBinarySupport();
@@ -35,7 +38,7 @@ public static class Gen
             Cpp2IL.Core.Logging.Logger.ErrorLog += (m, s) => Say("[cpp2il ERROR " + s + "] " + m.Trim());
 
             Say("STAGE init");
-            Cpp2IlApi.InitializeLibCpp2Il(ga, meta, new UnityVersion(6000, 3, 15), false);
+            Cpp2IlApi.InitializeLibCpp2Il(ga, meta, version, false);
             var layers = new List<Cpp2IlProcessingLayer> { new AttributeInjectorProcessingLayer() };
             foreach (var l in layers) l.PreProcess(Cpp2IlApi.CurrentAppContext, layers);
             foreach (var l in layers) l.Process(Cpp2IlApi.CurrentAppContext);
@@ -52,16 +55,17 @@ public static class Gen
                 GameAssemblyPath = ga,
                 Source = asms,
                 OutputDir = outDir,
-                UnityBaseLibsDir = Directory.Exists(unityLibs) ? unityLibs : null,
+                UnityBaseLibsDir = unityLibs,
             };
             var log = new L();
             Il2CppInteropGenerator.Create(opts).AddLogger(log).AddInteropAssemblyGenerator().Run();
-            Say("GEN DONE files=" + Directory.GetFiles(outDir).Length + " warnings=" + log.Warn + " errors=" + log.Err);
+            if (log.Err > 0) { Say("GEN FAILED errors=" + log.Err + " warnings=" + log.Warn + ": the set in " + outDir + " must not be used"); return 3; }
+            Say("GEN DONE files=" + Directory.GetFiles(outDir).Length + " warnings=" + log.Warn + " errors=0 unity=" + a[4]);
             return 0;
         }
         catch (Exception e)
         {
-            Say("GEN FAIL " + e);
+            Say("GEN FAILED " + e);
             return 1;
         }
     }

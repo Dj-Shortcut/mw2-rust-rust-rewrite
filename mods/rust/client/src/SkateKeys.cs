@@ -29,7 +29,7 @@ public static class SkateKeys
         try
         {
             var kb = Keyboard.current;
-            if (kb == null || CursorFree()) { Push = Brake = Left = Right = Crouch = Jump = false; wasPush = wasBrake = wasLeft = wasRight = wasJump = wasCrouch = wasToggle = wasCamera = false; return; }
+            if (kb == null || CursorFree()) { Push = Brake = Left = Right = Crouch = Jump = false; wasPush = wasBrake = wasLeft = wasRight = wasJump = wasCrouch = wasToggle = wasCamera = false; EndStep(); return; }
             bool push = kb.wKey.isPressed, brake = kb.sKey.isPressed, left = kb.aKey.isPressed, right = kb.dKey.isPressed;
             bool jump = kb.spaceKey.isPressed, toggle = kb.kKey.isPressed, crouch = false, camera = false;
             if (crouchKeys)

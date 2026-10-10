@@ -33,7 +33,7 @@ public class SkatePlugin : BasePlugin
             case "skate": return "added=" + (AddComponent<SkateRig>() != null);
             case "ride": case "pose": case "trick": Scenarios.Name = s; return "added=" + (AddComponent<SkateRig>() != null);
             case "nogrind": SkateGrind.Enabled = false; return "grinding off";
-            case "mute": SkateRig.Mute = true; AudioListener.volume = 0f; return "volume=" + AudioListener.volume;
+            case "mute": SkateRig.Mute = true; AudioListener.volume = SkateRig.MuteVolume; return "volume=" + AudioListener.volume;
             default: return "unknown step";
         }
     }

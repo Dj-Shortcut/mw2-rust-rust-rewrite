@@ -27,47 +27,76 @@ public static class RiderRig
     // out of view. A camera behind the rider needs the full body drawn and that set hidden; both
     // must be put back for first person.
     private static SkinnedMeshRenderer[] body = new SkinnedMeshRenderer[0], legSet = new SkinnedMeshRenderer[0];
-    private static bool third, lookFailed;
-    private static int skinCount = -1;
-    private static float nextScan;
+    private static bool third;
+    private static int lookFailures;
+    private static long skinSet;
+    private static float nextScan, lookRetryAt;
     public static string LookState = "first person";
 
     public static void Look(bool wantThird)
     {
-        if (!Bound || lookFailed || Root == null) return;
+        var now = Time.realtimeSinceStartup;
+        if (!Bound || Root == null || lookFailures >= 3 || now < lookRetryAt) return;
         try
         {
-            var now = Time.realtimeSinceStartup;
             if (now >= nextScan)
             {
-                // Clothing changes rebuild the meshes, so the set is looked at again now and then.
+                // Clothing changes replace the meshes, also one for one, so the set is compared by
+                // identity now and then. The old set goes back to the game's own state before the new
+                // one is sorted: a mesh is recognised as body by that state.
                 nextScan = now + 1f;
                 var all = Root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-                if (all.Length != skinCount)
+                long set = all.Length;
+                for (var i = 0; i < all.Length; i++) set = set * 31 + all[i].Pointer.ToInt64();
+                if (set != skinSet)
                 {
-                    Show(false);
+                    Show(false, true);
                     var b = new System.Collections.Generic.List<SkinnedMeshRenderer>(); var l = new System.Collections.Generic.List<SkinnedMeshRenderer>();
                     for (var i = 0; i < all.Length; i++)
                     {
                         if (all[i].gameObject.name.StartsWith("leg-")) l.Add(all[i]);
                         else if (all[i].shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly) b.Add(all[i]);
                     }
-                    body = b.ToArray(); legSet = l.ToArray(); skinCount = all.Length;
+                    body = b.ToArray(); legSet = l.ToArray(); skinSet = set;
                     Say("look: " + all.Length + " skinned meshes, " + body.Length + " shadow-only body, " + legSet.Length + " first-person");
                 }
             }
-            if (wantThird != third) Show(wantThird);
+            if (wantThird != third) Show(wantThird, false);
+            lookFailures = 0;
         }
-        catch (Exception e) { lookFailed = true; Say("look threw " + e.GetType().Name + ": " + e.Message); }
+        catch (Exception e)
+        {
+            // Back to the game's own state with the set as it was known, and another try later.
+            lookFailures++; lookRetryAt = now + 3f; skinSet = 0;
+            Say("look threw " + e.GetType().Name + ": " + e.Message);
+            try { Show(false, true); } catch (Exception) { }
+        }
     }
 
-    private static void Show(bool wantThird)
+    public static void Unbind()
     {
-        if (third == wantThird) return;
+        try { Show(false, true); } catch (Exception) { }
+        Bound = false; body = new SkinnedMeshRenderer[0]; legSet = new SkinnedMeshRenderer[0]; skinSet = 0;
+    }
+
+    private static void Show(bool wantThird, bool always)
+    {
+        if (third == wantThird && !always) return;
         third = wantThird;
-        for (var i = 0; i < body.Length; i++) if (body[i] != null) body[i].shadowCastingMode = wantThird ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
-        for (var i = 0; i < legSet.Length; i++) if (legSet[i] != null) legSet[i].enabled = !wantThird;
         LookState = wantThird ? "third person" : "first person";
+        // Each mesh on its own: one that fails must not leave the others in the wrong state.
+        var failures = 0; var first = "";
+        for (var i = 0; i < body.Length; i++)
+        {
+            try { if (body[i] != null) body[i].shadowCastingMode = wantThird ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly; }
+            catch (Exception e) { if (failures++ == 0) first = e.GetType().Name + ": " + e.Message; }
+        }
+        for (var i = 0; i < legSet.Length; i++)
+        {
+            try { if (legSet[i] != null) legSet[i].enabled = !wantThird; }
+            catch (Exception e) { if (failures++ == 0) first = e.GetType().Name + ": " + e.Message; }
+        }
+        if (failures > 0) throw new InvalidOperationException(failures + " meshes could not be switched, first " + first);
     }
 
     private static void Say(string m) { Out.Say("RIDER " + m); }
@@ -76,7 +105,7 @@ public static class RiderRig
 
     public static bool Bind(Transform playerT)
     {
-        Bound = false; Show(false); skinCount = -1; nextScan = 0f;
+        Unbind(); nextScan = 0f; lookFailures = 0; lookRetryAt = 0f;
         var models = UnityEngine.Object.FindObjectsOfType<PlayerModel>();
         PlayerModel best = null; var bd = 2f;
         for (var i = 0; i < models.Length; i++)

@@ -56,8 +56,7 @@ public static class SkateRide
     public static void Mount(Rigidbody b, float yaw)
     {
         body = b; Yaw = yaw;
-        // Whatever the player was doing carries over: a mount in mid-jump finishes that arc on the board.
-        var v = b.linearVelocity; velocity = v; v.y = 0f;
+        var v = b.linearVelocity; velocity = v; var rise = v.y; v.y = 0f;
         Speed = Vector3.Dot(v, Dir(yaw));
         SkateKeys.EndStep();
         hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; Cap = MaxSpeed; lastPull = mountAt = Time.realtimeSinceStartup;
@@ -65,7 +64,9 @@ public static class SkateRide
         Trick = new SkateTrickState(false); TrickName = ""; TrickAt = BankedAt = LandAt = jumpWanted = -99f; OffReason = "";
         Normal = ViewNormal = Vector3.up; Position = b.position;
         SkateGrind.Reset();
-        Enter(RideMode.Ground);
+        // Getting on while going up (the second press of a double jump) finishes that jump on the
+        // board; the ground is still within reach of the feet then, and ground movement would cut it.
+        if (rise > 1f) TakeOff(false, rise); else Enter(RideMode.Ground);
     }
 
     public static void Dismount(string reason)
@@ -260,12 +261,13 @@ public static class SkateRide
             if (Mode == RideMode.Grind) GrindVelocity(pos);
             return;
         }
+        // A fall without a jump is no trick, and it is not rolling either: the trick module is not
+        // stepped, so an open combo neither banks nor is lost until the rider is down.
         if (TrickAir)
         {
             TrickTick(true, false, spinAxis, flipAxis, 0, dt);
             spinLeft -= spinAxis * spinStep; flipLeft -= flipAxis * flipStep;
         }
-        else TrickTick(false, false, 0, 0, 0, dt);
     }
 
     private static string AirLine(string end)

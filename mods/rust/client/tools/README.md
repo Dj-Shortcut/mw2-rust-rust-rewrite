@@ -6,8 +6,8 @@ take it out again, show the logs, and install the owner's launcher.
 
 They are written to be run by an agent that reaches the PC only through typed keys. Every script
 is therefore fetched from this repository and run in the PowerShell session (`zz name`), names are
-short, and settings are global variables that a script sets for the next one. Nothing here is
-installed permanently except the launcher described below.
+plain words, and settings are global variables that a script sets for the next one. Nothing here
+is installed permanently except the launcher described below.
 
 ## What must be on the PC
 
@@ -37,7 +37,8 @@ iex (irm https://raw.githubusercontent.com/Dj-Shortcut/mw2-rust-rust-rewrite/mai
 
 After that `zz name` runs `name.ps1` from this folder and `zg file` returns a file from it. Both
 read the branch named in `$pref`; set it before or after loading `remote.ps1` to work from another
-branch. A keyboard that cannot type `/` can build the address with `-f [char]47`.
+branch (`sv pref name`). Script names are letters only and settings take plain values, because
+letters, digits and spaces are all that can be typed into the PC reliably from a distance.
 
 ## Scripts
 
@@ -45,20 +46,20 @@ branch. A keyboard that cannot type `/` can build the address with `-f [char]47`
 | --- | --- |
 | `status` | Steam, the installed Rust build, whether an interop set exists for it, leftovers in the Rust folder, what is built and installed. Starts Steam when it is not running. |
 | `interop` | Generates the interop set for the installed Rust build in the background. Needed once after every Rust update. |
-| `interop-status` | Progress of that generation; done when the log ends with `GEN DONE`. |
+| `progress` | Progress of that generation; done when the log ends with `GEN DONE`. |
 | `runtime` | Builds the changed `Il2CppInterop.Runtime.dll` from the pinned upstream source and [`rt/`](rt/README.md). Needed once. |
 | `build` | Compiles the plugin from [`../sources.txt`](../sources.txt) at the head of the branch, or at `$pcommit`. |
 | `session` | One bounded run of the client with the loader; see below. Normally started by one of the next five. |
 | `play` | Build, then a session to play in, started directly, sound on. |
 | `pad` | The same through the owner's Steam shortcut, so that the controller layout applies. |
 | `ride`, `pose`, `tricks` | Build, then a muted session that runs one scripted check in the world and ends by itself. |
-| `log`, `log-all` | The plugin's log of the last session, without or with its once-a-second status lines. `$pinc` filters. |
+| `log`, `logall` | The plugin's log of the last session, without or with its once-a-second status lines. `$pinc` filters. |
 | `file` | Another file of the last session, by default the game's `Player.log`. |
 | `more` | The next page of whatever was shown last. |
 | `clean` | Moves a loader that was left in the Rust folder out of it. |
 | `survey` | Lists what the interop set of the installed build offers for given type names. |
 | `launcher` | Installs or updates the owner's launcher from the commit in [`release.txt`](release.txt). |
-| `launcher-check` | Starts the installed launcher, kills it while Rust runs, closes Rust and reports whether the Rust folder was cleaned all the same. |
+| `launchertest` | Starts the installed launcher, kills it while Rust runs, closes Rust and reports whether the Rust folder was cleaned all the same. |
 | `ping` | Whether the private test server answers on its game port. |
 
 ## A session
@@ -82,7 +83,7 @@ listed in the [client's README](../README.md#steps). A scripted check ends the s
 ## After a Rust update
 
 1. `zz status` shows the new build and `interop for this build=False`.
-2. `zz interop`, then `zz interop-status` until `GEN DONE` (about ten minutes).
+2. `zz interop`, then `zz progress` until `GEN DONE` (about ten minutes).
 3. `zz ride` in a world. If the plugin no longer compiles or the check fails, the game changed
    something the client relies on; `survey` shows what the new build offers.
 4. `zz launcher`, so that the owner's plugin is rebuilt against the new set.
@@ -98,7 +99,7 @@ moves to another Unity version needs both changed, and the base libraries for th
    `session.ps1`, `watch.ps1` and `clean.ps1` of that commit in `launcher\` and writes two files on
    the desktop. The launcher uses only these local copies, so later changes in the repository do
    not reach the owner until the next `zz launcher`.
-4. `zz launcher-check`.
+4. `zz launchertest`.
 
 ## Settings
 
@@ -113,6 +114,8 @@ Set by the scripts for one another; `sv name value` sets one by hand.
 | `$psteps` | `session` | Steps for the plugin. |
 | `$pplug`, `$prt` | `session` | Folder with the plugin, folder with the changed runtime. |
 | `$pdone` | `session` | Seconds after which a session in a world is ended. |
+| `$plimit`, `$pquiet` | `play` | End the session that many seconds after its start; turn the sound down. |
+| `$pgentest` | `interop` | Generate into a folder of its own instead of the one sessions use. |
 | `$psteam`, `$pshortcut` | `session` | Start through the Steam shortcut of that name. |
 | `$pconnect` | `session` | Join the server in `server.txt` at start (direct start only). |
 | `$plast`, `$pfile` | `log`, `file`, `more` | The last session's folder, the file being paged. |

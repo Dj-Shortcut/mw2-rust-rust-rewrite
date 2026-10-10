@@ -48,7 +48,16 @@ public static class SkateSfx
             Ready = true; State = "ready";
             Out.Say("AUDIO ready: two loops and four one-shots at " + Rate + " Hz");
         }
-        catch (Exception e) { failed = true; State = "failed: " + e.GetType().Name + ": " + e.Message; Out.Say("AUDIO " + State); }
+        catch (Exception e) { failed = true; State = "failed: " + e.GetType().Name + ": " + e.Message; Out.Say("AUDIO " + State); Silence(); }
+    }
+
+    private static void Silence()
+    {
+        foreach (var source in new[] { roll, grind, shots })
+        {
+            try { if (source != null) { source.volume = 0f; source.Stop(); } }
+            catch (Exception) { }
+        }
     }
 
     private static void Sync() { pops = SkateRide.Pops; lands = SkateRide.Lands; bails = SkateRide.Bails; pushes = SkateRide.Pushes; }
@@ -74,7 +83,7 @@ public static class SkateSfx
         return peak;
     }
 
-    public static string Heard { get { return deaf ? "unreadable" : "roll " + RollHeard.ToString("F3") + " grind " + GrindHeard.ToString("F3") + " one-shots " + ShotsHeard.ToString("F3"); } }
+    public static string Heard { get { return deaf ? "unreadable" : "roll " + RollHeard.ToString("F4") + " grind " + GrindHeard.ToString("F4") + " one-shots " + ShotsHeard.ToString("F4") + " at listener volume " + AudioListener.volume.ToString("F3"); } }
 
     public static void Update(float frameSeconds)
     {
@@ -95,6 +104,6 @@ public static class SkateSfx
             if (SkateRide.Bails != bails) shots.PlayOneShot(bail, 1f);
             Sync();
         }
-        catch (Exception e) { failed = true; State = "failed while playing: " + e.GetType().Name + ": " + e.Message; Out.Say("AUDIO " + State); }
+        catch (Exception e) { failed = true; State = "failed while playing: " + e.GetType().Name + ": " + e.Message; Out.Say("AUDIO " + State); Silence(); }
     }
 }

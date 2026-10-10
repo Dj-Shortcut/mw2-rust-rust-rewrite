@@ -76,7 +76,7 @@ file it runs `skate`.
 | `ride` | Scripted: ride out, brake, turn round, ride back, get off. |
 | `pose` | Scripted: rider and board in each state, standing still, from fixed cameras; `K` steps on. |
 | `trick` | Scripted: ollie, kickflip, heelflip, both spins, a grab and two presses that come too late. |
-| `mute` | Silences the whole client. |
+| `mute` | Turns the whole client down until nothing can be heard. |
 | `nogrind` | No grinding. |
 
 A scripted check writes what happened to `BepInEx\plugins\skate.log` and ends the session.

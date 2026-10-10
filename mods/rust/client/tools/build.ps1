@@ -7,7 +7,7 @@ $sdk = "$dl\codex-bep788-probe\interop-nested-build-20261007-c5ab5f\source-build
 # generate first with `zz interop`.
 $pb = ((gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf' | sls '"buildid"').Line -split '"')[3]
 $gen = "$dl\claude-loader-probe\gen-$pb\out"
-if (-not ((Test-Path "$gen\Assembly-CSharp.dll") -and (sls -Path "$dl\claude-loader-probe\gen-$pb\gen.log" -Pattern 'GEN DONE' -Quiet))) { Write-Host "ABORT: no completed interop set for installed build $pb; run zz interop first"; return }
+if (-not ((Test-Path "$gen\Assembly-CSharp.dll") -and (sls -Path "$dl\claude-loader-probe\gen-$pb\gen.log" -Pattern 'GEN DONE.* errors=0( |$)' -Quiet))) { Write-Host "ABORT: no complete, error-free interop set for installed build $pb; run zz interop first"; return }
 $core = "$probe\bep788\BepInEx\core"; $fx = "$probe\bep788\dotnet"
 New-Item -ItemType Directory -Force "$probe\plugin","$probe\src" | Out-Null
 $repo = 'Dj-Shortcut/mw2-rust-rust-rewrite'

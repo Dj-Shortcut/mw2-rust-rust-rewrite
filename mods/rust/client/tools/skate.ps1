@@ -15,8 +15,14 @@ if (Get-Process RustClient -ErrorAction SilentlyContinue) { line '  Rust is alre
 if (-not (Test-Path "$probe\play\ShortcutSkateClient.dll")) { line '  The skate plugin is not installed here. Ask Claude to run the install step again.'; return }
 # A session that was cut off (window closed, PC stopped) can have left the loader in the Rust folder.
 . "$L\clean.ps1" | % { line "  $_" }
+$there = @('BepInEx','dotnet','winhttp.dll','doorstop_config.ini','.doorstop_version','changelog.txt' | ? { Test-Path -LiteralPath (Join-Path $rust $_) })
+if ($there) {
+  line '  The Rust folder already holds a mod loader that this launcher did not put there.'
+  line '  Nothing was started and nothing was changed.'
+  return
+}
 $pb = ((Get-Content 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf' | Select-String '"buildid"').Line -split '"')[3]
-if (-not (Test-Path "$probe\gen-$pb\out\Assembly-CSharp.dll")) {
+if (-not ((Test-Path "$probe\gen-$pb\out\Assembly-CSharp.dll") -and (Select-String -Path "$probe\gen-$pb\gen.log" -Pattern 'GEN DONE.* errors=0( |$)' -Quiet))) {
   line "  Rust has been updated (build $pb) and the mod has not been prepared for this version yet."
   line '  Nothing was started and nothing was changed. Ask Claude to prepare the new version.'
   return

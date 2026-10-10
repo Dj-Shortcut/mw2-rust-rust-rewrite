@@ -10,6 +10,9 @@ public class SkateRig : MonoBehaviour
 {
     public SkateRig(IntPtr p) : base(p) { }
 
+    // Not zero: with the listener at zero the engine stops mixing the sources at all, and a scripted
+    // check could no longer tell whether the board's sounds play.
+    public const float MuteVolume = 0.001f;
     public static bool Mute;
     public static BasePlayer Local;
     public static Transform LocalT;
@@ -17,15 +20,15 @@ public class SkateRig : MonoBehaviour
     public static PlayerWalkMovement Walk;
     public static float AwakeAt = -1f;
     public static bool Ready { get { return Body != null && AwakeAt > 0f; } }
-    public static bool CanMount { get { return Ready && late != null && !SkateRide.On && Time.realtimeSinceStartup - offAt > 0.7f; } }
+    public static bool CanMount { get { return Ready && late != null && Walk != null && Walk.enabled && !SkateRide.On && Time.realtimeSinceStartup - offAt > 0.7f; } }
 
     private static GameObject board;
     private static LateDriver late;
     private static float offAt = -99f, lastFrame;
     private static bool wasOn;
-    private float nextTick, nextLog, lastJumpTap = -1f, crouchSince = -1f;
-    private int standTicks;
-    private bool lateAdded, hudFailed;
+    private float nextTick, nextLog, lateRetryAt, lastJumpTap = -1f, crouchSince = -1f;
+    private int standTicks, lateFailures;
+    private bool tracking, lateAdded, hudFailed;
 
     private static void Say(string m) { Out.Say("SKATE " + m); }
 
@@ -33,6 +36,12 @@ public class SkateRig : MonoBehaviour
     {
         var now = Time.realtimeSinceStartup;
         SkateKeys.Poll();
+        if (SkateRide.On)
+        {
+            // The game switches its walk component off when something else moves the player (a seat, a vehicle).
+            if (Walk == null) SkateRide.Dismount("the movement object is gone");
+            else if (!Walk.enabled) SkateRide.Dismount("the game took over the movement");
+        }
         if (!Scenarios.Active && Ready)
         {
             if (SkateRide.On)
@@ -77,14 +86,17 @@ public class SkateRig : MonoBehaviour
     [HideFromIl2Cpp]
     private void Tick(float now)
     {
-        if (Mute) AudioListener.volume = 0f;
+        if (Mute) AudioListener.volume = MuteVolume;
         var cam = Camera.main;
         if (cam == null) return;
         var cp = cam.transform.position;
-        if (Local != null && Body == null && AwakeAt > 0f)
+        if (tracking && (Local == null || Body == null || Walk == null))
         {
-            Say("movement object gone; looking again");
-            SkateRide.Dismount("the movement object is gone"); Local = null; LocalT = null; Walk = null; AwakeAt = -1f; standTicks = 0; lateAdded = false; RiderRig.Bound = false;
+            Say("the player or its movement object is gone; looking again");
+            SkateRide.Dismount("the movement object is gone"); RiderRig.Unbind();
+            // The old driver is queued behind the old walk component, not the next one.
+            if (late != null) { UnityEngine.Object.Destroy(late); late = null; }
+            Local = null; LocalT = null; Walk = null; Body = null; AwakeAt = -1f; standTicks = 0; tracking = lateAdded = false; lateFailures = 0;
         }
         if (Local == null)
         {
@@ -104,8 +116,10 @@ public class SkateRig : MonoBehaviour
                 if (d < wd) { wd = d; w = walks[i]; }
             }
             if (w == null || wd > 4f) return;
-            Local = best; LocalT = best.transform; Walk = w; Body = w.gameObject.GetComponent<Rigidbody>();
-            Say("LOCAL found player=" + Out.V1(LocalT.position) + " body=" + (Body != null));
+            var rb = w.gameObject.GetComponent<Rigidbody>();
+            if (rb == null) return;
+            Local = best; LocalT = best.transform; Walk = w; Body = rb; tracking = true;
+            Say("LOCAL found player=" + Out.V1(LocalT.position));
             if (board == null) { try { board = SkateBoard.Build(); board.SetActive(false); } catch (Exception e) { Say("board threw " + e.GetType().Name + ": " + e.Message); } }
             return;
         }
@@ -116,20 +130,17 @@ public class SkateRig : MonoBehaviour
             if (standTicks >= 2) { AwakeAt = now; Say("AWAKE player=" + Out.V1(LocalT.position) + (Scenarios.Active ? " | scenario " + Scenarios.Name : " | K or a double jump gets on")); }
             return;
         }
-        if (Body == null) return;
-        // The game switches its walk component off when something else moves the player (a seat, a vehicle).
-        if (SkateRide.On && Walk != null && !Walk.enabled) SkateRide.Dismount("the game took over the movement");
-        if (!lateAdded && now - AwakeAt >= 2f)
+        if (!lateAdded && lateFailures < 5 && now - AwakeAt >= 2f && now >= lateRetryAt)
         {
             // A fresh driver for every movement object, so that it is always queued behind that object's walk component.
-            lateAdded = true;
             try
             {
-                if (late != null) UnityEngine.Object.Destroy(late);
                 late = SkatePlugin.Instance.AddComponent<LateDriver>();
-                Say("late driver added=" + (late != null));
+                lateAdded = late != null;
+                Say("late driver added=" + lateAdded);
             }
-            catch (Exception e) { Say("late driver threw " + e.GetType().Name + ": " + e.Message); }
+            catch (Exception e) { late = null; Say("late driver threw " + e.GetType().Name + ": " + e.Message); }
+            if (!lateAdded) { lateFailures++; lateRetryAt = now + 3f; }
         }
         if (SkateRide.On && !RiderRig.Bound) { try { RiderRig.Bind(LocalT); } catch (Exception e) { Say("rider bind threw " + e.GetType().Name + ": " + e.Message); } }
     }
