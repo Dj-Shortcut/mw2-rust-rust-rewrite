@@ -84,6 +84,50 @@ No new rental, paid backup or paid change was made. The existing Droplet remains
 billable while it exists. Addresses, account identifiers and raw reports stay
 private.
 
+## Return session — 9 October 2026
+
+The owner requested another in-game check. The unchanged host/world and
+ShortcutLoadouts source/config were restarted with external access initially
+closed. The supplied source address did not match two actual inbound game UDP
+attempts; the initially allowed address had zero game packets. The owned rule
+was replaced with the sole observed source `/32`, removing the wrong rule first.
+This is observed routing evidence, not a permanent source-stability guarantee.
+
+An attempted transient runtime-limit extension returned nonzero and its
+fail-closed handler stopped the first return instance. Actual closure at
+14:26:56 UTC confirmed the save acknowledgement, rule removal and game-listener
+absence. The old timer fired again at 14:28:05 UTC after the instance had stopped;
+that later save returned exit 1, with rule/listener closure still confirmed.
+No second successful save or new-kit persistence is inferred. This interrupted
+the test setup; it
+does not establish the cause of the separately reported Rust client crash.
+The owner explicitly chose to continue the playtest. The same world was then
+restarted under a fresh nonroot instance with a 4,500-second runtime backstop.
+
+The new one-hour source-restricted window was opened only after startup and
+current plugin/permissions checks. Independent readback at 14:35:56 UTC confirmed
+public game UDP 28015, loopback-only RCON, blocked query/RCON, no unintended Rust
+listener, the actual `-insecure` process and active persistent closure. Current
+`app.port=-1` confirmed disabled Rust+. Its checked deadline is 15:34:57 UTC on
+9 October. Independent readback at 15:35:34 UTC confirmed the completed
+automatic closure: save acknowledged with exit 0, the owned game rule removed,
+the instance inactive, all Rust listeners absent and the default-deny firewall
+active. The old return timer is disabled and inactive. Addresses, account
+identifiers, credentials and raw evidence remain private. This save does not
+verify persistence of the player and kit after a restart/rejoin.
+
+Authenticated status at 14:45:44 UTC confirmed the owner as the sole active
+player, with the observed source matching the window rule. The owner confirmed
+one Assault Rifle and 120 Rifle Ammo after `/loadout carbine`. This is
+owner-reported inventory evidence, not an independent client capture. The
+[remaining ordered checks](RUST-SERVER-PLUGIN.md#return-session--9-october-2026)
+are still open. No plugin behavior, rental or paid service changed.
+
+Root leaves Shadow input to the owner. Concurrent input was suggested as a lag
+hypothesis, not verified as its cause. An empty-host snapshot showed 226 server
+FPS and ample available memory; it did not measure client FPS or streaming
+latency. Neither lag resolution nor a Rust client-crash cause is established.
+
 ## Require these capabilities before setup
 
 - Hosting is permitted, with sufficient available RAM and disk.
