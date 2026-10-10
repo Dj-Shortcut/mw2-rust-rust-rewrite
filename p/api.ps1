@@ -29,7 +29,7 @@ if ($Find) {
   }
 } else {
   $want = $Types -split ',' | % { $_.Trim() } | ? { $_ }
-  $asms = 'Assembly-CSharp','Facepunch.Console','Facepunch.System','Facepunch.Unity','Facepunch.Input','Rust.Global','Rust.Data','Facepunch.Network','UnityEngine.CoreModule','UnityEngine.PhysicsModule','UnityEngine.InputLegacyModule' | % { "$Gen\$_.dll" } | ? { Test-Path $_ }
+  $asms = 'Assembly-CSharp','Facepunch.Console','Facepunch.System','Facepunch.Unity','Facepunch.Input','Rust.Global','Rust.Data','Facepunch.Network','UnityEngine.CoreModule','UnityEngine.PhysicsModule','UnityEngine.InputLegacyModule','Unity.InputSystem' | % { "$Gen\$_.dll" } | ? { Test-Path $_ }
   $all = foreach ($p in $asms) { TypesOf ([Reflection.Assembly]::LoadFrom($p)) }
   $flags = [Reflection.BindingFlags]'Public,NonPublic,Instance,Static,DeclaredOnly'
   $defaultPat = $Pat
