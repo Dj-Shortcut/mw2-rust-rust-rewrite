@@ -13,7 +13,7 @@ public enum RideMode { Off, Ground, Air, Grind, Bail }
 public static class SkateRide
 {
     public const float PushAccel = 6f, MaxPush = 8f, BrakeDecel = 12f, RollDecel = 0.45f, MaxSpeed = 13f, MaxReverse = 6f, TurnRate = 150f, SlopeGain = 1.6f;
-    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 1.3f, BailDecel = 10f, PushPeriod = 0.8f, SeaLevel = -0.6f, LowestCap = 1.5f, ManualPace = 1f, HopGrace = 0.3f;
+    public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 1.3f, BailDecel = 10f, PushPeriod = 0.8f, SeaLevel = -0.6f, LowestCap = 1.5f, ManualPace = 1f, ManualHold = 0.3f, HopGrace = 0.3f;
     private const float RayLift = 0.6f, FeetProbe = 0.3f, AirProbe = 3f;
     public static readonly int GroundMask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
 
@@ -208,9 +208,12 @@ public static class SkateRide
             return;
         }
         Speed += Vector3.Dot(Physics.gravity, tangent) * SlopeGain * dt;
-        // A manual is held on two wheels: it needs some speed and leaves no foot free to push.
-        Manual = SkateKeys.Manual && !SkateKeys.Brake && Math.Abs(Speed) > ManualPace;
-        NoseManual = !Manual && SkateKeys.NoseManual && !SkateKeys.Brake && Math.Abs(Speed) > ManualPace;
+        // A manual is held on two wheels: it needs some speed and leaves no foot free to push. One
+        // that has begun lasts down to a crawl: ending it at the pace it needs to begin would let a
+        // held push in and out every few tenths of a second, each time ending and scoring it.
+        var pace = Math.Abs(Speed);
+        Manual = SkateKeys.Manual && !SkateKeys.Brake && pace > (Manual ? ManualHold : ManualPace);
+        NoseManual = !Manual && SkateKeys.NoseManual && !SkateKeys.Brake && pace > (NoseManual ? ManualHold : ManualPace);
         var pushing = SkateKeys.Push && !SkateKeys.Brake && !Manual && !NoseManual && Speed < MaxPush;
         if (pushing) Speed = Math.Min(MaxPush, Speed + PushAccel * dt);
         if (SkateKeys.Brake) Speed = Toward(Speed, 0f, BrakeDecel * dt);
