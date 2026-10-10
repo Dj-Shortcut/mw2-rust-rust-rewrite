@@ -33,7 +33,6 @@ public class SkateRig : MonoBehaviour
     {
         var now = Time.realtimeSinceStartup;
         SkateKeys.Poll();
-        if (Scenarios.Active) RiderRig.Check();
         if (!Scenarios.Active && Ready)
         {
             if (SkateRide.On)

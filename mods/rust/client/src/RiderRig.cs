@@ -10,22 +10,17 @@ using UnityEngine;
 public static class RiderRig
 {
     public const float AnkleHeight = 0.095f, ToeHeight = 0.025f, DeckTop = 0.085f, HeelShift = 0.055f;
-    public static bool Bound, Enabled = true;
+    public static bool Bound;
     public static Animator Anim;
     public static Transform Root, Pelvis, Neck, Head, LHip, LKnee, LFoot, LToe, RHip, RKnee, RFoot, RToe, LUpper, LFore, LHand, RUpper, RFore, RHand;
     public static SkateRiderRig Rig;
     public static float Thigh, Shin, Foot, UpperArm, Forearm, Crouch = 0.18f;
-    public static float Miss, Drift;
-    public static string MissAt = "", DriftAt = "", Error = "";
+    public static float Miss;
+    public static string MissAt = "", Error = "";
     public static int Applied, Refusals;
     private static Transform[] spine = new Transform[0];
     private static Vector3 lSole, rSole;
-    private static readonly Transform[] marks = new Transform[9];
-    private static readonly Vector3[] markAt = new Vector3[9];
-    private static readonly string[] markName = { "left ankle", "right ankle", "left knee", "right knee", "neck", "head", "left hand", "right hand", "pelvis" };
-    private static bool failed, marked;
-    private static Vector3 rootAt, pelvisAt, playerAt;
-    public static string DriftNote = "";
+    private static bool failed;
 
     // The game draws the local player's model twice: the full body casts shadows only, and a second
     // set of skinned meshes named "leg-..." is what first person shows, with the upper body folded
@@ -123,8 +118,7 @@ public static class RiderRig
         // Which way the soles face, seen from each foot bone, while the player stands.
         var up = Root.rotation * Vector3.up;
         lSole = Quaternion.Inverse(LFoot.rotation) * up; rSole = Quaternion.Inverse(RFoot.rotation) * up;
-        marks[0] = LFoot; marks[1] = RFoot; marks[2] = LKnee; marks[3] = RKnee; marks[4] = Neck; marks[5] = Head; marks[6] = LHand; marks[7] = RHand; marks[8] = Pelvis;
-        failed = false; marked = false; Bound = true; Error = "";
+        failed = false; Bound = true; Error = "";
         Say("bound to " + Root.gameObject.name + " spine bones=" + spine.Length + " thigh=" + Thigh.ToString("F3") + " shin=" + Shin.ToString("F3") + " foot=" + Foot.ToString("F3") + " upperArm=" + UpperArm.ToString("F3")
             + " forearm=" + Forearm.ToString("F3") + " hips=" + hipWidth.ToString("F3") + " hipDrop=" + hipDrop.ToString("F3") + " back=" + back.ToString("F3") + " shoulders=" + Rig.ShoulderWidth.ToString("F3")
             + " neck=" + Rig.NeckToHeadLength.ToString("F3") + " headScale=" + Out.V(Head.localScale));
@@ -161,7 +155,7 @@ public static class RiderRig
 
     public static void Frame(Vector3 feet, Vector3 up, bool legsOnly, float frameSeconds)
     {
-        if (!Bound || !Enabled || failed) return;
+        if (!Bound || failed) return;
         try
         {
             if (Pelvis == null) { Bound = false; return; }
@@ -253,10 +247,6 @@ public static class RiderRig
         Aim(RFoot, RToe, V(p.RightToe) - (pushLeft ? Vector3.zero : lower) - drop - RFoot.position);
         Roll(LFoot, (LToe.position - LFoot.position).normalized, lSole, up);
         Roll(RFoot, (RToe.position - RFoot.position).normalized, rSole, up);
-
-        for (var i = 0; i < marks.Length; i++) markAt[i] = marks[i].position - (i == 8 ? Root.position : Pelvis.position);
-        rootAt = Root.position; pelvisAt = Pelvis.position; playerAt = SkateRig.LocalT != null ? SkateRig.LocalT.position : Vector3.zero;
-        marked = true;
     }
 
     private static void Limb(Transform a, Transform b, Transform c, Vector3 target, Vector3 hint, float upper, float lower, string name)
@@ -271,28 +261,5 @@ public static class RiderRig
     {
         var miss = Vector3.Distance(bone.position, target);
         if (miss > Miss) { Miss = miss; MissAt = name; }
-    }
-
-    private static string Rel(int i) { return Out.V3(marks[i].position - Pelvis.position - markAt[i]); }
-
-    public static void Check()
-    {
-        if (!marked || !Bound || failed) return;
-        marked = false;
-        try
-        {
-            if (Pelvis == null || Root == null) return;
-            Drift = 0f; DriftAt = "";
-            for (var i = 0; i < marks.Length; i++)
-            {
-                var d = Vector3.Distance(marks[i].position - (i == 8 ? Root.position : Pelvis.position), markAt[i]);
-                if (d > Drift) { Drift = d; DriftAt = markName[i]; }
-            }
-            if (Drift > 0.01f)
-                DriftNote = "root moved " + Out.V3(Root.position - rootAt) + " pelvis moved " + Out.V3(Pelvis.position - pelvisAt) + " player moved " + Out.V3((SkateRig.LocalT != null ? SkateRig.LocalT.position : Vector3.zero) - playerAt)
-                    + " root at " + Out.V3(Root.position - playerAt) + " yaw " + Root.eulerAngles.y.ToString("F0") + " | neck " + Rel(4) + " head " + Rel(5) + " left hand " + Rel(6) + " left ankle " + Rel(0);
-            else DriftNote = "";
-        }
-        catch (Exception e) { failed = true; Say("check threw " + e.GetType().Name + ": " + e.Message); }
     }
 }

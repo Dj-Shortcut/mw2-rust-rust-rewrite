@@ -18,7 +18,7 @@ public static class Scenarios
     private static void Restore()
     {
         SkateKeys.Scripted = false; SkateKeys.Reset();
-        SkateCamera.Fixed = false; SkateCamera.Chase = true; SkateRide.Frozen = false; SkateBoard.ShowLift = 0f; RiderRig.Enabled = true;
+        SkateCamera.Fixed = false; SkateCamera.Chase = true; SkateRide.Frozen = false; SkateBoard.ShowLift = 0f;
     }
 
     public static void Update(float now)
@@ -35,8 +35,7 @@ public static class Scenarios
         if (SkateRide.Lands != lands) { lands = SkateRide.Lands; Say("landed: " + SkateRide.LastAir + " | mode=" + SkateRide.Mode + " switch=" + SkateRide.Trick.Switch + " pos=" + Out.V1(SkateRide.Position)); }
         if (Name == "ride") Ride(s);
         else if (Name == "pose") Pose(s, now);
-        else if (Name == "trick") Trick(s);
-        else { Phase = "model dump"; ModelDump.Run(); Finish(); }
+        else Trick(s);
     }
 
     private static bool Enter(int to, string label)
@@ -44,7 +43,7 @@ public static class Scenarios
         if (to == phase) return false;
         if (phase > 0 && Name == "pose")
             Say("  rider: applied=" + RiderRig.Applied + " refused=" + RiderRig.Refusals + (RiderRig.Error != "" ? " (" + RiderRig.Error + ")" : "") + " miss=" + RiderRig.Miss.ToString("F3") + " at " + RiderRig.MissAt
-                + " moved-after-write=" + RiderRig.Drift.ToString("F3") + " at " + RiderRig.DriftAt + " | look=" + RiderRig.LookState + (RiderRig.DriftNote != "" ? " | " + RiderRig.DriftNote : ""));
+                + " | look=" + RiderRig.LookState);
         phase = to; Phase = phase + " " + label;
         Say("phase " + Phase + " | " + SkateRide.Status());
         return true;
@@ -54,7 +53,7 @@ public static class Scenarios
     {
         done = true; Phase = "done";
         SkateRide.Dismount("the scenario ended"); Restore();
-        System.IO.File.WriteAllText(System.IO.Path.Combine(BepInEx.Paths.PluginPath, "probe.done"), "done");
+        System.IO.File.WriteAllText(System.IO.Path.Combine(BepInEx.Paths.PluginPath, "skate.done"), "done");
         Say("DONE top speed=" + SkateRide.Top.ToString("F1") + " pull-backs=" + SkateRide.Resets + " late calls=" + LateDriver.Calls + " pops=" + SkateRide.Pops + " lands=" + SkateRide.Lands + " bails=" + SkateRide.Bails
             + " refused presses=" + SkateRide.Refused + " score=" + SkateRide.Trick.TotalPoints + " grind scans=" + SkateGrind.Scans + " audio=" + SkateSfx.State);
     }
@@ -73,11 +72,10 @@ public static class Scenarios
 
     private static readonly string[] poseLabels = {
         "stance, seen from the rider's front", "stance, seen along the board from behind", "stance, seen from the rider's back", "stance, seen along the board from ahead", "stance, seen from above",
-        "the game's own pose (ours off), from the same side", "the game's own pose (ours off), from behind",
         "push, foot on the ground", "push, seen from behind", "air, half a kickflip", "air, quarter flip with a grab", "air with a grab, seen from behind", "bail", "switch stance", "grind",
         "first person", "moving, pushing off", "moving, turning round", "finish" };
-    private static readonly float[] poseBearing = { 90f, 180f, 270f, 0f, 90f, 90f, 180f, 90f, 180f, 120f, 90f, 180f, 90f, 90f, 90f, 90f, 115f, 115f, 90f };
-    private const int PoseOurs = 6, PosePush = 8, PoseFlip = 10, PoseGrab = 11, PoseBail = 13, PoseSwitch = 14, PoseGrind = 15, PoseFirst = 16, PoseMove = 17, PoseTurn = 18, PoseEnd = 19;
+    private static readonly float[] poseBearing = { 90f, 180f, 270f, 0f, 90f, 90f, 180f, 120f, 90f, 180f, 90f, 90f, 90f, 90f, 115f, 115f, 90f };
+    private const int PosePush = 6, PoseFlip = 8, PoseGrab = 9, PoseBail = 11, PoseSwitch = 12, PoseGrind = 13, PoseFirst = 14, PoseMove = 15, PoseTurn = 16, PoseEnd = 17;
     private static float stepAt;
     private static bool keyWas;
 
@@ -93,17 +91,11 @@ public static class Scenarios
         if (!advance) return;
         stepAt = now;
         Enter(phase + 1, poseLabels[phase] + (phase + 1 < PoseMove ? "   (K: next)" : ""));
-        if (phase == 1)
-        {
-            ModelDump.Renderers();
-            SkateRig.MountNow(yaw0);
-            SkateRide.Frozen = true;
-        }
+        if (phase == 1) { SkateRig.MountNow(yaw0); SkateRide.Frozen = true; }
         if (phase == PoseEnd) { Finish(); return; }
         SkateCamera.Fixed = phase != PoseFirst; SkateCamera.Chase = phase != PoseFirst;
         SkateCamera.Bearing = poseBearing[phase - 1];
         SkateCamera.FixedHeight = phase == 5 ? 2.9f : 1.15f; SkateCamera.FixedDistance = phase == 5 ? 1.6f : 2.7f;
-        RiderRig.Enabled = phase != PoseOurs && phase != PoseOurs + 1;
         var air = phase == PoseFlip || phase == PoseGrab || phase == PoseGrab + 1;
         SkateRide.Mode = air ? RideMode.Air : phase == PoseBail ? RideMode.Bail : phase == PoseGrind ? RideMode.Grind : RideMode.Ground;
         SkateRide.PushPhase = phase == PosePush || phase == PosePush + 1 ? 0.45f : 0f;

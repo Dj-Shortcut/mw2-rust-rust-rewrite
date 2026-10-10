@@ -1,4 +1,4 @@
-// Hidden/Internal-Colored is the one shader found to draw plugin-made objects in this client.
+// Hidden/Internal-Colored is the shader that draws plugin-made objects in this client.
 // The mesh setters can be missing from a client build; primitives are the fallback.
 using System;
 using UnityEngine;

@@ -1,4 +1,4 @@
-// The log also goes straight to plugins\probe.log: a native crash loses the loader's own log.
+// The log also goes straight to plugins\skate.log: a native crash loses the loader's own log.
 using System;
 using BepInEx;
 using BepInEx.Logging;
@@ -17,14 +17,13 @@ public class SkatePlugin : BasePlugin
         Out.Inner = Log;
         var path = System.IO.Path.Combine(Paths.PluginPath, "steps.txt");
         var steps = System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path).Trim() : "skate";
-        Out.Say("PROBE load entered steps=" + steps);
+        Out.Say("PLUGIN " + Version + " steps=" + steps);
         foreach (var s in steps.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
         {
-            Out.Say("STEP " + s + " begin");
-            try { Out.Say("STEP " + s + " ok: " + Run(s.Trim())); }
+            try { Out.Say("STEP " + s + ": " + Run(s.Trim())); }
             catch (Exception e) { Out.Err("STEP " + s + " threw: " + e); }
         }
-        Out.Say("PROBE load finished");
+        Out.Say("PLUGIN loaded");
     }
 
     private string Run(string s)
@@ -32,13 +31,10 @@ public class SkatePlugin : BasePlugin
         switch (s)
         {
             case "skate": return "added=" + (AddComponent<SkateRig>() != null);
-            case "skatetest": Scenarios.Name = "ride"; return "added=" + (AddComponent<SkateRig>() != null);
-            case "posetest": Scenarios.Name = "pose"; return "added=" + (AddComponent<SkateRig>() != null);
-            case "tricktest": Scenarios.Name = "trick"; return "added=" + (AddComponent<SkateRig>() != null);
+            case "ride": case "pose": case "trick": Scenarios.Name = s; return "added=" + (AddComponent<SkateRig>() != null);
             case "nogrind": SkateGrind.Enabled = false; return "grinding off";
-            case "modeldump": Scenarios.Name = "dump"; return "added=" + (AddComponent<SkateRig>() != null);
             case "mute": SkateRig.Mute = true; AudioListener.volume = 0f; return "volume=" + AudioListener.volume;
-            default: return LoaderSteps.Run(this, s);
+            default: return "unknown step";
         }
     }
 }
@@ -46,7 +42,7 @@ public class SkatePlugin : BasePlugin
 public static class Out
 {
     public static ManualLogSource Inner;
-    private static readonly string file = System.IO.Path.Combine(Paths.PluginPath, "probe.log");
+    private static readonly string file = System.IO.Path.Combine(Paths.PluginPath, "skate.log");
 
     public static void Say(string m) { System.IO.File.AppendAllText(file, m + "\r\n"); if (Inner != null) Inner.LogMessage(m); }
     public static void Err(string m) { System.IO.File.AppendAllText(file, "ERROR " + m + "\r\n"); if (Inner != null) Inner.LogError(m); }
