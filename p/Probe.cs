@@ -7,12 +7,12 @@ using System.Runtime.InteropServices;
 using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
-using HarmonyLib;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Attributes;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
-[BepInPlugin("claude.loaderprobe", "Loader Probe", "0.6.0")]
+[BepInPlugin("claude.loaderprobe", "Loader Probe", "0.7.0")]
 public class ProbePlugin : BasePlugin
 {
     internal static PLog L = new PLog();
@@ -51,8 +51,9 @@ public class ProbePlugin : BasePlugin
             case "plat": return Application.platform.ToString();
             case "log": UnityEngine.Debug.Log("probe debug log"); return "logged";
             case "inject": return "added=" + (AddComponent<ProbeBehaviour>() != null);
-            case "move": return "added=" + (AddComponent<MoveProbe>() != null);
-            case "mute": MoveProbe.Mute = true; AudioListener.volume = 0f; return "volume=" + AudioListener.volume;
+            case "skate": SkateRig.Test = false; return "added=" + (AddComponent<SkateRig>() != null);
+            case "skatetest": SkateRig.Test = true; return "added=" + (AddComponent<SkateRig>() != null);
+            case "mute": SkateRig.Mute = true; AudioListener.volume = 0f; return "volume=" + AudioListener.volume;
             default: return "unknown step";
         }
     }
@@ -120,56 +121,53 @@ public class ProbeBehaviour : MonoBehaviour
     }
 }
 
-// In-world movement probe. The game's own members are obfuscated in the client, so this uses only
-// Unity engine API, game type names and Unity message names. What earlier runs established
-// (10 October 2026, build 25824447):
+// First skate controller. The game's own members are obfuscated in the client, so this uses only
+// Unity engine API, game type names and Unity message names. What the probe runs established
+// (10 October 2026, build 25824447, see issue #289):
 //   - The local player is moved by a separate root object, assets/prefabs/player/player_movement.prefab:
 //     PlayerWalkMovement, a dynamic Rigidbody (mass 0.5, no engine gravity, rotation frozen) and a
-//     CapsuleCollider (height 1.8, radius 0.5). The BasePlayer object only follows it.
-//   - With the walk component enabled, a velocity written from an ordinary FixedUpdate is gone by
-//     the next step: the game's own fixed step runs later and cancels it.
-//   - With the walk component disabled the body keeps the velocity, but the player is pulled back
-//     toward where the component was switched off, several times a second.
-// So this run keeps the walk component on and writes the velocity after the game's fixed step, in
-// two ways: from a component created after the walk component exists, and from a Harmony postfix
-// on BaseMovement.FixedUpdate. Timeline, in seconds after the player stands up:
-//   push 1 at 6 (late component), patch at 16, push 2 at 18 (postfix), then with whichever moved
-//   the player further: 3 at 30 (walking pace), 4 at 42 (faster than sprinting), 5 at 54 (upward
-//   kick), 6 at 66 (one shove, then left to the game). Done at 80.
-public class MoveProbe : MonoBehaviour
+//     CapsuleCollider. The BasePlayer object follows it.
+//   - The game's fixed step cancels any velocity written before it. A component created after the
+//     walk component exists gets its FixedUpdate after the game's, and a velocity written there
+//     moves the player; the game keeps handling gravity, jumping and the model.
+//   - Disabling the walk component is not usable: the player is then pulled back constantly.
+//   - Above walking pace the server pulls the player back unless its anti-hack leaves them alone.
+// K mounts and dismounts. Mounted: W pushes, S brakes, the board turns toward where the camera
+// looks, A and D carve harder, the game's own jump still works.
+public class SkateRig : MonoBehaviour
 {
-    public MoveProbe(IntPtr p) : base(p) { }
+    public SkateRig(IntPtr p) : base(p) { }
 
-    public static bool Mute;
-    private static readonly string[] Modes = { "", "5 m/s from a late component", "5 m/s from a postfix on the walk step", "2.5 m/s, walking pace",
-        "8 m/s, faster than sprinting", "5 m/s plus upward kick", "one 5 m/s shove, then left to the game" };
-    private static readonly float[] Speeds = { 0f, 5f, 5f, 2.5f, 8f, 5f, 5f };
-    private readonly float[] movedBy = new float[7];
-    private float nextTick, nextTrace, lastTraceAt, wakeAt = -1f, pushEnd = -1f, verdictAt = -1f;
-    private int ticks, standTicks, stage, lastMode;
+    public static bool Mute, Test;
+    private float nextTick, nextLog, wakeAt = -1f, mountAt = -1f;
+    private int ticks, standTicks, phase;
     private BasePlayer local;
-    private Transform localT, moveT;
-    private PlayerWalkMovement walk;
+    private Transform localT;
     private Rigidbody body;
     private GameObject board;
-    private bool trace, done, patched, lateAdded;
-    private Vector3 camBefore, camAfter, lastTraceCam;
+    private LateDriver late;
+    private bool lateAdded, kDown, keysOk = true, done;
+    private float yaw0;
 
-    private static void Say(string m) { ProbePlugin.L.LogMessage("MOVE " + m); }
-    private static string V(Vector3 v) { return v.x.ToString("F2") + "," + v.y.ToString("F2") + "," + v.z.ToString("F2"); }
-    private static float H(Vector3 a, Vector3 b) { a.y = 0f; b.y = 0f; return Vector3.Distance(a, b); }
-    [HideFromIl2Cpp]
-    private string Rel(float now) { return (wakeAt > 0f ? now - wakeAt : 0f).ToString("F1"); }
+    private static void Say(string m) { ProbePlugin.L.LogMessage("SKATE " + m); }
+    private static string V(Vector3 v) { return v.x.ToString("F1") + "," + v.y.ToString("F1") + "," + v.z.ToString("F1"); }
 
     private void Update()
     {
         var now = Time.realtimeSinceStartup;
-        try
+        if (keysOk && !Test && body != null && wakeAt > 0f)
         {
-            if (pushEnd > 0f && now >= pushEnd) EndPush(now);
-            if (trace && now >= nextTrace) { nextTrace = now + 0.25f; Trace(now); }
+            try
+            {
+                var kb = Keyboard.current;
+                var k = kb != null && kb.kKey.isPressed;
+                if (k && !kDown) Toggle();
+                kDown = k;
+            }
+            catch (Exception e) { keysOk = false; Say("key read threw " + e.GetType().Name + ": " + e.Message); }
         }
-        catch (Exception e) { Say("update threw: " + e.GetType().Name + ": " + e.Message); Driver.Active = false; pushEnd = -1f; }
+        if (Skate.On && now >= nextLog) { nextLog = now + 1f; Say(Skate.Status()); }
+        if (Test && mountAt > 0f) Script(now - mountAt);
         if (now < nextTick) return;
         nextTick = now + 1f; ticks++;
         try { Tick(now); }
@@ -177,23 +175,55 @@ public class MoveProbe : MonoBehaviour
     }
 
     [HideFromIl2Cpp]
+    private void Toggle()
+    {
+        var cam = Camera.main;
+        if (Skate.On) { Skate.Dismount(); Say("DISMOUNT " + Skate.Status()); }
+        else if (cam != null) { Skate.Mount(body, cam.transform.eulerAngles.y); Say("MOUNT yaw=" + Skate.Yaw.ToString("F0") + " speed=" + Skate.Speed.ToString("F1")); }
+    }
+
+    // Scripted ride for an unattended check: out along the reverse of the view direction, back again.
+    [HideFromIl2Cpp]
+    private void Script(float s)
+    {
+        var next = s < 2f ? 1 : s < 4f ? 2 : s < 5.5f ? 3 : s < 7.5f ? 4 : s < 9.5f ? 5 : s < 11.5f ? 6 : s < 13f ? 7 : s < 15f ? 8 : 9;
+        if (next == phase) return;
+        phase = next;
+        Skate.SynthPush = phase == 1 || phase == 5;
+        Skate.SynthBrake = phase == 3 || phase == 7;
+        Skate.SynthYaw = phase <= 3 ? yaw0 + 180f : yaw0;
+        Say("SCRIPT phase " + phase + (phase == 1 ? " push out" : phase == 2 ? " coast" : phase == 3 ? " brake" : phase == 4 ? " turn round" : phase == 5 ? " push back" : phase == 6 ? " coast" : phase == 7 ? " brake" : phase == 8 ? " dismount" : " finish") + " | " + Skate.Status());
+        if (phase == 8 && Skate.On) Skate.Dismount();
+        if (phase == 9 && !done)
+        {
+            done = true;
+            System.IO.File.WriteAllText(System.IO.Path.Combine(Paths.PluginPath, "probe.done"), "done");
+            Say("DONE top speed=" + Skate.Top.ToString("F1") + " pull-backs=" + Skate.Resets + " late calls=" + LateDriver.Calls);
+        }
+    }
+
+    [HideFromIl2Cpp]
     private void Tick(float now)
     {
         if (Mute) AudioListener.volume = 0f;
         var cam = Camera.main;
-        if (cam == null) { if (local != null && ticks % 10 == 0) Say("no main camera"); return; }
+        if (cam == null) return;
         var cp = cam.transform.position;
+        if (local != null && body == null && wakeAt > 0f)
+        {
+            // The movement object is replaced when the player dies or reconnects.
+            Say("movement object gone; looking again");
+            Skate.Dismount(); local = null; wakeAt = -1f; standTicks = 0; lateAdded = false;
+        }
         if (local == null)
         {
             var players = UnityEngine.Object.FindObjectsOfType<BasePlayer>();
-            var n = players == null ? 0 : players.Length;
             BasePlayer best = null; var bestD = 999f;
-            for (var i = 0; i < n; i++)
+            for (var i = 0; i < players.Length; i++)
             {
                 var d = Vector3.Distance(players[i].transform.position, cp);
                 if (d < bestD) { bestD = d; best = players[i]; }
             }
-            if (ticks % 20 == 1) Say("cam=" + V(cp) + " players=" + n + (best != null ? " nearest=" + bestD.ToString("F1") + "m" : ""));
             if (best == null || bestD > 4f) return;
             var walks = UnityEngine.Object.FindObjectsOfType<PlayerWalkMovement>();
             PlayerWalkMovement w = null; var wd = 999f;
@@ -202,202 +232,200 @@ public class MoveProbe : MonoBehaviour
                 var d = Vector3.Distance(walks[i].transform.position, cp);
                 if (d < wd) { wd = d; w = walks[i]; }
             }
-            if (w == null || wd > 4f) { if (ticks % 5 == 0) Say("player found but no walk component near the camera yet (count=" + walks.Length + ")"); return; }
-            local = best; localT = best.transform; walk = w; moveT = w.transform; body = w.gameObject.GetComponent<Rigidbody>();
-            Say("LOCAL found player=" + V(localT.position) + " movement object at " + V(moveT.position) + " body=" + (body != null) + " cam=" + V(cp));
-            MakeBoard(cam);
+            if (w == null || wd > 4f) return;
+            local = best; localT = best.transform; body = w.gameObject.GetComponent<Rigidbody>();
+            Say("LOCAL found player=" + V(localT.position) + " body=" + (body != null));
+            if (board == null) { try { board = BuildBoard(); board.SetActive(false); Say("BOARD built"); } catch (Exception e) { Say("board threw " + e.GetType().Name + ": " + e.Message); } }
             return;
         }
-        var up = cp.y - localT.position.y;
         if (wakeAt < 0f)
         {
-            standTicks = up > 1.0f ? standTicks + 1 : 0;
-            if (ticks % 10 == 0) Say("waiting for the player to stand: camera height=" + up.ToString("F2"));
-            if (standTicks >= 2) { wakeAt = now; trace = true; Say("AWAKE camera height=" + up.ToString("F2") + " player=" + V(localT.position)); }
+            standTicks = cp.y - localT.position.y > 1.0f ? standTicks + 1 : 0;
+            if (standTicks >= 2) { wakeAt = now; Say("AWAKE player=" + V(localT.position) + (Test ? "" : " | press K to mount")); }
             return;
         }
-        if (body == null) { if (!done) { done = true; Say("no rigidbody on the movement object; nothing to push"); Finish(); } return; }
-        var t = now - wakeAt;
-        if (verdictAt > 0f && now >= verdictAt) Verdict(cam);
-        if (!lateAdded && t >= 3f)
+        if (body == null) return;
+        if (!lateAdded && now - wakeAt >= 2f)
         {
+            // A fresh driver for every movement object, so that it is always queued behind that object's walk component.
             lateAdded = true;
-            Say("LATE component: adding");
-            try { Say("LATE component: added=" + (ProbePlugin.Instance.AddComponent<LateDriver>() != null)); }
-            catch (Exception e) { Say("LATE component threw " + e.GetType().Name + ": " + e.Message); }
+            try
+            {
+                if (late != null) UnityEngine.Object.Destroy(late);
+                late = ProbePlugin.Instance.AddComponent<LateDriver>();
+                Say("late driver added=" + (late != null));
+            }
+            catch (Exception e) { Say("late driver threw " + e.GetType().Name + ": " + e.Message); }
         }
-        if (!patched && t >= 16f)
+        if (Test && mountAt < 0f && now - wakeAt >= 4f)
         {
-            patched = true;
-            Say("PATCH: applying a postfix to BaseMovement.FixedUpdate");
-            Driver.Patch();
-            Say("PATCH: " + Driver.Patched);
+            yaw0 = cam.transform.eulerAngles.y;
+            Skate.Synth = true; Skate.SynthYaw = yaw0 + 180f;
+            Skate.Mount(body, yaw0 + 180f);
+            mountAt = now;
+            Say("MOUNT (scripted) view yaw=" + yaw0.ToString("F0") + " at " + V(localT.position));
         }
-        if (stage <= 5 && t >= 6f + stage * 12f) { stage++; StartPush(stage, cam, now); }
-        else if (stage == 6 && t >= 80f && !done) { done = true; trace = false; Finish(); }
-    }
-
-    [HideFromIl2Cpp]
-    private void Finish()
-    {
-        Driver.Active = false;
-        System.IO.File.WriteAllText(System.IO.Path.Combine(Paths.PluginPath, "probe.done"), "done");
-        Say("DONE late component calls=" + Driver.LateCalls + " postfix calls=" + Driver.PatchCalls);
-    }
-
-    [HideFromIl2Cpp]
-    private void Trace(float now)
-    {
-        var cam = Camera.main; if (cam == null || local == null) return;
-        var cp = cam.transform.position;
-        if (Vector3.Distance(cp, lastTraceCam) < 0.05f && now - lastTraceAt < 4f) return;
-        lastTraceCam = cp; lastTraceAt = now;
-        Say("  t=" + Rel(now) + " cam=" + V(cp) + " player=" + V(localT.position) + " mover=" + V(moveT.position) + (body != null ? " vel=" + V(body.linearVelocity) : ""));
-    }
-
-    [HideFromIl2Cpp]
-    private void StartPush(int m, Camera cam, float now)
-    {
-        var f = Quaternion.Euler(0f, cam.transform.eulerAngles.y, 0f) * Vector3.forward;
-        var kind = m == 1 ? 1 : m == 2 ? 2 : movedBy[2] > movedBy[1] + 0.5f ? 2 : 1;
-        camBefore = cam.transform.position; lastMode = m; pushEnd = now + 3f;
-        Say("PUSH " + m + " (" + Modes[m] + ") start t=" + Rel(now) + " via " + (kind == 1 ? "late component" : "postfix") + " cam=" + V(camBefore) + " yaw=" + cam.transform.eulerAngles.y.ToString("F0") + " vel=" + V(body.linearVelocity));
-        Driver.Begin(body, (m % 2 == 1 ? f : -f) * Speeds[m], kind, m == 5 ? 6f : 0f, m == 6);
-    }
-
-    [HideFromIl2Cpp]
-    private void EndPush(float now)
-    {
-        Driver.Active = false;
-        var cam = Camera.main; camAfter = cam != null ? cam.transform.position : camBefore;
-        movedBy[lastMode] = H(camBefore, camAfter);
-        Say("PUSH " + lastMode + " end: camera moved " + movedBy[lastMode].ToString("F2") + " m, height change " + (camAfter.y - camBefore.y).ToString("F2") + " m, velocity writes=" + Driver.Steps + " backward jumps=" + Driver.Resets + " vel=" + V(body.linearVelocity));
-        pushEnd = -1f; verdictAt = now + 6f;
-    }
-
-    [HideFromIl2Cpp]
-    private void Verdict(Camera cam)
-    {
-        var moved = H(camBefore, camAfter); var kept = H(camBefore, cam.transform.position);
-        Say("PUSH " + lastMode + " verdict: moved=" + moved.ToString("F1") + " m, 6 s later " + kept.ToString("F1") + " m from start => " + (moved < 1f ? "NO MOVEMENT" : kept > moved * 0.7f ? "KEPT" : "SNAPPED BACK"));
-        verdictAt = -1f;
     }
 
     private void LateUpdate()
     {
+        if (board == null) return;
         try
         {
-            if (board != null && wakeAt > 0f && localT != null)
-            {
-                // The board rides at the player's feet and points where the camera looks.
-                var cam = Camera.main;
-                if (cam != null) board.transform.rotation = Quaternion.Euler(0f, cam.transform.eulerAngles.y, 0f);
-                board.transform.position = localT.position + Vector3.up * 0.06f;
-            }
+            if (board.activeSelf != Skate.On) board.SetActive(Skate.On);
+            if (!Skate.On || localT == null) return;
+            var dir = Quaternion.Euler(0f, Skate.Yaw, 0f) * Vector3.forward;
+            var n = Skate.Normal;
+            var fwd = dir - n * Vector3.Dot(dir, n);
+            board.transform.position = localT.position;
+            board.transform.rotation = Quaternion.LookRotation(fwd.sqrMagnitude > 0.0001f ? fwd.normalized : dir, n) * Quaternion.Euler(0f, 0f, -Skate.Lean);
         }
-        catch (Exception e) { Say("late update threw: " + e.GetType().Name + ": " + e.Message); board = null; }
+        catch (Exception e) { Say("board update threw " + e.GetType().Name + ": " + e.Message); board = null; }
     }
 
-    [HideFromIl2Cpp]
-    private void MakeBoard(Camera cam)
+    // A recognisable board from primitives: deck with raised nose and tail, two trucks, four wheels.
+    // Origin at the ground contact centre, +Z forward. Unlit colours, because that shader is known to render here.
+    private static GameObject BuildBoard()
     {
-        try
+        var root = new GameObject("skate_board");
+        var sh = Shader.Find("Hidden/Internal-Colored");
+        var grip = new Color(0.07f, 0.07f, 0.08f); var kick = new Color(0.16f, 0.16f, 0.18f); var under = new Color(1f, 0.1f, 0.6f);
+        var metal = new Color(0.55f, 0.57f, 0.6f); var wheel = new Color(0.95f, 0.93f, 0.85f);
+        Part(root, PrimitiveType.Cube, new Vector3(0f, 0.078f, 0f), new Vector3(0.20f, 0.010f, 0.60f), Quaternion.identity, grip, sh);
+        Part(root, PrimitiveType.Cube, new Vector3(0f, 0.069f, 0f), new Vector3(0.20f, 0.008f, 0.60f), Quaternion.identity, under, sh);
+        Part(root, PrimitiveType.Cube, new Vector3(0f, 0.084f, 0f), new Vector3(0.025f, 0.003f, 0.56f), Quaternion.identity, under, sh);
+        Part(root, PrimitiveType.Cube, new Vector3(0f, 0.097f, 0.365f), new Vector3(0.20f, 0.012f, 0.15f), Quaternion.Euler(-17f, 0f, 0f), kick, sh);
+        Part(root, PrimitiveType.Cube, new Vector3(0f, 0.097f, -0.365f), new Vector3(0.20f, 0.012f, 0.15f), Quaternion.Euler(17f, 0f, 0f), kick, sh);
+        for (var z = -1; z <= 1; z += 2)
         {
-            // Board-sized box on the ground ahead of the player until the player stands up.
-            var fwd = Quaternion.Euler(0f, cam.transform.eulerAngles.y, 0f) * Vector3.forward;
-            board = Box("skate_probe_board", new Vector3(0.22f, 0.04f, 0.8f), new Color(1f, 0.1f, 0.6f));
-            board.transform.position = localT.position + fwd * 1.6f + Vector3.up * 0.12f;
-            board.transform.rotation = Quaternion.LookRotation(fwd, Vector3.up);
-            Say("BOARD created at " + V(board.transform.position));
+            Part(root, PrimitiveType.Cube, new Vector3(0f, 0.046f, z * 0.23f), new Vector3(0.15f, 0.034f, 0.05f), Quaternion.identity, metal, sh);
+            for (var x = -1; x <= 1; x += 2)
+                Part(root, PrimitiveType.Cylinder, new Vector3(x * 0.097f, 0.0275f, z * 0.23f), new Vector3(0.055f, 0.017f, 0.055f), Quaternion.Euler(0f, 0f, 90f), wheel, sh);
         }
-        catch (Exception e) { Say("board threw: " + e.GetType().Name + ": " + e.Message); }
+        UnityEngine.Object.DontDestroyOnLoad(root);
+        return root;
     }
 
-    private static GameObject Box(string name, Vector3 size, Color color)
+    private static void Part(GameObject root, PrimitiveType type, Vector3 pos, Vector3 scale, Quaternion rot, Color color, Shader sh)
     {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        var go = GameObject.CreatePrimitive(type);
         var col = go.GetComponent<Collider>();
         if (col != null) UnityEngine.Object.Destroy(col);
-        go.name = name;
-        go.transform.localScale = size;
-        var sh = Shader.Find("Hidden/Internal-Colored");
+        go.transform.SetParent(root.transform, false);
+        go.transform.localPosition = pos; go.transform.localRotation = rot; go.transform.localScale = scale;
         if (sh != null) { var m = new Material(sh); m.color = color; go.GetComponent<Renderer>().material = m; }
-        else Say("shader Hidden/Internal-Colored not found; keeping the default material");
-        UnityEngine.Object.DontDestroyOnLoad(go);
-        return go;
     }
 }
 
-// Writes the wanted velocity into the movement body. Called either from LateDriver.FixedUpdate
-// (Kind 1) or from the Harmony postfix on BaseMovement.FixedUpdate (Kind 2).
-public static class Driver
+// The skate model: a speed along a heading, written into the movement body after the game's own
+// fixed step. Plain arithmetic is done here rather than through UnityEngine.Mathf, because engine
+// methods the game itself never calls can be missing from the build.
+public static class Skate
 {
-    public static Rigidbody Body;
-    public static Vector3 Velocity, LastPos;
-    public static bool Active, Once;
-    public static int Kind, Steps, Resets, LateCalls, PatchCalls;
-    public static float Kick;
-    public static string Patched = "not attempted";
+    public const float PushAccel = 6f, MaxPush = 8f, BrakeDecel = 12f, RollDecel = 0.35f, MaxSpeed = 13f, TurnRate = 150f, SlopeGain = 1.6f;
+    // Everything except the player's own layers, triggers, water, ragdolls and invisible helpers.
+    public static readonly int GroundMask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
+    public static bool On, Synth, SynthPush, SynthBrake, Grounded;
+    public static float Speed, Yaw, Lean, SynthYaw, Actual, Top;
+    public static Vector3 Normal = Vector3.up;
+    public static int Steps, Resets;
+    private static Rigidbody body;
+    private static Vector3 lastPos, lastDir;
+    private static float lastSpeed;
+    private static bool hasLast;
 
-    private static void Say(string m) { ProbePlugin.L.LogMessage("MOVE " + m); }
-    private static string V(Vector3 v) { return v.x.ToString("F2") + "," + v.y.ToString("F2") + "," + v.z.ToString("F2"); }
+    private static Vector3 Dir(float yaw) { return Quaternion.Euler(0f, yaw, 0f) * Vector3.forward; }
+    private static float Toward(float a, float b, float step) { return Math.Abs(b - a) <= step ? b : a + Math.Sign(b - a) * step; }
+    private static float Delta(float from, float to) { var d = (to - from) % 360f; if (d > 180f) d -= 360f; if (d < -180f) d += 360f; return d; }
+    private static float Clamp(float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; }
 
-    public static void Begin(Rigidbody body, Vector3 velocity, int kind, float kick, bool once)
+    public static void Mount(Rigidbody b, float yaw)
     {
-        Body = body; Velocity = velocity; Kind = kind; Kick = kick; Once = once; Steps = 0; Resets = 0; Active = true;
+        body = b; Yaw = yaw;
+        var v = b.linearVelocity; v.y = 0f;
+        Speed = Vector3.Dot(v, Dir(yaw));
+        hasLast = false; Steps = 0; Resets = 0; Top = 0f; Lean = 0f; On = true;
     }
 
-    public static void Patch()
+    public static void Dismount() { On = false; }
+
+    public static string Status()
     {
+        return "speed=" + Speed.ToString("F1") + " actual=" + Actual.ToString("F1") + " top=" + Top.ToString("F1") + " yaw=" + Yaw.ToString("F0") + " grounded=" + Grounded
+            + " pull-backs=" + Resets + (body != null ? " pos=" + body.position.x.ToString("F1") + "," + body.position.y.ToString("F1") + "," + body.position.z.ToString("F1") : "");
+    }
+
+    public static void Step()
+    {
+        if (!On) return;
         try
         {
-            var target = AccessTools.Method(typeof(BaseMovement), "FixedUpdate");
-            if (target == null) { Patched = "BaseMovement.FixedUpdate not found"; return; }
-            var post = typeof(Driver).GetMethod("AfterWalk", BindingFlags.Public | BindingFlags.Static);
-            new Harmony("claude.loaderprobe").Patch(target, null, new HarmonyMethod(post));
-            Patched = "ok";
-        }
-        catch (Exception e) { Patched = "threw " + e.GetType().Name + ": " + e.Message; }
-    }
-
-    public static void AfterWalk()
-    {
-        PatchCalls++;
-        if (Kind == 2) Apply();
-    }
-
-    public static void Apply()
-    {
-        if (!Active || Body == null) return;
-        try
-        {
-            var cur = Body.linearVelocity; var pos = Body.position;
-            Steps++;
-            if (Steps > 1 && Vector3.Dot(pos - LastPos, Velocity.normalized) < -0.05f)
+            if (body == null) { On = false; return; }
+            var dt = Time.fixedDeltaTime;
+            bool push = false, brake = false; var steer = 0f; var look = Yaw;
+            if (Synth) { push = SynthPush; brake = SynthBrake; look = SynthYaw; }
+            else
             {
-                Resets++;
-                if (Resets <= 5) Say("  backward jump " + Resets + " at write " + Steps + ": " + V(LastPos) + " -> " + V(pos));
+                var cam = Camera.main;
+                if (cam != null) look = cam.transform.eulerAngles.y;
+                var kb = Keyboard.current;
+                if (kb != null)
+                {
+                    push = kb.wKey.isPressed; brake = kb.sKey.isPressed;
+                    if (kb.aKey.isPressed) steer -= 1f;
+                    if (kb.dKey.isPressed) steer += 1f;
+                }
             }
-            if (Steps <= 4 || Steps == 20 || Steps == 60) Say("  write#" + Steps + " found vel=" + V(cur) + " pos=" + V(pos));
-            LastPos = pos;
-            if (Once && Steps > 1) return;
-            var v = Velocity; v.y = cur.y;
-            if (Kick != 0f) { v.y = Kick; Kick = 0f; }
-            Body.linearVelocity = v;
+            var pos = body.position; var cur = body.linearVelocity;
+            if (hasLast)
+            {
+                // What the body really did since the last write: a wall, or the server pulling the player back.
+                var moved = pos - lastPos; moved.y = 0f;
+                Actual = Vector3.Dot(moved, lastDir) / dt;
+                if (lastSpeed > 1f && Actual < -3f) Resets++;
+                var limit = (Actual > 0f ? Actual : 0f) + 2f;
+                if (Speed > limit) Speed = limit;
+            }
+            RaycastHit hit;
+            Grounded = Physics.Raycast(pos + Vector3.up * 0.5f, Vector3.down, out hit, 0.75f, GroundMask, QueryTriggerInteraction.Ignore);
+            Normal = Grounded ? hit.m_Normal : Vector3.up;
+            var before = Yaw;
+            var maxTurn = TurnRate / (1f + Math.Abs(Speed) / 8f) * dt;
+            Yaw += Clamp(Delta(Yaw, look + steer * 40f), -maxTurn, maxTurn);
+            var dir = Dir(Yaw);
+            var tangent = dir - Normal * Vector3.Dot(dir, Normal);
+            tangent = tangent.sqrMagnitude > 0.0001f ? tangent.normalized : dir;
+            if (Grounded)
+            {
+                Speed += Vector3.Dot(Physics.gravity, tangent) * SlopeGain * dt;
+                if (push && Speed < MaxPush) Speed = Math.Min(MaxPush, Speed + PushAccel * dt);
+                if (brake) Speed = Toward(Speed, 0f, BrakeDecel * dt);
+                Speed = Toward(Speed, 0f, RollDecel * dt);
+            }
+            Speed = Clamp(Speed, -6f, MaxSpeed);
+            if (Speed > Top) Top = Speed;
+            var v = dir * Speed;
+            // Follow the slope while rolling; leave the vertical part to the game when it is jumping or falling.
+            v.y = Grounded && cur.y < 1.5f ? tangent.y * Speed : cur.y;
+            body.linearVelocity = v;
+            Lean += (Clamp(Delta(before, Yaw) / dt * 0.12f, -25f, 25f) - Lean) * 0.2f;
+            lastPos = pos; lastDir = dir; lastSpeed = Speed; hasLast = true; Steps++;
         }
-        catch (Exception e) { Active = false; Say("driver threw " + e.GetType().Name + ": " + e.Message); }
+        catch (Exception e) { On = false; ProbePlugin.L.LogMessage("SKATE step threw " + e.GetType().Name + ": " + e.Message); }
     }
 }
 
 // Created only after the game's walk component exists, so that its FixedUpdate is queued behind
-// the game's when both have the default script order.
+// the game's own fixed step.
 public class LateDriver : MonoBehaviour
 {
     public LateDriver(IntPtr p) : base(p) { }
 
+    public static int Calls;
+
     private void FixedUpdate()
     {
-        Driver.LateCalls++;
-        if (Driver.Kind == 1) Driver.Apply();
+        Calls++;
+        Skate.Step();
     }
 }
