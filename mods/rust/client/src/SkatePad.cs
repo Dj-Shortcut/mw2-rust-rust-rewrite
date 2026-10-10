@@ -107,6 +107,8 @@ public static class SkatePad
     {
         Advance(us);
         if (edges) pressed |= buttons & ~Buttons;
+        SkatePadLog.Stick(us, rx, ry);
+        SkatePadLog.Buttons(buttons, lt, rt, lx, ly, rx, ry, now, edges);
         Buttons = buttons; LeftTrigger = lt; RightTrigger = rt; LeftX = lx; LeftY = ly; RightX = rx; RightY = ry;
         // Also a press that is over again before the next frame.
         if (buttons != 0 || lt > Pulled || rt > Pulled || lx * lx + ly * ly > Touch * Touch || rx * rx + ry * ry > Touch * Touch) TouchedAt = now;
@@ -115,6 +117,7 @@ public static class SkatePad
     // The right stick has been where it is from the clock's last moment until `us`.
     private static void Advance(long us)
     {
+        SkatePadLog.Clock(us);
         var seconds = (us - clock) / 1000000.0;
         clock = us;
         if (seconds <= 0) return;
@@ -126,7 +129,7 @@ public static class SkatePad
             SkateFlickResult r; string error;
             if (!SkateFlick.TryStep(flick, input, dt, out r, out error)) { flick = default(SkateFlickState); return; }
             flick = r.State;
-            if (r.Events != SkateFlickEvents.None) { Flicked |= r.Events; Pop = (float)r.Pop; Flicks++; }
+            if (r.Events != SkateFlickEvents.None) { Flicked |= r.Events; Pop = (float)r.Pop; Flicks++; SkatePadLog.Fired(r.Events, Pop); }
             Charging = r.Charging; Charge = (float)r.Charge; Manual = r.Manual || r.NoseManual;
         }
     }

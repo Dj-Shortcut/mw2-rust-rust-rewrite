@@ -39,6 +39,7 @@ public static class SkateKeys
         var now = Time.realtimeSinceStartup;
         SkatePad.Poll(now);
         var padDown = SkatePad.Pressed();
+        SkatePadLog.Frame(now);
         try
         {
             var kb = Keyboard.current;
