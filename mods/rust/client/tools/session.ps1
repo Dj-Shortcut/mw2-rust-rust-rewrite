@@ -37,8 +37,11 @@ if (-not ((Test-Path "$gen\Assembly-CSharp.dll") -and (sls -Path "$dl\claude-loa
 $run = "$probe\run-$ptag-" + (Get-Date -Format 'HHmmss')
 $roots = 'BepInEx','dotnet','winhttp.dll','doorstop_config.ini','.doorstop_version','changelog.txt'
 # While this file exists, a loader in the Rust folder is one that these tools put there. clean.ps1
-# moves a loader out only then: one that somebody installed for another mod is left alone.
+# moves a loader out only then: one that somebody installed for another mod is left alone. The
+# note names two files of this loader by their hash, so that another loader put in its place after
+# a session was cut off before copying is told apart.
 $mark = "$probe\loader-in-rust-folder.txt"
+$prints = 'winhttp.dll', 'BepInEx\core\BepInEx.Core.dll'
 function say($m) { Write-Host $m }
 # A client that comes up behind the window these tools run in never gets the keyboard. Its window
 # is brought to the front once; after that the player switches windows as he likes. Windows lets a
@@ -87,11 +90,19 @@ if (-not (Get-Process steam -ErrorAction SilentlyContinue)) { say 'ABORT: Steam 
 $before = (ls $rust -Force | % Name | sort) -join '|'
 New-Item -ItemType Directory -Force $run | Out-Null
 $stage = "$probe\bep788"
-if (-not (Test-Path "$stage\winhttp.dll")) { Expand-Archive -LiteralPath $zip -DestinationPath $stage -Force }
+# The archive is unpacked beside the stage and renamed when it is complete: an unpacking that was
+# cut off must not pass for a loader.
+if (-not (Test-Path "$stage\winhttp.dll")) {
+  $fresh = "$stage-unpacking"
+  Remove-Item -LiteralPath $fresh -Recurse -Force -ErrorAction SilentlyContinue
+  Expand-Archive -LiteralPath $zip -DestinationPath $fresh -Force
+  Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+  Rename-Item -LiteralPath $fresh -NewName (Split-Path $stage -Leaf)
+}
 $stRoots = ls $stage -Force | % Name
 say ('stage roots: ' + ($stRoots -join ','))
 try {
-  Set-Content -LiteralPath $mark -Value ('put there ' + (Get-Date -Format 's') + ' by session ' + $run)
+  Set-Content -LiteralPath $mark -Value (@('put there ' + (Get-Date -Format 's') + ' by session ' + $run) + ($prints | % { 'file ' + (Get-FileHash -LiteralPath (Join-Path $stage $_) -Algorithm SHA256).Hash + ' ' + $_ }))
   foreach ($n in $stRoots) { Copy-Item -LiteralPath (Join-Path $stage $n) -Destination $rust -Recurse }
   $bx = Join-Path $rust 'BepInEx'
   New-Item -ItemType Directory -Force "$bx\interop","$bx\config","$bx\plugins" | Out-Null

@@ -56,7 +56,7 @@ letters, digits and spaces are all that can be typed into the PC reliably from a
 | `log`, `logall` | The plugin's log of the last session, without or with its once-a-second status lines. `$pinc` filters. |
 | `file` | Another file of the last session, by default the game's `Player.log`. |
 | `more` | The next page of whatever was shown last. |
-| `clean` | Moves a loader that was left in the Rust folder out of it. |
+| `clean` | Moves a loader that these tools left in the Rust folder out of it. |
 | `survey` | Lists what the interop set of the installed build offers for given type names. |
 | `launcher` | Installs or updates the owner's launcher from the commit in [`release.txt`](release.txt). |
 | `launchertest` | Starts the installed launcher, kills it while Rust runs, closes Rust and reports whether the Rust folder was cleaned all the same. |
@@ -76,6 +76,11 @@ the client.
 The client is started directly (`RustClient.exe`, which does not start the anti-cheat) or through
 the owner's non-Steam shortcut `RustClient` for the same executable. With `$pconnect` a directly
 started client joins the server in `server.txt`; nothing has to be typed in the game.
+
+While its loader is in the Rust folder, `session` keeps a note in the staging folder that names two
+of the loader's files by their hash. `clean` moves a loader out only when that note is there and
+those files, where present and readable, still read the same: another mod loader in the Rust folder
+is left alone. The loader's archive is unpacked beside the stage and renamed when complete.
 
 A client that comes up behind another window never gets the keyboard, so `session` brings the
 game's window to the front once it exists. A scripted check keeps it there (`$pkeep`).
@@ -113,7 +118,7 @@ Set by the scripts for one another; `sv name value` sets one by hand.
 | --- | --- | --- |
 | `$pref` | `zz`, `zg`, `build` | Branch to work from (default `main`). |
 | `$pcommit` | `build` | Build this commit instead of the head of the branch. |
-| `$pnext` | `build`, `runtime` | Script to run after a successful build; used once. |
+| `$pnext` | `build`, `runtime` | Script to run after a successful build; used once, also when the build stops early. |
 | `$ptag` | `session` | Label in the session folder's name. |
 | `$psteps` | `session` | Steps for the plugin. |
 | `$pplug`, `$prt` | `session` | Folder with the plugin, folder with the changed runtime. |
