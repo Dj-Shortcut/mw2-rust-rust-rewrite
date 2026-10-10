@@ -18,6 +18,11 @@ workspace.
 | name | what it does |
 | --- | --- |
 | `heavy_gameplay_lifecycle` | cold load `mp_overgrown` with 16 players, three input scenes, production disconnect, a watched menu, a second map with three scenes, production quit |
+| `skate_air_pullback_ollie` | owner-recorded airborne pull-back and forward flick produce one Ollie |
+| `skate_ground_diagonal_kickflip` | owner-recorded grounded diagonal flick produces one Ollie with Kickflip |
+| `skate_ground_roll_ollie_no_manual` | owner-recorded grounded rim roll and recoil produce one Ollie and no manual |
+
+The three engine-free C# skate scenarios are specified in [issue #337](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/337#issuecomment-6098063930). Their separate runner and exact trace data live in [skate/](skate/README.md); they do not start the parked standalone runtime.
 
 The scenario's steps are in `src/scenarios/heavy_gameplay_lifecycle.rs` and
 nowhere else: maps, seed rule, scenes, positions, angles, weapons, durations
