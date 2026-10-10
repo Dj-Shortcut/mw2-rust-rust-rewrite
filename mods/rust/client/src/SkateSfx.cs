@@ -12,7 +12,7 @@ public static class SkateSfx
     private static AudioClip push, ollie, landing, bail;
     private static int pops, lands, bails, pushes;
     private static float rollVolume, grindVolume;
-    private static bool failed, deaf;
+    private static bool failed, deaf, ranked = true;
     private static Il2CppStructArray<float> block;
     public static float RollHeard, GrindHeard, ShotsHeard;
 
@@ -29,6 +29,12 @@ public static class SkateSfx
     {
         var s = go.AddComponent<AudioSource>();
         s.spatialBlend = 0f; s.loop = loop; s.volume = loop ? 0f : 1f;
+        if (ranked)
+        {
+            // When more sources play than the engine mixes, it drops the least important ones first.
+            try { s.priority = 16; }
+            catch (Exception e) { ranked = false; Out.Say("AUDIO source priority unavailable: " + e.GetType().Name + ": " + e.Message); }
+        }
         if (clip != null) { s.clip = clip; s.Play(); }
         return s;
     }

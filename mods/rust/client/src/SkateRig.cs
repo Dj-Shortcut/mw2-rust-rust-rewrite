@@ -10,9 +10,10 @@ public class SkateRig : MonoBehaviour
 {
     public SkateRig(IntPtr p) : base(p) { }
 
-    // Not zero: with the listener at zero the engine stops mixing the sources at all, and a scripted
-    // check could no longer tell whether the board's sounds play.
-    public const float MuteVolume = 0.001f;
+    // Not lower: the engine stops mixing a source that is too quiet to be heard, and a scripted check
+    // could no longer tell whether the board's sounds play. The rolling loop at walking pace is the
+    // quietest of them.
+    public const float MuteVolume = 0.004f;
     public static bool Mute;
     public static BasePlayer Local;
     public static Transform LocalT;
