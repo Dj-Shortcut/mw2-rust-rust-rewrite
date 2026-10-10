@@ -322,16 +322,16 @@ public class SkateRig : MonoBehaviour
 // methods the game itself never calls can be missing from the build.
 public static class Skate
 {
-    public const float PushAccel = 6f, MaxPush = 8f, BrakeDecel = 12f, RollDecel = 0.35f, MaxSpeed = 13f, TurnRate = 150f, SlopeGain = 1.6f;
+    public const float PushAccel = 6f, MaxPush = 8f, BrakeDecel = 12f, RollDecel = 0.45f, MaxSpeed = 13f, TurnRate = 150f, SlopeGain = 1.6f;
     // Everything except the player's own layers, triggers, water, ragdolls and invisible helpers.
     public static readonly int GroundMask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
     public static bool On, Synth, SynthPush, SynthBrake, Grounded;
-    public static float Speed, Yaw, Lean, SynthYaw, Actual, Top;
+    public static float Speed, Yaw, Lean, SynthYaw, Actual, Top, Cap = MaxSpeed;
     public static Vector3 Normal = Vector3.up;
     public static int Steps, Resets;
     private static Rigidbody body;
     private static Vector3 lastPos, lastDir;
-    private static float lastSpeed;
+    private static float lastSpeed, lastPull = -999f;
     private static bool hasLast;
 
     private static Vector3 Dir(float yaw) { return Quaternion.Euler(0f, yaw, 0f) * Vector3.forward; }
@@ -351,7 +351,7 @@ public static class Skate
 
     public static string Status()
     {
-        return "speed=" + Speed.ToString("F1") + " actual=" + Actual.ToString("F1") + " top=" + Top.ToString("F1") + " yaw=" + Yaw.ToString("F0") + " grounded=" + Grounded
+        return "speed=" + Speed.ToString("F1") + " actual=" + Actual.ToString("F1") + " top=" + Top.ToString("F1") + " cap=" + Cap.ToString("F1") + " yaw=" + Yaw.ToString("F0") + " grounded=" + Grounded
             + " pull-backs=" + Resets + (body != null ? " pos=" + body.position.x.ToString("F1") + "," + body.position.y.ToString("F1") + "," + body.position.z.ToString("F1") : "");
     }
 
@@ -382,7 +382,12 @@ public static class Skate
                 // What the body really did since the last write: a wall, or the server pulling the player back.
                 var moved = pos - lastPos; moved.y = 0f;
                 Actual = Vector3.Dot(moved, lastDir) / dt;
-                if (lastSpeed > 1f && Actual < -3f) Resets++;
+                if (lastSpeed > 1f && Actual < -3f)
+                {
+                    // The server refused the last stretch. Stay under the speed it refused, and try a little more later.
+                    Resets++; lastPull = Time.realtimeSinceStartup;
+                    Cap = Math.Max(2.6f, Math.Min(Cap, lastSpeed * 0.8f));
+                }
                 var limit = (Actual > 0f ? Actual : 0f) + 2f;
                 if (Speed > limit) Speed = limit;
             }
@@ -402,7 +407,8 @@ public static class Skate
                 if (brake) Speed = Toward(Speed, 0f, BrakeDecel * dt);
                 Speed = Toward(Speed, 0f, RollDecel * dt);
             }
-            Speed = Clamp(Speed, -6f, MaxSpeed);
+            if (Cap < MaxSpeed && Time.realtimeSinceStartup - lastPull > 20f) { Cap = Math.Min(MaxSpeed, Cap + 1f); lastPull = Time.realtimeSinceStartup; }
+            Speed = Clamp(Speed, -6f, Cap);
             if (Speed > Top) Top = Speed;
             var v = dir * Speed;
             // Follow the slope while rolling; leave the vertical part to the game when it is jumping or falling.
