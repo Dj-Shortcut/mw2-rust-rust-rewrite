@@ -80,7 +80,7 @@ namespace Shortcut.RustMod
         public const double ManualFrom = 0.25;
         public const double ManualTo = 0.62;
         public const double ManualSide = 0.35;
-        public const double ManualSeconds = 0.1;
+        public const double ManualSeconds = 0.2;
         public const double ManualGrace = 0.06;
         public const double FullCharge = 0.3;
         public const double MinimumPop = 0.6;
@@ -114,7 +114,9 @@ namespace Shortcut.RustMod
                 else
                 {
                     state.SetSeconds = 0;
-                    if (input.Airborne && far > DeadZone) { state.Phase = AirFlick; state.FlickSeconds = 0; }
+                    // In the air a flick ahead or to a side adds a flip. A stick on its way back is
+                    // being set for the next pop, and is left to get there.
+                    if (input.Airborne && far > DeadZone && Degrees(Math.Abs(x), y) <= AirSpreadDegrees) { state.Phase = AirFlick; state.FlickSeconds = 0; }
                 }
             }
             else if (state.Phase == Held)
@@ -152,12 +154,15 @@ namespace Shortcut.RustMod
             else if (state.Phase == AirFlick)
             {
                 state.FlickSeconds += dt;
-                if (!input.Airborne || far <= DeadZone || state.FlickSeconds > AirFlickSeconds) state.Phase = far <= DeadZone ? Rest : Spent;
+                if (!input.Airborne || far <= DeadZone) state.Phase = Rest;
+                else if (state.FlickSeconds > AirFlickSeconds) state.Phase = Degrees(Math.Abs(x), y) <= AirSpreadDegrees ? Spent : Rest;
                 else if (far >= FireReach)
                 {
+                    // Straight ahead is no flip: the stick may be on its way to be held there.
                     events = Pick(x, y, input.Mirrored, false);
-                    state.Phase = Spent;
+                    state.Phase = events == SkateFlickEvents.None ? Rest : Spent;
                 }
+                if (state.Phase == Rest) state.SetSeconds = 0;
             }
             else if (state.Phase == Spent && far <= DeadZone) { state.Phase = Rest; state.SetSeconds = 0; }
 
