@@ -194,7 +194,7 @@ namespace Shortcut.RustMod
                 var pivot = new Point(0, 0.059f, z);
                 Cylinder(new Point(0, 0.034f, z), new Point(1, 0, 0), 0.007f, 0.125f, 12, MetalTile);
                 Cylinder(new Point(0, 0.027f, z), new Point(1, 0, 0), 0.0035f, 0.178f, 12, MetalTile);
-                Cylinder(new Point(0, 0.050f, z + side * 0.009f), axis, 0.009f, 0.04f, 12, MetalTile);
+                Cylinder(new Point(0, 0.050f, z + side * 0.009f), axis, 0.012f, 0.04f, 12, MetalTile);
                 Cylinder(pivot, axis, 0.014f, 0.011f, 12, WheelTile);
                 Cylinder(new Point(0, pivot.Y + axis.Y * 0.012f, pivot.Z + axis.Z * 0.012f), axis, 0.0035f, 0.041f, 8, MetalTile);
                 Box(new Point(0, 0.063f, z - side * 0.004f), new Point(0.006f, 0.005f, 0.006f), MetalTile);
