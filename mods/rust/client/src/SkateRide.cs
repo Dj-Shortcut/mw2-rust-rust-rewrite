@@ -144,6 +144,9 @@ public static class SkateRide
             // else (it happens in the first seconds after waking up) and the cap is left alone.
             Resets++;
             if (Math.Abs(lastSpeed) > FootPace) { lastPull = now; Cap = Math.Max(FootPace, Math.Min(Cap, Math.Abs(lastSpeed) * 0.8f)); }
+            // Being put back is not an obstacle: the board keeps what speed the cap allows.
+            Speed = Clamp(Speed, -Cap, Cap);
+            return;
         }
         // An obstacle takes the speed away, in either direction of travel.
         if (Speed > 0f) { var limit = (Actual > 0f ? Actual : 0f) + 2f; if (Speed > limit) Speed = limit; }

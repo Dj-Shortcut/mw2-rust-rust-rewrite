@@ -38,7 +38,10 @@ public static class SkateHud
     {
         var now = Time.realtimeSinceStartup;
         var popup = now - SkateRide.TrickAt < 2.2f;
-        if (!Scenarios.Active && !SkateRide.On && !popup) return;
+        // Before there is a player (the menu, loading) and for a moment after waking up, one line
+        // says the mod is there and how to start; after that nothing is drawn until the rider is on.
+        var hint = !Scenarios.Active && !SkateRide.On && (!SkateRig.Ready || now - SkateRig.AwakeAt < 12f);
+        if (!Scenarios.Active && !SkateRide.On && !popup && !hint) return;
         float w = Screen.width, h = Screen.height;
         // Sizes are for a 1080-line screen and grow with it.
         var k = h / 1080f; if (k < 0.75f) k = 0.75f;
@@ -51,6 +54,7 @@ public static class SkateHud
             catch (Exception e) { centred = false; Out.Say("HUD centred text unavailable: " + e.GetType().Name); }
         }
         if (Scenarios.Active) Text(40f * k, 110f * k, w - 80f * k, "SKATE TEST  " + Scenarios.Phase, small, smallDark);
+        if (hint) Text(40f * k, 110f * k, w - 80f * k, SkateRig.Ready ? "Skate mod: press K or jump twice to get on the board" : "Skate mod " + SkatePlugin.Version + " loaded", small, smallDark);
         if (SkateRide.On)
         {
             Text(40f * k, h - 270f * k, 700f * k, (Math.Abs(SkateRide.Speed) * 3.6f).ToString("F0") + " km/h" + (SkateRide.Trick.Switch ? "   SWITCH" : ""), side, sideDark);
