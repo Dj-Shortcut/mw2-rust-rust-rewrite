@@ -107,14 +107,37 @@ public static class SkateHud
         return s;
     }
 
-    private static string Plain(string rich)
+    // The text without its tags. A shadow keeps the sizes inside its text and loses only the colours.
+    private static string Plain(string rich, bool keepSizes)
     {
         if (rich.IndexOf('<') < 0) return rich;
-        var b = new StringBuilder(rich.Length); var inside = false;
+        var b = new StringBuilder(rich.Length);
         for (var i = 0; i < rich.Length; i++)
         {
-            var c = rich[i];
-            if (c == '<') inside = true; else if (c == '>') inside = false; else if (!inside) b.Append(c);
+            var end = rich[i] == '<' ? rich.IndexOf('>', i) : -1;
+            if (end < 0) { b.Append(rich[i]); continue; }
+            var colour = string.CompareOrdinal(rich, i, "<color", 0, 6) == 0 || string.CompareOrdinal(rich, i, "</color", 0, 7) == 0;
+            if (keepSizes && !colour) b.Append(rich, i, end - i + 1);
+            i = end;
+        }
+        return b.ToString();
+    }
+
+    // A colour named inside the text does not follow the label's own: it is given the same fading.
+    private static string Faded(string rich, float alpha)
+    {
+        const string tag = "<color=#";
+        if (alpha >= 0.99f || rich.IndexOf(tag, StringComparison.Ordinal) < 0) return rich;
+        var hex = ((int)(alpha * 255f)).ToString("X2");
+        var b = new StringBuilder(rich.Length + 16);
+        var at = 0;
+        while (at < rich.Length)
+        {
+            var i = rich.IndexOf(tag, at, StringComparison.Ordinal);
+            var close = i < 0 ? -1 : i + tag.Length + 6;
+            if (i < 0 || close >= rich.Length || rich[close] != '>') { b.Append(rich, at, rich.Length - at); break; }
+            b.Append(rich, at, close - at).Append(hex);
+            at = close;
         }
         return b.ToString();
     }
@@ -128,14 +151,14 @@ public static class SkateHud
         if (anchor != 0 && !anchors)
         {
             // Without alignment the text is placed by a guess at its width.
-            var guess = Plain(text).Length * size * 0.5f;
+            var guess = Plain(text, false).Length * size * 0.5f;
             x = anchor == 1 ? x + (width - guess) * 0.5f : x + width - guess; width = guess + 40f;
         }
         var shade = Math.Max(1f, size * 0.06f);
         s.normal.textColor = new Color(0f, 0f, 0f, 0.8f * alpha);
-        GUI.Label(new Rect(x + shade, y + shade, width, height), Plain(text), s);
+        GUI.Label(new Rect(x + shade, y + shade, width, height), Plain(text, true), s);
         s.normal.textColor = new Color(colour.r, colour.g, colour.b, alpha);
-        GUI.Label(new Rect(x, y, width, height), text, s);
+        GUI.Label(new Rect(x, y, width, height), Faded(text, alpha), s);
     }
 
     private static Texture2D Fill(Color c)
