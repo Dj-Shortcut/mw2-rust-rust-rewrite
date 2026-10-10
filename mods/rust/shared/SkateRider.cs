@@ -19,15 +19,21 @@ namespace Shortcut.RustMod
         public readonly SkateVector BoardPosition, BoardForward, BoardUp;
         public readonly SkateStance Stance;
         public readonly bool Switch, Airborne, Pushing, Grab, Bailed;
-        public readonly double Speed, LeanDegrees, Crouch, PushPhase, FlipDegrees, LookYawDegrees;
+        public readonly double Speed, LeanDegrees, Crouch, PushPhase, FlipDegrees, LookYawDegrees, DeckOffset;
         public SkateRiderInput(SkateVector boardPosition, SkateVector boardForward, SkateVector boardUp,
                                SkateStance stance, bool ridingSwitch, double speed, double leanDegrees,
                                double crouch, bool airborne, bool pushing, double pushPhase,
                                double flipDegrees, bool grab, bool bailed, double lookYawDegrees)
+            : this(boardPosition, boardForward, boardUp, stance, ridingSwitch, speed, leanDegrees,
+                   crouch, airborne, pushing, pushPhase, flipDegrees, grab, bailed, lookYawDegrees, 0) { }
+        public SkateRiderInput(SkateVector boardPosition, SkateVector boardForward, SkateVector boardUp,
+                               SkateStance stance, bool ridingSwitch, double speed, double leanDegrees,
+                               double crouch, bool airborne, bool pushing, double pushPhase,
+                               double flipDegrees, bool grab, bool bailed, double lookYawDegrees, double deckOffset)
         { BoardPosition = boardPosition; BoardForward = boardForward; BoardUp = boardUp; Stance = stance;
           Switch = ridingSwitch; Speed = speed; LeanDegrees = leanDegrees; Crouch = crouch; Airborne = airborne;
           Pushing = pushing; PushPhase = pushPhase; FlipDegrees = flipDegrees; Grab = grab;
-          Bailed = bailed; LookYawDegrees = lookYawDegrees; }
+          Bailed = bailed; LookYawDegrees = lookYawDegrees; DeckOffset = deckOffset; }
     }
 
     public struct SkateRiderPose
@@ -72,26 +78,38 @@ namespace Shortcut.RustMod
             int side = input.Stance == SkateStance.Regular ? 1 : -1;
             var facing = right * side;
             var travel = forward * (input.Switch ? -1 : 1);
+            var ground = input.BoardPosition + up * Math.Min(0, input.DeckOffset);
+            bool pushing = input.Pushing && !input.Airborne && !input.Bailed;
+            bool grabbing = input.Grab && input.Airborne && !input.Bailed;
+            double stroke = pushing ? Math.Sin(Math.PI * input.PushPhase) : 0;
+            stroke *= stroke;
+            double swing = pushing ? Math.Sin(2 * Math.PI * input.PushPhase) : 0;
             double lift = SkatePose.FootLift + (input.Airborne && !input.Bailed
                 ? SkatePose.FlipFootLift * Math.Abs(Math.Sin((input.FlipDegrees % 360) * Math.PI / 360)) : 0);
             var deck = input.BoardPosition + up * lift;
             var leftAnkle = deck + forward * (side * SkatePose.FootOffset);
             var rightAnkle = deck - forward * (side * SkatePose.FootOffset);
             bool backIsLeft = (input.Stance == SkateStance.Goofy) != input.Switch;
-            if (input.Pushing && !input.Airborne && !input.Bailed)
+            if (pushing)
             {
                 var back = PushFoot(input.BoardPosition, travel, right * side, up, input.PushPhase);
                 if (backIsLeft) leftAnkle = back; else rightAnkle = back;
             }
+            if (SkateVector.Dot(leftAnkle - ground, up) < -1e-8 ||
+                SkateVector.Dot(rightAnkle - ground, up) < -1e-8)
+            { error = "Skate rider feet are below the ground plane."; return false; }
 
             double lean = input.LeanDegrees * Math.PI / 180;
-            var pelvisUp = up * Math.Cos(lean) + right * Math.Sin(lean);
-            var pelvisForward = (right * Math.Cos(lean) - up * Math.Sin(lean)) * side;
+            double balance = input.Bailed ? 0 : 0.04 + 0.03 * input.Crouch;
+            double pelvisLean = lean * side - balance;
+            var pelvisUp = up * Math.Cos(pelvisLean) + facing * Math.Sin(pelvisLean);
+            var pelvisForward = facing * Math.Cos(pelvisLean) - up * Math.Sin(pelvisLean);
             var pelvisRight = Cross(pelvisUp, pelvisForward);
             double crouch = input.Bailed ? Math.Max(0.85, input.Crouch) : input.Crouch;
             double speed = input.Speed / SkateMotion.MaximumGroundSpeed;
             var centre = Project((leftAnkle + rightAnkle) * 0.5 - input.BoardPosition, up) + input.BoardPosition;
-            centre += right * (rig.PelvisHeight * Math.Sin(lean) * 0.45) + travel * (0.035 * speed);
+            centre += right * (rig.PelvisHeight * Math.Sin(lean) * (grabbing ? 0.1 : 0.45)) + travel * (0.035 * speed);
+            centre -= facing * (rig.SpineLength * balance * (grabbing ? 3 : 1)) + travel * (0.025 * stroke);
             var leftHipBase = centre - pelvisRight * (rig.HipWidth * 0.5);
             var rightHipBase = centre + pelvisRight * (rig.HipWidth * 0.5);
             double minimum = SkatePose.FootLift, maximum = MaximumMeasurement * 2;
@@ -99,20 +117,32 @@ namespace Shortcut.RustMod
                 !HeightRange(rightHipBase, rightAnkle, up, rig.ThighLength, rig.ShinLength, ref minimum, ref maximum))
             { error = "Skate rider legs cannot reach the foot positions."; return false; }
             double requested = rig.PelvisHeight - Math.Min(SkatePose.CrouchDrop, rig.PelvisHeight * 0.65) * crouch;
+            if (grabbing) requested -= Math.Min(0.18, rig.PelvisHeight * 0.25) * crouch;
             double height = Math.Max(minimum, Math.Min(maximum, requested));
             var pelvis = centre + up * height;
             var leftHip = leftHipBase + up * height;
             var rightHip = rightHipBase + up * height;
             SkateVector leftKnee, rightKnee;
             if (!Limb(leftHip, leftAnkle, rig.ThighLength, rig.ShinLength,
-                      facing - pelvisRight * 0.15, input.BoardPosition, up, out leftKnee) ||
+                      facing - pelvisRight * 0.15, ground, up, out leftKnee) ||
                 !Limb(rightHip, rightAnkle, rig.ThighLength, rig.ShinLength,
-                      facing + pelvisRight * 0.15, input.BoardPosition, up, out rightKnee))
+                      facing + pelvisRight * 0.15, ground, up, out rightKnee))
             { error = "Skate rider legs cannot reach above the ground plane."; return false; }
 
-            double chestLean = input.Bailed ? 0.65 : lean * 0.65 * side;
+            double chestLean = input.Bailed ? 0.65 : lean * 0.65 * side + 0.1 + 0.12 * crouch + 0.08 * stroke;
+            var grab = input.BoardPosition + up * input.DeckOffset + facing * 0.1 - travel * 0.12;
+            if (grabbing)
+            {
+                var shoulderBase = pelvis + Cross(up, facing) * ((backIsLeft ? -1 : 1) * rig.ShoulderWidth * 0.5);
+                chestLean = GrabFold(shoulderBase, grab, rig.SpineLength,
+                    rig.UpperArmLength + rig.ForearmLength - ReachMargin * 2, up, facing, chestLean);
+            }
             var chestUp = up * Math.Cos(chestLean) + facing * Math.Sin(chestLean);
             var chestForward = facing * Math.Cos(chestLean) - up * Math.Sin(chestLean);
+            double rollLimit = Math.Asin(Math.Min(1, Math.Max(0,
+                2 * SkateVector.Dot(pelvis - ground, up) / rig.ShoulderWidth)));
+            double pushRoll = Math.Min(0.14 * stroke, rollLimit * 0.95);
+            chestUp = chestUp * Math.Cos(pushRoll) + travel * Math.Sin(pushRoll);
             var chestRight = Cross(chestUp, chestForward);
             var chest = pelvis + chestUp * rig.SpineLength;
             var neck = chest + chestUp * (rig.SpineLength * 0.12);
@@ -121,19 +151,19 @@ namespace Shortcut.RustMod
             var rightShoulder = chest + chestRight * (rig.ShoulderWidth * 0.5);
             double armLength = rig.UpperArmLength + rig.ForearmLength;
             var armForward = chestForward * (armLength * (input.Bailed ? 0.5 : 0.1 + 0.05 * speed));
-            var armDown = up * (-armLength * (input.Bailed ? 0.15 : 0.28));
-            double spread = input.Bailed ? 0.22 : 0.62;
-            var leftTarget = leftShoulder - chestRight * (armLength * spread) + armForward + armDown;
-            var rightTarget = rightShoulder + chestRight * (armLength * spread) + armForward + armDown;
-            if (input.Grab && input.Airborne && !input.Bailed)
+            var armDown = up * (-armLength * (input.Bailed ? 0.15 : 0.58));
+            double spread = input.Bailed ? 0.22 : 0.27;
+            var counterSwing = travel * (armLength * 0.18 * swing * (backIsLeft ? -1 : 1));
+            var leftTarget = leftShoulder - chestRight * (armLength * spread) + armForward + armDown + counterSwing;
+            var rightTarget = rightShoulder + chestRight * (armLength * spread) + armForward + armDown - counterSwing;
+            if (grabbing)
             {
-                var grab = input.BoardPosition + facing * 0.1 - travel * 0.12 + up * (lift + 0.05);
                 if (backIsLeft) leftTarget = grab; else rightTarget = grab;
             }
             SkateVector leftHand, rightHand, leftElbow, rightElbow;
-            if (!Arm(leftShoulder, leftTarget, rig, -1, chestRight, chestForward, input.BoardPosition, up,
+            if (!Arm(leftShoulder, leftTarget, rig, -1, chestRight, chestForward, ground, up,
                      out leftElbow, out leftHand) ||
-                !Arm(rightShoulder, rightTarget, rig, 1, chestRight, chestForward, input.BoardPosition, up,
+                !Arm(rightShoulder, rightTarget, rig, 1, chestRight, chestForward, ground, up,
                      out rightElbow, out rightHand))
             { error = "Skate rider arms cannot reach above the ground plane."; return false; }
             var look = Forward(input.LookYawDegrees % 360);
@@ -146,6 +176,35 @@ namespace Shortcut.RustMod
             if (!Finite(pose))
             { pose = default(SkateRiderPose); error = "Skate rider pose exceeds the allowed bounds."; return false; }
             return true;
+        }
+
+        private static double GrabFold(SkateVector shoulderBase, SkateVector target, double spine, double reach,
+                                       SkateVector up, SkateVector facing, double initial)
+        {
+            const double limit = 1.5;
+            var offset = target - shoulderBase;
+            double vertical = SkateVector.Dot(offset, up), forward = SkateVector.Dot(offset, facing);
+            double required = (offset.LengthSquared + spine * spine - reach * reach) / (2 * spine);
+            if (vertical * Math.Cos(initial) + forward * Math.Sin(initial) >= required) return initial;
+            double magnitude = Math.Sqrt(vertical * vertical + forward * forward);
+            if (magnitude <= 1e-12) return initial;
+            double peak = Math.Atan2(forward, vertical);
+            double best = initial, bestValue = vertical * Math.Cos(initial) + forward * Math.Sin(initial);
+            double endValue = vertical * Math.Cos(limit) + forward * Math.Sin(limit);
+            if (endValue > bestValue) { best = limit; bestValue = endValue; }
+            double crossing = double.PositiveInfinity;
+            double angle = Math.Acos(Math.Max(-1, Math.Min(1, required / magnitude)));
+            for (int turn = -1; turn <= 1; turn++)
+            {
+                double maximum = peak + turn * 2 * Math.PI;
+                if (maximum >= initial && maximum <= limit && magnitude > bestValue)
+                { best = maximum; bestValue = magnitude; }
+                if (required > magnitude) continue;
+                double first = maximum - angle, second = maximum + angle;
+                if (first >= initial && first <= limit) crossing = Math.Min(crossing, first);
+                if (second >= initial && second <= limit) crossing = Math.Min(crossing, second);
+            }
+            return double.IsInfinity(crossing) ? best : crossing;
         }
 
         private static SkateVector PushFoot(SkateVector origin, SkateVector travel, SkateVector side,
@@ -184,7 +243,7 @@ namespace Shortcut.RustMod
             var direction = distance > ReachMargin ? offset * (1 / distance) : forward;
             double reach = Math.Max(Math.Abs(rig.UpperArmLength - rig.ForearmLength) + ReachMargin,
                 Math.Min(rig.UpperArmLength + rig.ForearmLength - ReachMargin, distance));
-            double floor = (SkatePose.FootLift - SkateVector.Dot(shoulder - ground, up)) / reach;
+            double floor = -SkateVector.Dot(shoulder - ground, up) / reach;
             double vertical = SkateVector.Dot(direction, up);
             if (vertical < floor)
             {
@@ -253,7 +312,8 @@ namespace Shortcut.RustMod
             Finite(input.Speed) && input.Speed >= 0 && input.Speed <= SkateMotion.MaximumGroundSpeed &&
             Finite(input.LeanDegrees) && Math.Abs(input.LeanDegrees) <= SkatePose.MaximumLean &&
             Fraction(input.Crouch) && Fraction(input.PushPhase) && Finite(input.FlipDegrees) &&
-            Math.Abs(input.FlipDegrees) <= 3600000 && Finite(input.LookYawDegrees) && Math.Abs(input.LookYawDegrees) <= 3600000; }
+            Math.Abs(input.FlipDegrees) <= 3600000 && Finite(input.LookYawDegrees) && Math.Abs(input.LookYawDegrees) <= 3600000 &&
+            Finite(input.DeckOffset) && Math.Abs(input.DeckOffset) <= MaximumMeasurement; }
         private static bool Finite(SkateRiderPose p)
         { return Vector(p.Pelvis) && Vector(p.LeftHip) && Vector(p.RightHip) && Vector(p.LeftKnee) && Vector(p.RightKnee) &&
             Vector(p.LeftAnkle) && Vector(p.RightAnkle) && Vector(p.LeftToe) && Vector(p.RightToe) && Vector(p.Chest) &&
