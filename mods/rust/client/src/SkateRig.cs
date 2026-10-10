@@ -156,9 +156,10 @@ public class SkateRig : MonoBehaviour
             try { SkateBoard.Follow(board, LocalT); }
             catch (Exception e) { Say("board update threw " + e.GetType().Name + ": " + e.Message); board = null; }
         }
+        var third = SkateRide.On && LocalT != null && (SkateCamera.Chase || SkateCamera.Fixed);
+        RiderRig.Look(third);
         if (!SkateRide.On || LocalT == null) return;
         var at = SkateBoard.Contact(LocalT);
-        var third = SkateCamera.Chase || SkateCamera.Fixed;
         RiderRig.Frame(at, SkateRide.ViewNormal, !third, frame);
         SkateCamera.Apply(at);
     }

@@ -28,7 +28,7 @@ public static class Scenarios
     private static void Restore()
     {
         SkateKeys.Scripted = false; SkateKeys.Reset();
-        SkateCamera.Fixed = false; SkateCamera.Chase = true; SkateRide.Frozen = false; SkateBoard.ShowLift = 0f; RiderRig.Enabled = true;
+        SkateCamera.Fixed = false; SkateCamera.Chase = true; SkateRide.Frozen = false; SkateBoard.ShowLift = 0f; RiderRig.Enabled = true; RiderRig.PreCullOn = false;
     }
 
     public static void Update(float now)
@@ -54,7 +54,7 @@ public static class Scenarios
         if (to == phase) return false;
         if (phase > 0 && Name == "pose")
             Say("  rider: applied=" + RiderRig.Applied + " refused=" + RiderRig.Refusals + (RiderRig.Error != "" ? " (" + RiderRig.Error + ")" : "") + " miss=" + RiderRig.Miss.ToString("F3") + " at " + RiderRig.MissAt
-                + " moved-after-write=" + RiderRig.Drift.ToString("F3") + " at " + RiderRig.DriftAt);
+                + " moved-after-write=" + RiderRig.Drift.ToString("F3") + " at " + RiderRig.DriftAt + " | look=" + RiderRig.LookState + (RiderRig.DriftNote != "" ? " | " + RiderRig.DriftNote : ""));
         phase = to; Phase = phase + " " + label;
         Say("phase " + Phase + " | " + SkateRide.Status());
         return true;
@@ -86,9 +86,9 @@ public static class Scenarios
         "stance, seen from the rider's front", "stance, seen along the board from behind", "stance, seen from the rider's back", "stance, seen along the board from ahead", "stance, seen from above",
         "the game's own pose (ours off), from the same side", "the game's own pose (ours off), from behind",
         "push, foot on the ground", "push, seen from behind", "air, half a kickflip", "air, quarter flip with a grab", "air with a grab, seen from behind", "bail", "switch stance", "grind",
-        "first person", "moving, pushing off", "moving, turning round", "finish" };
-    private static readonly float[] poseBearing = { 90f, 180f, 270f, 0f, 90f, 90f, 180f, 90f, 180f, 120f, 90f, 180f, 90f, 90f, 90f, 90f, 115f, 115f, 90f };
-    private const int PoseOurs = 6, PosePush = 8, PoseFlip = 10, PoseGrab = 11, PoseBail = 13, PoseSwitch = 14, PoseGrind = 15, PoseFirst = 16, PoseMove = 17, PoseTurn = 18, PoseEnd = 19;
+        "stance, written again just before the camera draws", "first person", "moving, pushing off", "moving, turning round", "finish" };
+    private static readonly float[] poseBearing = { 90f, 180f, 270f, 0f, 90f, 90f, 180f, 90f, 180f, 120f, 90f, 180f, 90f, 90f, 90f, 180f, 90f, 115f, 115f, 90f };
+    private const int PoseOurs = 6, PosePush = 8, PoseFlip = 10, PoseGrab = 11, PoseBail = 13, PoseSwitch = 14, PoseGrind = 15, PoseAgain = 16, PoseFirst = 17, PoseMove = 18, PoseTurn = 19, PoseEnd = 20;
     private static float stepAt;
     private static bool keyWas;
 
@@ -113,6 +113,9 @@ public static class Scenarios
             SkateRide.Frozen = true;
         }
         if (phase == PoseEnd) { Finish(); return; }
+        if (phase == PoseAgain) Say("pre-cull " + RiderRig.HookPreCull());
+        if (phase == PoseAgain + 1) Say("pre-cull calls=" + RiderRig.PreCullCalls + " applied=" + RiderRig.PreCullApplied);
+        RiderRig.PreCullOn = phase == PoseAgain;
         SkateCamera.Fixed = phase != PoseFirst; SkateCamera.Chase = phase != PoseFirst;
         SkateCamera.Bearing = poseBearing[phase - 1];
         SkateCamera.FixedHeight = phase == 5 ? 2.9f : 1.15f; SkateCamera.FixedDistance = phase == 5 ? 1.6f : 2.7f;

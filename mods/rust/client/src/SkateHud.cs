@@ -39,30 +39,33 @@ public static class SkateHud
         var now = Time.realtimeSinceStartup;
         var popup = now - SkateRide.TrickAt < 2.2f;
         if (!Scenarios.Active && !SkateRide.On && !popup) return;
+        float w = Screen.width, h = Screen.height;
+        // Sizes are for a 1080-line screen and grow with it.
+        var k = h / 1080f; if (k < 0.75f) k = 0.75f;
         if (big == null)
         {
             var dark = new Color(0f, 0f, 0f, 0.85f);
-            big = Make(40, Color.white); bigDark = Make(40, dark); mid = Make(24, Color.white); midDark = Make(24, dark); small = Make(17, Color.white); smallDark = Make(17, dark);
+            int b = (int)(44 * k), m = (int)(27 * k), s = (int)(19 * k);
+            big = Make(b, Color.white); bigDark = Make(b, dark); mid = Make(m, Color.white); midDark = Make(m, dark); small = Make(s, Color.white); smallDark = Make(s, dark);
             try { big.alignment = bigDark.alignment = mid.alignment = midDark.alignment = TextAnchor.UpperCenter; centred = true; }
             catch (Exception e) { centred = false; Out.Say("HUD centred text unavailable: " + e.GetType().Name); }
         }
-        float w = Screen.width, h = Screen.height;
-        if (Scenarios.Active) GUI.Label(new Rect(40f, 110f, w - 80f, 40f), "SKATE TEST  " + Scenarios.Phase, small);
+        if (Scenarios.Active) Text(40f * k, 110f * k, w - 80f * k, "SKATE TEST  " + Scenarios.Phase, small, smallDark);
         if (SkateRide.On)
         {
-            Text(40f, h - 260f, 500f, (Math.Abs(SkateRide.Speed) * 3.6f).ToString("F0") + " km/h" + (SkateRide.Trick.Switch ? "   SWITCH" : ""), small, smallDark);
-            Text(40f, h - 232f, 500f, "SCORE " + SkateRide.Trick.TotalPoints.ToString("N0"), small, smallDark);
+            Text(40f * k, h - 270f * k, 700f * k, (Math.Abs(SkateRide.Speed) * 3.6f).ToString("F0") + " km/h" + (SkateRide.Trick.Switch ? "   SWITCH" : ""), mid, midDark);
+            Text(40f * k, h - 232f * k, 700f * k, "SCORE " + SkateRide.Trick.TotalPoints.ToString("N0"), mid, midDark);
             if (SkateRide.Trick.ComboCount > 0)
-                Middle(h * 0.30f + 56f, "COMBO " + (SkateRide.Trick.ComboBasePoints * SkateRide.Trick.ComboCount).ToString("N0") + "   x" + SkateRide.Trick.ComboCount, mid, midDark);
-            if (SkateRide.Mode == RideMode.Grind) Middle(h * 0.30f, "GRIND  " + SkateRide.Trick.GrindSeconds.ToString("F1") + " s", big, bigDark);
+                Middle(h * 0.28f + 60f * k, "COMBO " + (SkateRide.Trick.ComboBasePoints * SkateRide.Trick.ComboCount).ToString("N0") + "   x" + SkateRide.Trick.ComboCount, mid, midDark);
+            if (SkateRide.Mode == RideMode.Grind) Middle(h * 0.28f, "GRIND  " + SkateRide.Trick.GrindSeconds.ToString("F1") + " s", big, bigDark);
             if (now - MountedAt < 9f && !Scenarios.Active)
             {
-                Text(40f, h - 190f, 900f, "W push   S brake   A / D carve   SPACE ollie   K or hold CTRL get off   V camera", small, smallDark);
-                Text(40f, h - 164f, 900f, "In the air: tap W kickflip   tap S heelflip   A / D spin   hold CTRL grab", small, smallDark);
+                Text(40f * k, h - 186f * k, w - 80f * k, "W push   S brake   A / D carve   SPACE ollie   K or hold CTRL get off   V camera", small, smallDark);
+                Text(40f * k, h - 158f * k, w - 80f * k, "In the air: tap W kickflip   tap S heelflip   A / D spin   hold CTRL grab", small, smallDark);
             }
         }
         if (popup && SkateRide.Mode != RideMode.Grind && SkateRide.TrickName != "")
-            Middle(h * 0.30f, SkateRide.TrickName == "Bail" ? "BAIL" : SkateRide.TrickName + (SkateRide.TrickPoints > 0 ? "   +" + SkateRide.TrickPoints.ToString("N0") : ""), big, bigDark);
-        if (now - SkateRide.BankedAt < 2.2f) Middle(h * 0.30f + 56f, "BANKED  +" + SkateRide.Banked.ToString("N0"), mid, midDark);
+            Middle(h * 0.28f, SkateRide.TrickName == "Bail" ? "BAIL" : SkateRide.TrickName + (SkateRide.TrickPoints > 0 ? "   +" + SkateRide.TrickPoints.ToString("N0") : ""), big, bigDark);
+        if (now - SkateRide.BankedAt < 2.2f) Middle(h * 0.28f + 60f * k, "BANKED  +" + SkateRide.Banked.ToString("N0"), mid, midDark);
     }
 }

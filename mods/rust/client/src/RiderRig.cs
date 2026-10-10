@@ -7,6 +7,7 @@
 // The module's ankles are the skeleton's ankle joints: it is given the plane those joints rest on
 // when the soles are on the deck.
 using System;
+using Il2CppInterop.Runtime;
 using Shortcut.RustMod;
 using UnityEngine;
 
@@ -29,6 +30,56 @@ public static class RiderRig
     private static readonly Vector3[] markAt = new Vector3[9];
     private static readonly string[] markName = { "left ankle", "right ankle", "left knee", "right knee", "neck", "head", "left hand", "right hand", "pelvis" };
     private static bool failed, marked;
+    private static Vector3 rootAt, pelvisAt, playerAt;
+    public static string DriftNote = "";
+
+    // The local player's model is drawn twice. The full body (head, arms, clothes) only casts the
+    // shadow; what the first-person camera shows is a second set of skinned meshes named "leg-..."
+    // whose upper body the game folds back out of view (run R2, 10 October 2026). A camera behind
+    // the rider needs the opposite: the full body drawn, the first-person set hidden.
+    private static SkinnedMeshRenderer[] body = new SkinnedMeshRenderer[0], legSet = new SkinnedMeshRenderer[0];
+    private static bool third, lookFailed;
+    private static int skinCount = -1;
+    private static float nextScan;
+    public static string LookState = "first person";
+
+    public static void Look(bool wantThird)
+    {
+        if (!Bound || lookFailed || Root == null) return;
+        try
+        {
+            var now = Time.realtimeSinceStartup;
+            if (now >= nextScan)
+            {
+                // Clothing changes rebuild the meshes, so the set is looked at again now and then.
+                nextScan = now + 1f;
+                var all = Root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+                if (all.Length != skinCount)
+                {
+                    Show(false);
+                    var b = new System.Collections.Generic.List<SkinnedMeshRenderer>(); var l = new System.Collections.Generic.List<SkinnedMeshRenderer>();
+                    for (var i = 0; i < all.Length; i++)
+                    {
+                        if (all[i].gameObject.name.StartsWith("leg-")) l.Add(all[i]);
+                        else if (all[i].shadowCastingMode == UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly) b.Add(all[i]);
+                    }
+                    body = b.ToArray(); legSet = l.ToArray(); skinCount = all.Length;
+                    Say("look: " + all.Length + " skinned meshes, " + body.Length + " shadow-only body, " + legSet.Length + " first-person");
+                }
+            }
+            if (wantThird != third) Show(wantThird);
+        }
+        catch (Exception e) { lookFailed = true; Say("look threw " + e.GetType().Name + ": " + e.Message); }
+    }
+
+    private static void Show(bool wantThird)
+    {
+        if (third == wantThird) return;
+        third = wantThird;
+        for (var i = 0; i < body.Length; i++) if (body[i] != null) body[i].shadowCastingMode = wantThird ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.ShadowsOnly;
+        for (var i = 0; i < legSet.Length; i++) if (legSet[i] != null) legSet[i].enabled = !wantThird;
+        LookState = wantThird ? "third person" : "first person";
+    }
 
     private static void Say(string m) { Out.Say("RIDER " + m); }
     private static float Dist(Transform a, Transform b) { return Vector3.Distance(a.position, b.position); }
@@ -37,7 +88,7 @@ public static class RiderRig
     // Finds the player model nearest to the player and measures it. Returns false until there is one.
     public static bool Bind(Transform playerT)
     {
-        Bound = false;
+        Bound = false; Show(false); skinCount = -1; nextScan = 0f;
         var models = UnityEngine.Object.FindObjectsOfType<PlayerModel>();
         PlayerModel best = null; var bd = 2f;
         for (var i = 0; i < models.Length; i++)
@@ -163,10 +214,51 @@ public static class RiderRig
             // down the foot is follows the module's stroke: down by a quarter, up again at the end.
             var phase = input.PushPhase; var down = 0f;
             if (input.Pushing) down = phase < 0.25 ? Smooth((float)phase / 0.25f) : phase < 0.85 ? 1f : 1f - Smooth(((float)phase - 0.85f) / 0.15f);
-            Apply(pose, upV, legsOnly, down * DeckTop, SkateRide.TailFirst);
+            lastPose = pose; lastUp = upV; lastLegsOnly = legsOnly; lastDrop = down * DeckTop; lastPushLeft = SkateRide.TailFirst; hasPose = true;
+            Apply(pose, upV, legsOnly, lastDrop, lastPushLeft);
             Applied++;
         }
         catch (Exception e) { failed = true; Say("pose threw " + e.GetType().Name + ": " + e.Message); }
+    }
+
+    // An experiment for the test sessions: write the same pose once more from the engine's
+    // pre-cull callback, the last moment before the main camera draws, in case something still
+    // changes the bones after the late pass.
+    public static bool PreCullOn;
+    public static int PreCullCalls, PreCullApplied;
+    private static Action<Camera> preCullManaged;
+    private static Camera.CameraCallback preCull;
+    private static SkateRiderPose lastPose;
+    private static Vector3 lastUp;
+    private static float lastDrop;
+    private static bool lastLegsOnly, lastPushLeft, hasPose;
+
+    public static string HookPreCull()
+    {
+        if (preCull != null) return "already hooked";
+        try
+        {
+            preCullManaged = new Action<Camera>(OnPreCull);
+            preCull = DelegateSupport.ConvertDelegate<Camera.CameraCallback>(preCullManaged);
+            var current = Camera.onPreCull;
+            Camera.onPreCull = current == null ? preCull : Il2CppSystem.Delegate.Combine(current, preCull).Cast<Camera.CameraCallback>();
+            return "hooked" + (current == null ? " (first handler)" : " (after the game's handlers)");
+        }
+        catch (Exception e) { preCull = null; return "hook threw " + e.GetType().Name + ": " + e.Message; }
+    }
+
+    private static void OnPreCull(Camera cam)
+    {
+        try
+        {
+            PreCullCalls++;
+            if (!PreCullOn || !hasPose || !Bound || failed || !SkateRide.On || cam == null) return;
+            var main = Camera.main;
+            if (main == null || cam.Pointer != main.Pointer) return;
+            Apply(lastPose, lastUp, lastLegsOnly, lastDrop, lastPushLeft);
+            PreCullApplied++;
+        }
+        catch (Exception e) { PreCullOn = false; Say("pre-cull threw " + e.GetType().Name + ": " + e.Message); }
     }
 
     private static float Smooth(float t) { t = t < 0f ? 0f : t > 1f ? 1f : t; return t * t * (3f - 2f * t); }
@@ -221,6 +313,7 @@ public static class RiderRig
         Roll(RFoot, (RToe.position - RFoot.position).normalized, rSole, up);
 
         for (var i = 0; i < marks.Length; i++) markAt[i] = marks[i].position - (i == 8 ? Root.position : Pelvis.position);
+        rootAt = Root.position; pelvisAt = Pelvis.position; playerAt = SkateRig.LocalT != null ? SkateRig.LocalT.position : Vector3.zero;
         marked = true;
     }
 
@@ -239,6 +332,8 @@ public static class RiderRig
         if (miss > Miss) { Miss = miss; MissAt = name; }
     }
 
+    private static string Rel(int i) { return Out.V3(marks[i].position - Pelvis.position - markAt[i]); }
+
     // At the start of the next frame, before the game animates again: has anything moved the joints since the pose was written?
     public static void Check()
     {
@@ -253,6 +348,10 @@ public static class RiderRig
                 var d = Vector3.Distance(marks[i].position - (i == 8 ? Root.position : Pelvis.position), markAt[i]);
                 if (d > Drift) { Drift = d; DriftAt = markName[i]; }
             }
+            if (Drift > 0.01f)
+                DriftNote = "root moved " + Out.V3(Root.position - rootAt) + " pelvis moved " + Out.V3(Pelvis.position - pelvisAt) + " player moved " + Out.V3((SkateRig.LocalT != null ? SkateRig.LocalT.position : Vector3.zero) - playerAt)
+                    + " root at " + Out.V3(Root.position - playerAt) + " yaw " + Root.eulerAngles.y.ToString("F0") + " | neck " + Rel(4) + " head " + Rel(5) + " left hand " + Rel(6) + " left ankle " + Rel(0);
+            else DriftNote = "";
         }
         catch (Exception e) { failed = true; Say("check threw " + e.GetType().Name + ": " + e.Message); }
     }
