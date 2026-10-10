@@ -108,8 +108,9 @@ change with a Rust update:
 [`tools/launcher.ps1`](tools/launcher.ps1) builds the commit named in
 [`tools/release.txt`](tools/release.txt) and puts two files on the desktop of the PC:
 
-- **Rust Skate** puts the loader and the plugin into the Rust folder, starts Rust through the
-  owner's Steam shortcut, and takes everything out again when Rust is closed. Its window has to
+- **Rust Skate** starts Steam when it is not running, puts the loader and the plugin into the Rust
+  folder, starts Rust through the owner's Steam shortcut, and takes everything out again when Rust
+  is closed. Its window has to
   stay open while playing. A hidden helper does the same clean-up half a minute after Rust closes
   if that window was closed first.
 - **Rust Skate - remove mod files** takes the loader out of the Rust folder by hand, for example

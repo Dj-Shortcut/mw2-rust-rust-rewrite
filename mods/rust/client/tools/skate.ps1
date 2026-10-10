@@ -27,7 +27,18 @@ if (-not ((Test-Path "$probe\gen-$pb\out\Assembly-CSharp.dll") -and (Select-Stri
   line '  Nothing was started and nothing was changed. Ask Claude to prepare the new version.'
   return
 }
-if (-not (Get-Process steam -ErrorAction SilentlyContinue)) { line '  Steam is not running. Start Steam, then start this again.'; return }
+# After a start of the PC Steam is not running yet. Steam names the signed-in account in the
+# registry once it is ready; the shortcut can only be started from then on.
+if (-not (Get-Process steam -ErrorAction SilentlyContinue)) {
+  line '  Steam is not running yet; starting it first.'
+  Start-Process 'C:\Program Files (x86)\Steam\steam.exe'
+}
+$w0 = Get-Date; $account = 0
+while ($account -eq 0 -and ((Get-Date) - $w0).TotalSeconds -lt 120) {
+  $account = try { [int](Get-ItemProperty 'HKCU:\Software\Valve\Steam\ActiveProcess' -ErrorAction Stop).ActiveUser } catch { 0 }
+  if ($account -eq 0) { Start-Sleep 2 }
+}
+if ($account -eq 0) { line '  Steam is not signed in. Sign in to Steam, then start this again.'; return }
 line '  Starting Rust with the skate mod. In the main menu pick your own server under QUICK JOIN.'
 line '  On the server: K or two quick jumps gets you on the board.'
 line '  Keep this window open. When you quit Rust, the mod is removed from the Rust folder again.'
