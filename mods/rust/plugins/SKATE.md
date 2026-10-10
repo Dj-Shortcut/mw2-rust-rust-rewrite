@@ -1,6 +1,6 @@
 # ShortcutSkate server component
 
-Development source for [#335](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/335). This enables scoped movement acceptance; the client supplies its own board/controller. Native Oxide loading and client movement are not yet verified.
+Development source for [#335](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/335). This enables scoped movement acceptance; the client integrates the [shared drive and procedural board](../shared/README.md). Native Oxide loading and client movement are not yet verified.
 
 Copy only `ShortcutSkate.cs` to `oxide/plugins/` on the owner's matching Oxide test server. Use player F1 commands `skate.toggle`, `skate.on`, `skate.off`, `skate.status`; a bind can use `bind k skate.toggle`. Commands affect only their caller. Turning on requires dry physical support, a connected living awake human, no wound, mount or parent. Death, sleep, disconnect, mount, wound, swimming and permission loss end skating; a 0.1-second sweep covers lifecycle changes without a dedicated hook. Unload also ends every session.
 
