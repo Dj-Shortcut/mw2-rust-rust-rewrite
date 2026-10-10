@@ -21,6 +21,10 @@
   <ItemGroup>
     <Compile Include="SkateMotion.cs" />
     <Compile Include="SkateDrive.cs" />
+    <Compile Include="SkateTricks.cs" />
+    <Compile Include="SkateRider.cs" />
+    <Compile Include="SkateEdges.cs" />
+    <Compile Include="SkateAudio.cs" />
     <Compile Include="SkateBoardMesh.cs" />
     <Compile Include="SkateRails.cs" />
     <Compile Include="SkateRailBinding.cs" />

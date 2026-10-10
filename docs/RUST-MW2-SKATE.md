@@ -1,8 +1,8 @@
 # Complete Rust / MW2 gunplay / skate mod
 
 Owner clarification on 6 October 2026: [issue #275](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/275).
-Target is the existing Rust PC game with MW2-inspired gunplay and skateboarding.
-The standalone Rust/Bevy rewrite stays parked. This is a design, not implemented gameplay.
+Target is the existing Rust PC game with MW2-inspired gunplay/skateboarding; the rewrite stays parked.
+A first local skate controller was reported in-world on 10 October 2026; complete MW2 gunplay/skate acceptance remains open.
 [Issue #266](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/266) supplies the [loadout/damage component](RUST-SERVER-MOD.md), not full product acceptance.
 Rust supplies the world, survival, building and TC rules; player text stays English.
 
@@ -42,9 +42,9 @@ on recorded real Rust/framework/client versions before asking the owner to play.
 Record intended controller/Steam Input mappings and observed input; injected input
 is not a physical-controller test. Source compilation and helper checks remain narrower.
 A small component, a green CI run or an unverified prototype is not the finished mod.
-Loadouts/Bullet scaling, [skate motion source](RUST-SKATE-CORE.md) and [gunplay source](RUST-GUNPLAY-CORE.md) exist; native MW2 gunplay/skating remain missing.
+Loadouts/Bullet scaling, shared skate/gunplay source and a [reported local skate v0](RUST-SKATE-CLIENT.md) exist; full native MW2 gunplay/skate acceptance remains open.
 The owner-selected Linux host now runs Rust/Oxide with private control and bounded
-loadout-plugin checks. Shadow join, real player flows and full MW2/skate acceptance
-remain open. Keep [TODO](../TODO.md) and component claims explicit.
+loadout-plugin checks. A client world load is reported; complete player flows, lifecycle
+and second-client observation remain open. Keep [TODO](../TODO.md) claims explicit.
 Select/rent nothing without the owner's choice and concrete cost approval; source
 and architecture work precede rental. See the [hosting gate](RUST-SERVER-HOSTING.md).
