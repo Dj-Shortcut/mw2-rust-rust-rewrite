@@ -132,8 +132,8 @@ public class ProbeBehaviour : MonoBehaviour
 //     moves the player; the game keeps handling gravity, jumping and the model.
 //   - Disabling the walk component is not usable: the player is then pulled back constantly.
 //   - Above walking pace the server pulls the player back unless its anti-hack leaves them alone.
-// K mounts and dismounts. Mounted: W pushes, S brakes, the board turns toward where the camera
-// looks, A and D carve harder, the game's own jump still works.
+// K, or two quick presses of the jump key, mounts and dismounts. Mounted: W pushes, S brakes, the
+// board turns toward where the camera looks, A and D carve harder, the game's own jump still works.
 public class SkateRig : MonoBehaviour
 {
     public SkateRig(IntPtr p) : base(p) { }
@@ -146,8 +146,8 @@ public class SkateRig : MonoBehaviour
     private Rigidbody body;
     private GameObject board;
     private LateDriver late;
-    private bool lateAdded, kDown, keysOk = true, done;
-    private float yaw0;
+    private bool lateAdded, kDown, spaceDown, keysOk = true, done;
+    private float yaw0, lastJumpTap = -1f;
 
     private static void Say(string m) { ProbePlugin.L.LogMessage("SKATE " + m); }
     private static string V(Vector3 v) { return v.x.ToString("F1") + "," + v.y.ToString("F1") + "," + v.z.ToString("F1"); }
@@ -163,6 +163,14 @@ public class SkateRig : MonoBehaviour
                 var k = kb != null && kb.kKey.isPressed;
                 if (k && !kDown) Toggle();
                 kDown = k;
+                // Two quick presses of the jump key also mount and dismount, for controllers mapped to keys.
+                var sp = kb != null && kb.spaceKey.isPressed;
+                if (sp && !spaceDown)
+                {
+                    if (now - lastJumpTap < 0.4f) { Toggle(); lastJumpTap = -1f; }
+                    else lastJumpTap = now;
+                }
+                spaceDown = sp;
             }
             catch (Exception e) { keysOk = false; Say("key read threw " + e.GetType().Name + ": " + e.Message); }
         }
@@ -241,7 +249,7 @@ public class SkateRig : MonoBehaviour
         if (wakeAt < 0f)
         {
             standTicks = cp.y - localT.position.y > 1.0f ? standTicks + 1 : 0;
-            if (standTicks >= 2) { wakeAt = now; Say("AWAKE player=" + V(localT.position) + (Test ? "" : " | press K to mount")); }
+            if (standTicks >= 2) { wakeAt = now; Say("AWAKE player=" + V(localT.position) + (Test ? "" : " | K or a double jump mounts")); }
             return;
         }
         if (body == null) return;

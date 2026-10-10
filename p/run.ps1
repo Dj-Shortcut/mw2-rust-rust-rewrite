@@ -8,6 +8,9 @@
 #   $ppreload PreloadIL2CPPInteropAssemblies (default false)
 #   $pdone    seconds to keep the client running until the plugin writes plugins\probe.done
 #             (an interactive in-world session; replaces $pwait)
+#   $psteam   start the client through the owner's non-Steam shortcut instead of the executable,
+#             so that the Steam Input layout made for that shortcut applies (controller support)
+#   $pshortcut  name of that shortcut (default 'RustClient')
 $ErrorActionPreference = 'Stop'
 if (-not $ptag) { $ptag = 'A' }
 if ($null -eq $plisten) { $plisten = $false }
@@ -25,6 +28,28 @@ if (-not ((Test-Path "$gen\Assembly-CSharp.dll") -and (sls -Path "$dl\claude-loa
 $run = "$probe\run-$ptag-" + (Get-Date -Format 'HHmmss')
 $roots = 'BepInEx','dotnet','winhttp.dll','doorstop_config.ini','.doorstop_version','changelog.txt'
 function say($m) { Write-Host $m }
+# Steam keeps non-Steam shortcuts in a binary file. Returns the 64-bit id that steam://rungameid
+# expects for the shortcut with this name, plus its target, or nothing when there is none.
+function Find-Shortcut($name) {
+  foreach ($f in (ls 'C:\Program Files (x86)\Steam\userdata\*\config\shortcuts.vdf' -ErrorAction SilentlyContinue)) {
+    $t = [Text.Encoding]::GetEncoding(28591).GetString([IO.File]::ReadAllBytes($f.FullName))
+    $idKey = [string][char]2 + 'appid' + [char]0; $nameKey = [string][char]1 + 'appname' + [char]0; $exeKey = [string][char]1 + 'exe' + [char]0
+    $i = 0
+    while (($i = $t.IndexOf($idKey, $i, [StringComparison]::OrdinalIgnoreCase)) -ge 0) {
+      $at = $i + $idKey.Length
+      $id = [uint64][byte]$t[$at] + ([uint64][byte]$t[$at + 1] -shl 8) + ([uint64][byte]$t[$at + 2] -shl 16) + ([uint64][byte]$t[$at + 3] -shl 24)
+      $n = $t.IndexOf($nameKey, $at, [StringComparison]::OrdinalIgnoreCase)
+      $i = $at
+      if ($n -lt 0) { continue }
+      $n += $nameKey.Length
+      $app = $t.Substring($n, $t.IndexOf([char]0, $n) - $n)
+      if ($app -ne $name) { continue }
+      $e = $t.IndexOf($exeKey, $n, [StringComparison]::OrdinalIgnoreCase); $exe = ''
+      if ($e -ge 0) { $e += $exeKey.Length; $exe = $t.Substring($e, $t.IndexOf([char]0, $e) - $e) }
+      return [pscustomobject]@{ GameId = (($id -shl 32) -bor [uint64]0x02000000); Exe = $exe }
+    }
+  }
+}
 if (Get-Process RustClient -ErrorAction SilentlyContinue) { say 'ABORT: RustClient is already running'; return }
 $present = $roots | ? { Test-Path (Join-Path $rust $_) }
 if ($present) { say ('ABORT: bootstrap roots already present: ' + ($present -join ',')); return }
@@ -46,13 +71,24 @@ try {
   if ($pplug) { Copy-Item "$pplug\*" "$bx\plugins" -Force; say ('plugins: ' + ((ls $pplug | % Name) -join ',')) }
   $cfg = "[IL2CPP]`r`nUpdateInteropAssemblies = false`r`nPreloadIL2CPPInteropAssemblies = " + ([bool]$ppreload).ToString().ToLower() + "`r`n`r`n[Logging]`r`nUnityLogListening = " + $plisten.ToString().ToLower() + "`r`n`r`n[Logging.Disk]`r`nLogLevels = All`r`n`r`n[Logging.Console]`r`nEnabled = false`r`n"
   [IO.File]::WriteAllText("$bx\config\BepInEx.cfg", $cfg)
-  $p = Start-Process -FilePath (Join-Path $rust 'RustClient.exe') -WorkingDirectory $rust -PassThru
+  if ($psteam) {
+    $sc = Find-Shortcut $(if ($pshortcut) { $pshortcut } else { 'RustClient' })
+    if (-not $sc) { throw 'no Steam shortcut with that name; start without $psteam instead' }
+    if ($sc.Exe -notlike '*\Rust\RustClient.exe*') { throw ('the Steam shortcut does not point at the Rust client: ' + $sc.Exe) }
+    say ('starting through the Steam shortcut: ' + $sc.Exe)
+    Start-Process ('steam://rungameid/' + $sc.GameId)
+    $p = $null; $w0 = Get-Date
+    while (-not $p -and ((Get-Date) - $w0).TotalSeconds -lt 90) { Start-Sleep 2; $p = Get-Process RustClient -ErrorAction SilentlyContinue | select -First 1 }
+    if (-not $p) { throw 'RustClient did not start through Steam within 90 s' }
+  } else {
+    $p = Start-Process -FilePath (Join-Path $rust 'RustClient.exe') -WorkingDirectory $rust -PassThru
+  }
   $log = "$bx\LogOutput.log"
   $t0 = Get-Date; $seen = $null; $state = 'timeout-before-chainloader'
   $limit = 240; if ($pdone) { $limit = [int]$pdone }
   while (((Get-Date) - $t0).TotalSeconds -lt $limit) {
     Start-Sleep 3
-    if ($p.HasExited) { $state = 'exited code=' + $p.ExitCode + ' at ' + [int]((Get-Date) - $t0).TotalSeconds + 's'; break }
+    if ($p.HasExited) { $code = try { $p.ExitCode } catch { '?' }; $state = 'exited code=' + $code + ' at ' + [int]((Get-Date) - $t0).TotalSeconds + 's'; break }
     if (-not $seen -and (Test-Path $log)) {
       $txt = Get-Content $log -Raw -ErrorAction SilentlyContinue
       if ($txt -match 'Chainloader startup complete') { $seen = Get-Date }
