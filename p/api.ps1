@@ -1,7 +1,8 @@
 # Offline API survey of the generated interop assemblies for the installed build (reflection only;
 # nothing from the game is executed). Inputs (globals):
-#   $pt  comma separated type names (exact simple or full name), or with $pfind a regex of type names
-#   $pp  regex on member names (default: everything)
+#   $pt  comma separated entries Type or Type~memberRegex (exact simple or full type name),
+#        or with $pfind a regex of type names
+#   $pp  default regex on member names (default: everything)
 #   $pfind  when set, only list matching type names across all interop assemblies
 $dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"
 $pb = ((gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf' | sls '"buildid"').Line -split '"')[3]
@@ -29,7 +30,10 @@ if ($Find) {
   $asms = 'Assembly-CSharp','Facepunch.Console','Facepunch.System','Facepunch.Unity','Facepunch.Input','Rust.Global','Rust.Data','Facepunch.Network','UnityEngine.CoreModule','UnityEngine.PhysicsModule','UnityEngine.InputLegacyModule' | % { "$Gen\$_.dll" } | ? { Test-Path $_ }
   $all = foreach ($p in $asms) { TypesOf ([Reflection.Assembly]::LoadFrom($p)) }
   $flags = [Reflection.BindingFlags]'Public,NonPublic,Instance,Static,DeclaredOnly'
-  foreach ($w in $want) {
+  $defaultPat = $Pat
+  foreach ($entry in $want) {
+    $w, $own = $entry -split '~', 2
+    $Pat = $defaultPat; if ($own) { $Pat = $own }
     $hits = @($all | ? { $_.Name -eq $w -or $_.FullName -eq $w })
     if (-not $hits) { $lines.Add("== $w : NOT FOUND"); continue }
     foreach ($t in $hits) {
@@ -49,7 +53,5 @@ $out = "$probe\api-out.txt"
 $find = ''; if ($pfind) { $find = $pt }
 $pat = '.'; if ($pp) { $pat = $pp }
 & "$dl\codex-bep788-probe\pwsh-diag\pwsh.exe" -NoLogo -NoProfile -File $inner -Gen $gen -Core "$probe\bep788\BepInEx\core" -Types "$pt" -Pat $pat -Find $find -Out $out
-$txt = Get-Content $out -Raw
-'chars=' + $txt.Length + ' lines=' + (gc $out).Count
-try { Set-Clipboard -Value $txt } catch {}
-if ($txt.Length -le 5200) { $txt } else { $txt.Substring(0, 5200); '... (truncated; full text in api-out.txt and clipboard)' }
+$global:pfile = $out; $global:poff = 0
+zz more
