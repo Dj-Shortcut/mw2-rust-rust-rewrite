@@ -1,6 +1,3 @@
-// Diagnostics. LoaderSteps are the loader checks from issue #289, kept for the next Rust update.
-// ModelDump logs what the rider model is made of: components, Animator parameters, the humanoid
-// bone mapping with positions, skinned meshes and the bone tree.
 using System;
 using System.Diagnostics;
 using System.Reflection;
@@ -179,8 +176,6 @@ public static class ModelDump
         if (budget <= 0) Say("bone dump cut short");
     }
 
-    // The rider model's skinned meshes and how each is drawn. The local player's model is set up
-    // for first person; this shows what the chase camera has to work with.
     public static void Renderers()
     {
         try

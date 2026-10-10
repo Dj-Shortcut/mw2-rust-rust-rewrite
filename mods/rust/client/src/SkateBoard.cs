@@ -1,14 +1,10 @@
-// The board the rider stands on. Built once from the shared procedural mesh
-// (mods/rust/shared/SkateBoardMesh.cs) when the engine's mesh setters are present in this client
-// build, otherwise from primitives. Origin at the ground contact centre, +Z toward the nose. Unlit
-// vertex colours through Hidden/Internal-Colored, the one shader known to render plugin-made
-// objects here.
+// Hidden/Internal-Colored is the one shader found to draw plugin-made objects in this client.
+// The mesh setters can be missing from a client build; primitives are the fallback.
 using System;
 using UnityEngine;
 
 public static class SkateBoard
 {
-    // Test sessions can draw the board and rider this far above the ground to show air poses standing still.
     public static float ShowLift;
     private static void Say(string m) { Out.Say("SKATE " + m); }
 
@@ -18,11 +14,8 @@ public static class SkateBoard
         catch (Exception e) { Say("shared mesh unavailable (" + e.GetType().Name + ": " + e.Message + "); using primitives"); return FromPrimitives(); }
     }
 
-    // Where the board touches the ground under the rider this frame.
     public static Vector3 Contact(Transform playerT) { return playerT.position + Vector3.up * ShowLift; }
 
-    // Shown only while riding. Sits under the rider's feet, follows the ground, leans into turns,
-    // and turns and flips with the tricks.
     public static void Follow(GameObject board, Transform playerT)
     {
         var show = SkateRide.On && playerT != null;
@@ -41,7 +34,6 @@ public static class SkateBoard
         var at = Contact(playerT);
         if (SkateRide.Mode == RideMode.Bail)
         {
-            // The board gets away from the rider and tumbles to a stop.
             var t = Time.realtimeSinceStartup - SkateRide.ModeAt;
             flip = t * 540f;
             at = at + travel * (t * 1.6f) + Vector3.up * (0.25f * (float)Math.Sin(Math.Min(1f, t / SkateRide.BailSeconds) * Math.PI));

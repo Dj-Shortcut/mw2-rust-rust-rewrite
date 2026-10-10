@@ -1,13 +1,7 @@
-// Finds the local player and the object that moves it, decides when the rider gets on and off,
-// and runs the per-frame work. The game's own members are obfuscated in the client, so this uses
-// only Unity engine API, game type names and Unity message names. What the probe runs established
-// (10 October 2026, build 25824447, issue #289):
-//   - The local player is moved by a separate root object, assets/prefabs/player/player_movement.prefab:
-//     PlayerWalkMovement, a dynamic Rigidbody (mass 0.5, no engine gravity, rotation frozen) and a
-//     CapsuleCollider. The BasePlayer object follows it.
-//   - That object is replaced when the player dies or reconnects, so it is looked up again.
-// Everything the plugin changes is written again each frame or step while riding and nowhere
-// else, so getting off, bailing, dying and reconnecting all leave the game as it was.
+// The client's game code is obfuscated: only Unity engine API, game component type names and
+// Unity message names can be relied on. The local player is moved by a separate object (the walk
+// component, a dynamic Rigidbody, a capsule) that is replaced on death and reconnect, so it is
+// looked up again and gets a fresh late driver each time.
 using System;
 using Il2CppInterop.Runtime.Attributes;
 using UnityEngine;
@@ -44,7 +38,6 @@ public class SkateRig : MonoBehaviour
         {
             if (SkateRide.On)
             {
-                // K gets off at once; so does holding the crouch key on the ground for a moment.
                 if (SkateKeys.CrouchTap && SkateRide.Mode == RideMode.Ground) crouchSince = now;
                 if (!SkateKeys.Crouch || SkateRide.Mode != RideMode.Ground) crouchSince = -1f;
                 if (SkateKeys.ToggleTap || (crouchSince > 0f && now - crouchSince > 0.6f)) { crouchSince = -1f; SkateRide.Dismount("stepped off"); }
@@ -52,7 +45,6 @@ public class SkateRig : MonoBehaviour
             }
             else
             {
-                // K gets on; so do two quick presses of the jump key, for controllers mapped to keys.
                 var twice = false;
                 if (SkateKeys.JumpTap) { twice = now - lastJumpTap < 0.4f; lastJumpTap = twice ? -1f : now; }
                 if ((SkateKeys.ToggleTap || twice) && CanMount) MountNow(SkateCamera.LookYaw);
@@ -143,8 +135,6 @@ public class SkateRig : MonoBehaviour
         if (SkateRide.On && !RiderRig.Bound) { try { RiderRig.Bind(LocalT); } catch (Exception e) { Say("rider bind threw " + e.GetType().Name + ": " + e.Message); } }
     }
 
-    // Late in the frame, after the game's own late work (called by the late driver): the view
-    // direction, then the board, the rider's pose and the camera.
     public static void LateFrame()
     {
         var now = Time.realtimeSinceStartup;

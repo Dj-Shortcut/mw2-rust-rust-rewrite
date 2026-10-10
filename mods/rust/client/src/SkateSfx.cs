@@ -1,7 +1,3 @@
-// Sound for the ride. The clips come from the shared audio module as plain sample arrays (no
-// assets): two loops, rolling and grinding, whose volume and pitch follow the ride, and one-shots
-// for the push, the ollie, the landing and the bail. Probe run M showed the calls to make and
-// play a clip run in this client; whether they are heard was not measurable in a muted session.
 using System;
 using Shortcut.RustMod;
 using UnityEngine;
@@ -34,7 +30,6 @@ public static class SkateSfx
         return s;
     }
 
-    // Made once, at the first mount: generating the clips allocates.
     public static void Start()
     {
         if (Ready || failed) return;
@@ -55,7 +50,6 @@ public static class SkateSfx
 
     private static void Sync() { pops = SkateRide.Pops; lands = SkateRide.Lands; bails = SkateRide.Bails; pushes = SkateRide.Pushes; }
 
-    // Every frame.
     public static void Update(float frameSeconds)
     {
         if (!Ready || failed) return;

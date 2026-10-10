@@ -1,14 +1,4 @@
-// Entry point of the Shortcut skate client, a BepInEx IL2CPP plugin for the Rust PC client.
-// The launch script writes plugins\steps.txt (comma separated) to choose what runs:
-//   skate        the playable mod
-//   skatetest    a scripted ride, out and back, that ends the session by itself
-//   posetest     the rider and board in each state, standing still and moving, from fixed cameras
-//   tricktest    a scripted ride with ollies, flips, spins and a grab
-//   modeldump    log what the rider model is made of
-//   mute         silence the game
-//   nogrind      leave edge grinding off
-//   api, ptr, max, uver, prod, frame, plat, log, inject   loader diagnostics from issue #289
-// Every line also goes straight to plugins\probe.log, so a native crash cannot lose it.
+// The log also goes straight to plugins\probe.log: a native crash loses the loader's own log.
 using System;
 using BepInEx;
 using BepInEx.Logging;
@@ -18,7 +8,7 @@ using UnityEngine;
 [BepInPlugin("shortcut.skate.client", "Shortcut Skate Client", SkatePlugin.Version)]
 public class SkatePlugin : BasePlugin
 {
-    public const string Version = "0.11.0";
+    public const string Version = "0.12.0";
     internal static SkatePlugin Instance;
 
     public override void Load()
@@ -64,7 +54,6 @@ public static class Out
     public static string V1(Vector3 v) { return v.x.ToString("F1") + "," + v.y.ToString("F1") + "," + v.z.ToString("F1"); }
     public static string V3(Vector3 v) { return v.x.ToString("F3") + "," + v.y.ToString("F3") + "," + v.z.ToString("F3"); }
 
-    // One engine call that may be missing from the client build: report it instead of losing the rest.
     public static string Try(Func<string> f)
     {
         try { return f(); }

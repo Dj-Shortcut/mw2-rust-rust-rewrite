@@ -1,6 +1,4 @@
-// On-screen text for the ride, drawn with IMGUI (probe run M showed it works in this client).
-// All text is English. Speed and score while riding, the name and points of each landed trick,
-// the open combo, and the controls for a few seconds after getting on.
+// Player-facing text: English only.
 using System;
 using UnityEngine;
 
@@ -25,8 +23,6 @@ public static class SkateHud
         GUI.Label(new Rect(x, y, width, height), text, light);
     }
 
-    // Centred on the screen at height y. Falls back to an estimate of the text width when the
-    // style's alignment cannot be set in this build.
     private static void Middle(float y, string text, GUIStyle light, GUIStyle dark)
     {
         float w = Screen.width;
@@ -38,12 +34,9 @@ public static class SkateHud
     {
         var now = Time.realtimeSinceStartup;
         var popup = now - SkateRide.TrickAt < 2.2f;
-        // Before there is a player (the menu, loading) and for a moment after waking up, one line
-        // says the mod is there and how to start; after that nothing is drawn until the rider is on.
         var hint = !Scenarios.Active && !SkateRide.On && (!SkateRig.Ready || now - SkateRig.AwakeAt < 12f);
         if (!Scenarios.Active && !SkateRide.On && !popup && !hint) return;
         float w = Screen.width, h = Screen.height;
-        // Sizes are for a 1080-line screen and grow with it.
         var k = h / 1080f; if (k < 0.75f) k = 0.75f;
         if (big == null)
         {
@@ -64,7 +57,7 @@ public static class SkateHud
             if (SkateRide.Mode == RideMode.Grind) Middle(h * 0.28f, "GRIND  " + SkateRide.Trick.GrindSeconds.ToString("F1") + " s", big, bigDark);
             if (now - MountedAt < 9f && !Scenarios.Active)
             {
-                Text(40f * k, h - 186f * k, w - 80f * k, "W push   S brake   A / D carve   SPACE ollie   K or hold CTRL get off   V camera", small, smallDark);
+                Text(40f * k, h - 186f * k, w - 80f * k, "W push   S brake   A / D carve   SPACE ollie   K or hold CTRL get off   L camera", small, smallDark);
                 Text(40f * k, h - 158f * k, w - 80f * k, "In the air: tap W kickflip   tap S heelflip   A / D spin   hold CTRL grab", small, smallDark);
             }
         }

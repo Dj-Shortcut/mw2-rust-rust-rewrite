@@ -1,13 +1,3 @@
-// Scripted sessions for unattended checks. A scenario starts four seconds after the player stands
-// up, drives the ride with scripted input, names its phase on screen so screenshots explain
-// themselves, and ends the session by writing plugins\probe.done.
-//   ride    out along the reverse of the view direction and back: push, coast, brake, turn
-//   pose    the rider and board standing still in each state (stance from all sides, the game's
-//           own pose for comparison, push, air, flip, grab, bail, switch, grind), stepped with K,
-//           then moving; each phase logs how far the joints are from their targets and whether
-//           anything moved them after the pose was written
-//   trick   a slow ride with ollies, flips, spins, a grab and presses that come too late
-//   dump    log what the rider model is made of
 using System;
 using Shortcut.RustMod;
 using UnityEngine;
@@ -81,7 +71,6 @@ public static class Scenarios
         if (phase == 9) Finish();
     }
 
-    // Each line: what is shown, the camera's bearing around the board, and the state.
     private static readonly string[] poseLabels = {
         "stance, seen from the rider's front", "stance, seen along the board from behind", "stance, seen from the rider's back", "stance, seen along the board from ahead", "stance, seen from above",
         "the game's own pose (ours off), from the same side", "the game's own pose (ours off), from behind",
@@ -92,8 +81,6 @@ public static class Scenarios
     private static float stepAt;
     private static bool keyWas;
 
-    // Standing phases wait for K (so each can be looked at for as long as needed) or 45 seconds;
-    // the two moving phases last 7 seconds each.
     private static void Pose(float s, float now)
     {
         var advance = phase == 0;
@@ -128,7 +115,6 @@ public static class Scenarios
         if (phase == PoseTurn) SkateKeys.LookYaw = yaw0 + 180f;
     }
 
-    // Seconds into the scenario, and what is pressed then.
     private static readonly float[] trickAt = { 3f, 6f, 8.9f, 9f, 9.4f, 11f, 14f, 16.9f, 17f, 17.5f, 20f, 20.12f, 23f, 23.45f, 26f, 28.5f };
     private static readonly string[] trickDo = { "ollie", "ollie+kick", "left", "ollie", "release", "turn", "ollie+heel", "right+grab", "ollie", "release", "ollie+kick", "kick", "ollie", "kick", "brake", "finish" };
 

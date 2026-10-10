@@ -1,17 +1,9 @@
-// The ride. While mounted the plugin owns the whole velocity of the movement body: a signed speed
-// along a heading on the ground, a ballistic arc in the air, a line along an edge while grinding.
-// Established by the probe runs (issues #289 and #337):
-//   - The game's fixed step cancels any velocity written before it. A component created after the
-//     walk component exists gets its FixedUpdate after the game's, and a velocity written there
-//     moves the player. Disabling the walk component is not usable: the player is pulled back.
-//   - Above walking pace the server pulls the player back unless its skate plugin accepts the
-//     movement, so the speed cap backs off below whatever was refused and probes upward again.
-// Ground: forward pushes, back brakes, the board turns toward where the camera looks, left and
-// right carve harder; slopes speed the board up, slow it down and roll it backwards.
-// Air: the heading is kept; a tap queues one whole flip or one half spin, accepted only when the
-// arc is long enough to finish it. Touch-down, bails, combos and names come from the shared trick
-// module. Plain arithmetic instead of UnityEngine.Mathf: engine methods the game never calls can
-// be missing from the build.
+// While mounted the plugin owns the whole velocity of the movement body.
+//   - The game's fixed step cancels any velocity written before it, so Step() must run from a
+//     component created after the game's walk component (the late driver).
+//   - The walk component must stay enabled: with it off the server pulls the player back.
+//   - Engine methods the game itself never calls can be missing from the build, hence plain
+//     arithmetic instead of UnityEngine.Mathf and a rotation built from its fields.
 using System;
 using Shortcut.RustMod;
 using UnityEngine;
@@ -23,18 +15,15 @@ public static class SkateRide
     public const float PushAccel = 6f, MaxPush = 8f, BrakeDecel = 12f, RollDecel = 0.45f, MaxSpeed = 13f, MaxReverse = 6f, TurnRate = 150f, SlopeGain = 1.6f;
     public const float AirGravity = 16f, OlliePop = 6f, MaxFall = 30f, BailImpact = 12f, BailSeconds = 0.9f, PushPeriod = 0.8f, SeaLevel = -0.6f, FootPace = 5.5f;
     private const float RayLift = 0.6f, FeetProbe = 0.3f, AirProbe = 3f;
-    // Everything except the player's own layers, triggers, water, ragdolls and invisible helpers.
     public static readonly int GroundMask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
 
     public static RideMode Mode = RideMode.Off;
     public static bool On { get { return Mode != RideMode.Off; } }
     public static bool Grounded, Braking, Jumped, TrickAir, Grab;
-    // Test sessions hold the ride still and set the state themselves, to look at each pose.
     public static bool Frozen;
     public static float Speed, Yaw, Lean, VSpeed, AirTime, AirPeak, Clearance = 99f, Actual, ActualV, Top, Cap = MaxSpeed, ModeAt, LandAt = -99f, LandImpact, PushPhase;
     public static Vector3 Normal = Vector3.up, Tangent = Vector3.forward, ViewNormal = Vector3.up, Position;
-    // Board rotation since take-off as the shared trick module counts it: positive spin is
-    // frontside, positive flip is a kickflip.
+    // In the shared trick module's signs: positive spin is frontside, positive flip is a kickflip.
     public static double SpinDeg, FlipDeg;
     public static SkateTrickState Trick;
     public static string TrickName = "", LastAir = "", OffReason = "";
@@ -51,7 +40,6 @@ public static class SkateRide
     public static float Toward(float a, float b, float step) { return Math.Abs(b - a) <= step ? b : a + Math.Sign(b - a) * step; }
     public static float Delta(float from, float to) { var d = (to - from) % 360f; if (d > 180f) d -= 360f; if (d < -180f) d += 360f; return d; }
     public static float Clamp(float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; }
-    // A rotation about an axis, built from its fields so that it needs no engine call.
     public static Quaternion Turn(float degrees, Vector3 axis)
     {
         var n = axis.normalized; var half = degrees * (float)Math.PI / 360f; var s = (float)Math.Sin(half);
@@ -61,9 +49,7 @@ public static class SkateRide
 
     // Regular stance: a frontside spin turns the nose to the left.
     public static float SpinYaw { get { return -(float)SpinDeg; } }
-    // Where the nose points. After an odd number of half spins the rider is switch: the nose trails.
     public static float NoseYaw { get { return Yaw + (Trick.Switch ? 180f : 0f) + SpinYaw; } }
-    // True while the board moves tail first.
     public static bool TailFirst { get { return Trick.Switch != (Speed < -0.3f); } }
     public static bool Rotating { get { return Math.Abs(spinLeft) > 0.001f || Math.Abs(flipLeft) > 0.001f; } }
 
@@ -130,7 +116,6 @@ public static class SkateRide
         catch (Exception e) { Dismount("the step threw"); Out.Say("SKATE step threw " + e.GetType().Name + ": " + e.Message); }
     }
 
-    // What the body really did since the last write: a wall, or the server pulling the player back.
     private static void Measure(Vector3 pos, float dt)
     {
         if (!hasLast) return;
@@ -148,7 +133,6 @@ public static class SkateRide
             Speed = Clamp(Speed, -Cap, Cap);
             return;
         }
-        // An obstacle takes the speed away, in either direction of travel.
         if (Speed > 0f) { var limit = (Actual > 0f ? Actual : 0f) + 2f; if (Speed > limit) Speed = limit; }
         else if (Speed < 0f) { var limit = (Actual < 0f ? Actual : 0f) - 2f; if (Speed < limit) Speed = limit; }
     }
@@ -172,7 +156,6 @@ public static class SkateRide
 
     private static void GroundStep(float dt)
     {
-        // The ground fell away (a drop, the lip of a ramp): carry on as a ballistic arc.
         if (!Grounded) { TakeOff(false, velocity.y + AirGravity * dt); Sense(Position); AirStep(Position, dt); return; }
         var before = Yaw;
         var steer = (SkateKeys.Left ? -1f : 0f) + (SkateKeys.Right ? 1f : 0f);
@@ -196,7 +179,6 @@ public static class SkateRide
         if (SkateKeys.Brake) Speed = Toward(Speed, 0f, BrakeDecel * dt);
         Speed = Toward(Speed, 0f, RollDecel * dt);
         Speed = Clamp(Speed, -Math.Min(MaxReverse, Cap), Cap);
-        // The pushing foot finishes its stroke once started.
         if (pushing || PushPhase > 0f)
         {
             if (PushPhase <= 0f) Pushes++;
@@ -204,7 +186,6 @@ public static class SkateRide
             if (PushPhase >= 1f) PushPhase = 0f;
         }
         velocity = dir * Speed;
-        // Follow the slope, and settle onto the ground when hovering just above it.
         velocity.y = tangent.y * Speed - Clamp(Clearance * 8f, 0f, 3f);
         Lean += (Clamp(Delta(before, Yaw) / dt * 0.12f, -25f, 25f) - Lean) * 0.2f;
         TrickTick(false, false, 0, 0, 0, dt);
@@ -217,7 +198,6 @@ public static class SkateRide
         spinLeft = flipLeft = 0f; PushPhase = 0f; Braking = false; stuck = 0;
     }
 
-    // Seconds until the feet reach the ground under the rider on the current arc.
     private static float TimeToGround()
     {
         var h = Clearance > AirProbe ? AirProbe : Clearance < 0f ? 0f : Clearance;
@@ -232,8 +212,7 @@ public static class SkateRide
         var dir = Dir(Yaw);
         Tangent = dir; Lean += (0f - Lean) * 0.2f;
 
-        // A tap queues one whole flip, a held or tapped side key one half spin; each is accepted
-        // only when the arc lasts long enough to finish it.
+        // A rotation is only started when the arc lasts long enough to finish it: an unfinished one is a bail.
         var left = (float)(TimeToGround() - 0.03);
         if (SkateKeys.FlipUp != SkateKeys.FlipDown)
         {
@@ -255,7 +234,6 @@ public static class SkateRide
         var spinStep = (float)SkateMotion.RotationRate * dt; var flipStep = (float)SkateMotion.FlipRate * dt;
         var spinAxis = Clamp(spinLeft / spinStep, -1f, 1f); var flipAxis = Clamp(flipLeft / flipStep, -1f, 1f);
 
-        // Touch-down: the feet reach the ground within this step, or the body has come to rest on something.
         stuck = VSpeed < -2f && Math.Abs(ActualV) < 0.3f && AirTime > 0.2f ? stuck + 1 : 0;
         if ((VSpeed <= 0f && Clearance <= Math.Max(0.04f, -VSpeed * dt + 0.02f)) || stuck >= 3)
         {
@@ -273,11 +251,12 @@ public static class SkateRide
         if (VSpeed < 0f && !Rotating && SkateGrind.TryCapture(pos, velocity, NoseYaw, dt))
         {
             LastAir = AirLine("grind");
+            var impact = -VSpeed;
             Enter(RideMode.Grind); GrindStarts++;
             Yaw = SkateGrind.Heading; Speed = SkateGrind.Speed; VSpeed = 0f;
-            TrickTick(false, true, 0, 0, Math.Min(-velocity.y, (float)SkateMotion.MaximumLandingFallSpeed), dt);
+            TrickTick(false, true, 0, 0, impact, dt);
             TrickAir = Jumped = false; AirTime = 0f;
-            GrindVelocity(pos);
+            if (Mode == RideMode.Grind) GrindVelocity(pos);
             return;
         }
         if (TrickAir)
@@ -299,24 +278,17 @@ public static class SkateRide
         LastAir = AirLine("land");
         if (AirTime > 0.12f || impact > 1.5f) { Lands++; LandAt = now; LandImpact = impact; }
         Enter(RideMode.Ground);
-        if (TrickAir)
-        {
-            // The shared module bails above 8 m/s, a drop of under two metres; the client's own limit
-            // is BailImpact, so anything between the two is reported as the module's maximum.
-            var reported = impact > BailImpact ? impact : Math.Min(impact, (float)SkateMotion.MaximumLandingFallSpeed);
-            TrickTick(false, false, 0, 0, reported, dt);
-        }
+        if (TrickAir) TrickTick(false, false, 0, 0, impact, dt);
         else if (impact > BailImpact) Bail();
         else TrickTick(false, false, 0, 0, 0, dt);
         spinLeft = flipLeft = 0f; TrickAir = Jumped = Grab = false; AirTime = 0f;
         if (Mode == RideMode.Ground) { SpinDeg = 0; FlipDeg = 0; }
     }
 
-    // One observation for the shared trick module; its events become the lines the HUD shows.
     private static void TrickTick(bool airborne, bool grinding, float spinAxis, float flipAxis, float impact, float dt)
     {
         SkateTrickResult r; string error;
-        if (!SkateTricks.TryStep(Trick, new SkateTrickInput(spinAxis, flipAxis, Grab, airborne, grinding, impact), dt, out r, out error))
+        if (!SkateTricks.TryStep(Trick, new SkateTrickInput(spinAxis, flipAxis, Grab, airborne, grinding, impact), dt, BailImpact, out r, out error))
         {
             Out.Say("SKATE trick step refused: " + error);
             return;
@@ -349,7 +321,6 @@ public static class SkateRide
         Out.Say("SKATE bail | " + LastAir);
     }
 
-    // The rider is off the board: the game's own gravity takes the fall, the roll dies out, then walking resumes.
     private static void BailStep(Vector3 game, float dt)
     {
         Speed = Toward(Speed, 0f, 10f * dt);
@@ -362,7 +333,6 @@ public static class SkateRide
         bool ended;
         if (now - jumpWanted < 0.12f)
         {
-            // Ollie out of the grind; the combo carries on.
             Pops++; GrindEnds++; jumpWanted = -99f; SkateGrind.Release(dt);
             TakeOff(true, OlliePop + AirGravity * dt);
             AirStep(pos, dt);
@@ -383,7 +353,6 @@ public static class SkateRide
         TrickTick(false, true, 0, 0, 0, dt);
     }
 
-    // Along the edge, pulled gently onto its line and held at its height.
     private static void GrindVelocity(Vector3 pos)
     {
         var to = SkateGrind.Target - pos;
@@ -397,8 +366,8 @@ public static class SkateRide
     }
 }
 
-// Created only after the game's walk component exists, so that its FixedUpdate and LateUpdate are
-// queued behind the game's own.
+// Must be created after the game's walk component exists: its FixedUpdate and LateUpdate then run
+// after the game's own.
 public class LateDriver : MonoBehaviour
 {
     public LateDriver(IntPtr p) : base(p) { }

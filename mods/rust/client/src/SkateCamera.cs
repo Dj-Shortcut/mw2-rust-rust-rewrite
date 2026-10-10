@@ -1,8 +1,7 @@
-// Camera while riding. The game puts the main camera at the player's eyes every frame; this runs
-// later in the frame and moves it behind the rider. The moved main camera renders normally, so no
-// second camera is needed (one made with CopyFrom lacks the main camera's image effects and draws
-// the rider white). The view direction the player steers with is read before the camera is moved.
-// Test sessions can instead fix the camera at a bearing around the board.
+// The game puts the main camera at the player's eyes every frame; moving it later in the same
+// frame is what gives the view from behind. A second camera is not an alternative: it lacks the
+// main camera's image effects. Sample() must run before Apply() moves the camera, or the rider
+// steers by the moved camera.
 using System;
 using UnityEngine;
 
@@ -12,7 +11,6 @@ public static class SkateCamera
     public static float LookYaw, LookPitch, Distance = 3.4f, Bearing = 180f, FixedDistance = 2.7f, FixedHeight = 1.15f;
     private static bool failed;
 
-    // Called first in the late pass: remember where the game's own camera looks.
     public static void Sample()
     {
         var cam = Camera.main;
@@ -22,7 +20,6 @@ public static class SkateCamera
         LookPitch = e.x > 180f ? e.x - 360f : e.x;
     }
 
-    // Called last in the late pass. `at` is where the board touches the ground under the rider.
     public static void Apply(Vector3 at)
     {
         if (failed || !(Chase || Fixed)) return;
@@ -43,7 +40,6 @@ public static class SkateCamera
                 var pitch = SkateRide.Clamp(LookPitch, -20f, 60f);
                 var back = Quaternion.Euler(pitch, LookYaw, 0f) * Vector3.forward;
                 want = focus - back * Distance + Vector3.up * 0.3f;
-                // Keep the camera out of walls and the ground: pull it in along the line from the rider.
                 var dir = want - focus; var len = dir.magnitude;
                 RaycastHit hit;
                 if (len > 0.01f && Physics.SphereCast(focus, 0.2f, dir / len, out hit, len, SkateRide.GroundMask, QueryTriggerInteraction.Ignore))

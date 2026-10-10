@@ -1,8 +1,5 @@
-// Grinding. While the rider comes down through the air, the heights around them are sampled with
-// downward rays and the shared edge module looks for a level ledge in that grid. The module says
-// whether the approach is eligible; this adapter adds what it cannot know: that the rider is
-// actually at the edge (close to its line, feet at its height) and that it carries on ahead.
-// A captured rider is never moved onto the edge: the ride steers the body onto the line.
+// The shared edge module only judges the approach. Whether the rider is actually at the edge is
+// checked here, and a captured rider is never placed on the edge: the ride steers the body there.
 using System;
 using Shortcut.RustMod;
 using UnityEngine;
@@ -25,7 +22,6 @@ public static class SkateGrind
 
     private static float YawOf(double x, double z) { return (float)(Math.Atan2(x, z) * 180.0 / Math.PI); }
 
-    // A grid centred on the rider: rows run along the heading, columns to its right.
     private static SkateHeightGrid Sample(Vector3 pos, float yaw)
     {
         var rad = yaw * Math.PI / 180.0;
@@ -44,7 +40,6 @@ public static class SkateGrind
         return new SkateHeightGrid(new SkateVector(ox, pos.y, oz), new SkateVector(fx, 0, fz), new SkateVector(rx, 0, rz), RowStep, ColStep, Rows, Cols, heights);
     }
 
-    // The point of the edge nearest the rider, a little onto the high side, and how far the rider is from the line.
     private static float Aim(Vector3 pos)
     {
         double dx = pos.x - edge.Point.X, dz = pos.z - edge.Point.Z;
@@ -97,7 +92,6 @@ public static class SkateGrind
         catch (Exception e) { failed = true; Out.Say("GRIND scan threw " + e.GetType().Name + ": " + e.Message); return false; }
     }
 
-    // One step along the edge: is it still there ahead, and is the board still fast enough.
     public static bool TryContinue(Vector3 pos, float dt, out bool ended)
     {
         ended = false;

@@ -1,14 +1,8 @@
-// The rider's pose. The local player's model is a separate root object
-// (assets/prefabs/player/player_model.prefab) with a humanoid Animator, so bones are looked up
-// through Unity's humanoid mapping instead of by name. The shared rider module turns the ride's
-// state into joint positions; here they become bone rotations, late in the frame after the game's
-// own animation: every bone is turned so that it points at its child's target. Runs R to R3
-// (10 October 2026, issue #337) showed that a pose written at that point is what gets drawn, on
-// the real skeleton and in the shadow. Something adjusts the skeleton again before the next
-// frame begins (the pelvis shifts about 0.17 m and tips some ten degrees), after the picture is
-// made; writing the pose once more from the engine's pre-cull callback changed nothing.
-// The module's ankles are the skeleton's ankle joints: it is given the plane those joints rest on
-// when the soles are on the deck.
+// The pose must be written after the game's own animation (the late driver's LateUpdate): what is
+// written there is what gets drawn. The game still adjusts the skeleton before the next frame
+// starts, so nothing may be read back from the bones as if it were this module's pose.
+// The rider module is given the plane the ankle joints rest on, not the deck: its ankles are the
+// skeleton's ankle joints.
 using System;
 using Shortcut.RustMod;
 using UnityEngine;
@@ -21,8 +15,6 @@ public static class RiderRig
     public static Transform Root, Pelvis, Neck, Head, LHip, LKnee, LFoot, LToe, RHip, RKnee, RFoot, RToe, LUpper, LFore, LHand, RUpper, RFore, RHand;
     public static SkateRiderRig Rig;
     public static float Thigh, Shin, Foot, UpperArm, Forearm, Crouch = 0.18f;
-    // Checks for the test sessions: how far the joints ended up from where the module wanted them,
-    // and how far they had moved again by the start of the next frame.
     public static float Miss, Drift;
     public static string MissAt = "", DriftAt = "", Error = "";
     public static int Applied, Refusals;
@@ -35,10 +27,10 @@ public static class RiderRig
     private static Vector3 rootAt, pelvisAt, playerAt;
     public static string DriftNote = "";
 
-    // The local player's model is drawn twice. The full body (head, arms, clothes) only casts the
-    // shadow; what the first-person camera shows is a second set of skinned meshes named "leg-..."
-    // whose upper body the game folds back out of view (run R2, 10 October 2026). A camera behind
-    // the rider needs the opposite: the full body drawn, the first-person set hidden.
+    // The game draws the local player's model twice: the full body casts shadows only, and a second
+    // set of skinned meshes named "leg-..." is what first person shows, with the upper body folded
+    // out of view. A camera behind the rider needs the full body drawn and that set hidden; both
+    // must be put back for first person.
     private static SkinnedMeshRenderer[] body = new SkinnedMeshRenderer[0], legSet = new SkinnedMeshRenderer[0];
     private static bool third, lookFailed;
     private static int skinCount = -1;
@@ -87,7 +79,6 @@ public static class RiderRig
     private static float Dist(Transform a, Transform b) { return Vector3.Distance(a.position, b.position); }
     private static Vector3 V(SkateVector v) { return new Vector3((float)v.X, (float)v.Y, (float)v.Z); }
 
-    // Finds the player model nearest to the player and measures it. Returns false until there is one.
     public static bool Bind(Transform playerT)
     {
         Bound = false; Show(false); skinCount = -1; nextScan = 0f;
@@ -140,7 +131,6 @@ public static class RiderRig
         return true;
     }
 
-    // Turn a bone so that the line to its child points along the wanted direction.
     private static void Aim(Transform bone, Transform child, Vector3 want)
     {
         var cur = child.position - bone.position;
@@ -148,7 +138,6 @@ public static class RiderRig
         bone.rotation = Quaternion.FromToRotation(cur, want) * bone.rotation;
     }
 
-    // Roll a bone about its own axis until the given bone-local direction points as near to `want` as that roll allows.
     private static void Roll(Transform bone, Vector3 axis, Vector3 local, Vector3 want)
     {
         var cur = bone.rotation * local;
@@ -157,7 +146,6 @@ public static class RiderRig
         bone.rotation = Quaternion.FromToRotation(cur, want) * bone.rotation;
     }
 
-    // Middle joint of a two-bone limb: root, target, the two lengths and the side the joint bends toward.
     public static Vector3 Bend(Vector3 root, Vector3 target, float upper, float lower, Vector3 pole)
     {
         var to = target - root; var d = to.magnitude;
@@ -171,8 +159,6 @@ public static class RiderRig
         return root + axis * along + side * (float)Math.Sqrt(h2 > 0f ? h2 : 0f);
     }
 
-    // Called late in the frame, after the game has animated the model. `feet` is where the board
-    // touches the ground under the rider, `up` the board's unflipped up direction.
     public static void Frame(Vector3 feet, Vector3 up, bool legsOnly, float frameSeconds)
     {
         if (!Bound || !Enabled || failed) return;
@@ -191,15 +177,12 @@ public static class RiderRig
             if (fl < 0.2) return;
             fx /= fl; fy /= fl; fz /= fl;
             var upV = new Vector3((float)ux, (float)uy, (float)uz);
-            // The module stands the ankles on the board's centre line with the toes toward its right
-            // edge. A foot is longer than the deck is wide, so the rider stands a little toward the
-            // heel edge and the feet sit across the middle of the deck.
+            // The module's ankles are on the board's centre line; a foot is longer than the deck is wide.
             var toToes = new Vector3((float)(uy * fz - uz * fy), (float)(uz * fx - ux * fz), (float)(ux * fy - uy * fx));
             var plane = feet + upV * (DeckTop + AnkleHeight - (float)SkatePose.FootLift) - toToes * HeelShift;
 
             var now = Time.realtimeSinceStartup;
             var mode = SkateRide.Mode;
-            // Tucked in the air, folded right down to reach the board for a grab.
             var want = mode == RideMode.Air ? (SkateRide.Grab ? 0.95f : 0.5f) : mode == RideMode.Grind ? 0.38f : SkateRide.Braking ? 0.4f : 0.18f;
             var since = now - SkateRide.LandAt;
             if (mode == RideMode.Ground && since < 0.35f) want += (1f - since / 0.35f) * SkateRide.Clamp(SkateRide.LandImpact / 8f, 0.2f, 1f) * 0.45f;
@@ -216,8 +199,7 @@ public static class RiderRig
                 if (Refusals++ == 0 || error != Error) Say("pose refused: " + error);
                 Error = error; return;
             }
-            // The module keeps the pushing foot at deck height; the ground is a deck lower. How far
-            // down the foot is follows the module's stroke: down by a quarter, up again at the end.
+            // The module keeps the pushing foot at deck height; the ground is a deck lower.
             var phase = input.PushPhase; var down = 0f;
             if (input.Pushing) down = phase < 0.25 ? Smooth((float)phase / 0.25f) : phase < 0.85 ? 1f : 1f - Smooth(((float)phase - 0.85f) / 0.15f);
             Apply(pose, upV, legsOnly, down * DeckTop, SkateRide.TailFirst);
@@ -230,8 +212,6 @@ public static class RiderRig
 
     private static void Apply(SkateRiderPose p, Vector3 up, bool legsOnly, float pushDrop, bool pushLeft)
     {
-        // Pelvis: turn it so the hips line up with the pose and the spine starts upward, then move
-        // it so the middle of the hip joints is where the pose has it.
         var hipsNow = RHip.position - LHip.position; var upNow = spine[0].position - Pelvis.position;
         if (hipsNow.sqrMagnitude > 0.000001f && upNow.sqrMagnitude > 0.000001f)
         {
@@ -244,12 +224,10 @@ public static class RiderRig
         Miss = 0f; MissAt = "";
         if (!legsOnly)
         {
-            // Spine: straight along the chest's up, then swung as one piece so the neck is on its target.
             var chestUp = V(p.ChestUp);
             for (var i = 0; i < spine.Length; i++) Aim(spine[i], i + 1 < spine.Length ? spine[i + 1] : Neck, chestUp);
             Aim(spine[0], Neck, V(p.Neck) - spine[0].position);
             Aim(Neck, Head, V(p.Head) - V(p.Neck));
-            // The head turns toward where the rider looks, as far as a neck goes.
             var chestForward = V(p.ChestForward); var headForward = V(p.HeadForward);
             var cf = chestForward - chestUp * Vector3.Dot(chestForward, chestUp); var hf = headForward - chestUp * Vector3.Dot(headForward, chestUp);
             if (cf.sqrMagnitude > 0.0001f && hf.sqrMagnitude > 0.0001f)
@@ -270,7 +248,6 @@ public static class RiderRig
         var la = V(p.LeftAnkle) - (pushLeft ? lower : Vector3.zero); var ra = V(p.RightAnkle) - (pushLeft ? Vector3.zero : lower);
         Limb(LHip, LKnee, LFoot, la, V(p.LeftKnee), Thigh, Shin, "left ankle");
         Limb(RHip, RKnee, RFoot, ra, V(p.RightKnee), Thigh, Shin, "right ankle");
-        // Feet: toes toward the pose's toes, lowered from the ankle plane to the sole, soles flat.
         var drop = up * (AnkleHeight - ToeHeight);
         Aim(LFoot, LToe, V(p.LeftToe) - (pushLeft ? lower : Vector3.zero) - drop - LFoot.position);
         Aim(RFoot, RToe, V(p.RightToe) - (pushLeft ? Vector3.zero : lower) - drop - RFoot.position);
@@ -282,7 +259,6 @@ public static class RiderRig
         marked = true;
     }
 
-    // A two-bone limb onto its target, bending toward the pose's middle joint.
     private static void Limb(Transform a, Transform b, Transform c, Vector3 target, Vector3 hint, float upper, float lower, string name)
     {
         var mid = Bend(a.position, target, upper, lower, hint - a.position);
@@ -299,7 +275,6 @@ public static class RiderRig
 
     private static string Rel(int i) { return Out.V3(marks[i].position - Pelvis.position - markAt[i]); }
 
-    // At the start of the next frame, before the game animates again: has anything moved the joints since the pose was written?
     public static void Check()
     {
         if (!marked || !Bound || failed) return;
