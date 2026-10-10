@@ -31,8 +31,11 @@ distance; on `a79f293` the rider module refused nothing in 897 frames and the gr
 .001 m, except the grabbing hand, which ends .06 m short of the deck edge: the adapter tips the pelvis about the
 hip line so that the spine root meets the folded chest, and lifts neck and head when the chest folds more than 20°.
 In a manual the board tips 15° about its rear axle and the footing follows. Bones changed before the next frame, after the rendered picture.
-The **board** is drawn with the game's own `Rust/Standard` shader, found by name, and a texture that gives every
-vertex colour a block of texels: in daylight it took the world's light and cast a shadow. Night was not looked at.
+The **board** is drawn with the game's own `Rust/Standard` shader, found by name. Until `73474a8` it was the
+one-piece shared mesh with a texture that gave every vertex colour a block of texels: in daylight it took the
+world's light and cast a shadow; night was not looked at. Since then it is the detailed shared mesh in parts
+(deck, trucks that steer with the lean, wheels that roll) with the mesh's own 256 × 256 texture; its deck top is
+.092 m, which the rider's `DeckTop` follows. Not yet seen in the game.
 In daylight the stance reads as hands on hips, the push as a step off sideways, and during a bail the rider holds
 a squat at deck height while the board leaves; [#337](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/337#issuecomment-6096570455) lists what the look still needs.
 Moving the **main camera** late gives a lit/skinned view; a second CopyFrom camera rendered white.

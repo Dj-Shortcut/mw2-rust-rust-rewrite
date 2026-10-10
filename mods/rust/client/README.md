@@ -179,6 +179,12 @@ change with a Rust update:
   draws with it takes the world's light and casts a shadow; its colours come from a texture
   (`_MainTex`), its gloss from `_Glossiness`. `Hidden/Internal-Colored` draws vertex colours without
   light and is what the board falls back to.
+- The board is the shared mesh's detailed form (`SkateBoardMesh.CreateDetailed`): a deck, two
+  trucks hanging from it and four wheels hanging from the trucks, each an object of its own about
+  its pivot, with the 256 × 256 texture the mesh brings (grip tape, a graphic underneath, metal,
+  wheels). The trucks turn with the lean, the front one into the turn and the rear one out of it,
+  0.8° per degree; the wheels roll with the speed. Without the parts the one-piece mesh is drawn,
+  without a mesh at all a board of primitives.
 - A controller is not visible to the plugin as a gamepad; keys and mouse buttons are read from the
   Input System, the controller from outside the game.
 - The item in the player's hands is drawn by an object with a `BaseViewModel` component. Switching

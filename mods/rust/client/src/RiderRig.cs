@@ -9,7 +9,7 @@ using UnityEngine;
 
 public static class RiderRig
 {
-    public const float AnkleHeight = 0.095f, ToeHeight = 0.025f, DeckTop = 0.085f, HeelShift = 0.055f;
+    public const float AnkleHeight = 0.095f, ToeHeight = 0.025f, DeckTop = 0.092f, HeelShift = 0.055f;
     public const float HeadLiftFrom = 20f, HeadLiftShare = 0.8f, HeadLiftMost = 50f;
     public static bool Bound;
     public static Animator Anim;
