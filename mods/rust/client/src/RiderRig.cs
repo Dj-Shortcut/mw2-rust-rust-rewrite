@@ -10,6 +10,7 @@ using UnityEngine;
 public static class RiderRig
 {
     public const float AnkleHeight = 0.095f, ToeHeight = 0.025f, DeckTop = 0.085f, HeelShift = 0.055f;
+    public const float HeadLiftFrom = 20f, HeadLiftShare = 0.8f, HeadLiftMost = 50f;
     public static bool Bound;
     public static Animator Anim;
     public static Transform Root, Pelvis, Neck, Head, LHip, LKnee, LFoot, LToe, RHip, RKnee, RFoot, RToe, LUpper, LFore, LHand, RUpper, RFore, RHand;
@@ -277,6 +278,16 @@ public static class RiderRig
                 turn = SkateRide.Clamp(turn, -75f, 75f);
                 Neck.rotation = SkateRide.Turn(turn * 0.4f, chestUp) * Neck.rotation;
                 Head.rotation = SkateRide.Turn(turn * 0.6f, chestUp) * Head.rotation;
+            }
+            // With the chest folded far forward the rider would look at the board; the neck and the
+            // head lift most of the way back toward where the board's up is.
+            var foldAxis = Vector3.Cross(chestUp, up);
+            var fold = (float)(Math.Atan2(foldAxis.magnitude, Vector3.Dot(chestUp, up)) * 180.0 / Math.PI);
+            if (fold > HeadLiftFrom && foldAxis.sqrMagnitude > 0.0001f)
+            {
+                var lift = SkateRide.Clamp((fold - HeadLiftFrom) * HeadLiftShare, 0f, HeadLiftMost);
+                Neck.rotation = SkateRide.Turn(lift * 0.35f, foldAxis) * Neck.rotation;
+                Head.rotation = SkateRide.Turn(lift * 0.65f, foldAxis) * Head.rotation;
             }
             Note(Neck, V(p.Neck), "neck");
             Limb(LUpper, LFore, LHand, V(p.LeftHand), V(p.LeftElbow), UpperArm, Forearm, "left hand");
