@@ -99,8 +99,8 @@ change with a Rust update:
 - A controller is not visible to the plugin as a gamepad; keys are read from the Input System.
 - In the scripted checks, where nothing touches mouse or keyboard, the first ride after waking is
   put back several times during its first two to three seconds, also at walking pace and also
-  when it starts eight seconds after waking. A check whose first movement came two and a half
-  minutes after waking was not put back, nor was a second ride. The cause is not known.
+  when it starts eight seconds after waking. Checks whose first movement came forty seconds or
+  more after waking were not put back, nor was a second ride. The cause is not known.
 - Engine methods the game never calls can be missing from the client and throw when called.
 
 ## Playing it: the owner's launcher

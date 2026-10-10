@@ -32,6 +32,13 @@ contains exact source anchors and correction requests. Findings apply to this pi
 - Clear latched physics presses when cursor/keyboard input is blocked. Clearing
   held keys alone leaves a queued jump/flip/spin for the next physics step.
 
+## Outcome
+
+Claude changed the client for all seven findings in `01e8d5e` and answered each in the inline
+review. Each has an offline check against a stand-in engine outside this repository (reconnect,
+fall-combo, mount-rising, clothing, driver-retry, sound-failure, seat); none of these paths was
+reproduced or rerun in the game. Later client commits are not covered by this review.
+
 ## Evidence and limits
 
 Independent source/caller reviews confirmed the five P2 paths; root checked the
