@@ -2,16 +2,17 @@
 
 A plugin for the existing Rust PC client that puts the local player on a skateboard: pushing,
 braking and carving, rolling on slopes, ollies, kickflips and heelflips, half spins that end in
-switch stance, grabs, grinding along edges, bails, a score with combos, a rider pose on the game's
-own player model, a view from behind, sounds and text on screen. It belongs to
+switch stance, grabs, manuals, grinding along edges, bails, a score with combos, a rider pose on
+the game's own player model, a view from behind, sounds and a score display. It is ridden with a
+controller, laid out as in the skate. games, or with keys. It belongs to
 [#337](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/337) and the
 [complete flow](../../../docs/RUST-MW2-SKATE.md); the calculations it shares with the server
 plugin are in [`../shared`](../shared/README.md).
 
 The plugin is loaded by BepInEx (IL2CPP). On the client that runs it, it changes the velocity of
 the local player's movement body, the pose in which the local player's model is drawn and the
-position of the main camera, and it adds a board, sounds and text of its own. It sends nothing to
-the server: to the server the rider is a player who moves.
+position of the main camera, and it adds a board, sounds and a score display of its own. It sends
+nothing to the server: to the server the rider is a player who moves.
 
 ## Rules
 
@@ -24,8 +25,25 @@ the server: to the server the rider is a player who moves.
 
 ## Controls
 
-A controller reaches the client as these keys, through the Steam Input layout of the owner's
-`RustClient` shortcut.
+### Controller
+
+The layout of the skate. games. The plugin gets the controller itself from a reader outside the
+game; see [The controller](#the-controller).
+
+| Control | On the ground | In the air |
+| --- | --- | --- |
+| `Y` | Get on; again gets off. | |
+| Left stick | Steer, by how far it is pushed. Far and straight forward or back: push or brake. | Held more than half way to a side: frontside or backside 180 |
+| `A` or `X` | Push | |
+| `B` | Brake | |
+| Right stick | Held back and flicked forward: ollie, stronger the longer it was held, up to 0.3 s. Flicked to a forward diagonal instead: ollie with a kickflip (to the rider's heel side) or a heelflip. Kept part of the way back for 0.2 s: manual. | Flicked to a side or a forward diagonal: a flip, kickflip to the heel side. Pulled back: set for the pop after the landing. |
+| `LT` or `RT` | | Held: grab |
+| Right stick click | View from behind or the game's first person | |
+
+The rider's heel side is the stick's left; riding switch it is the stick's right. The steering
+turns the board at a rate; the view does not steer it.
+
+### Keys
 
 | Key | On the ground | In the air |
 | --- | --- | --- |
@@ -43,8 +61,38 @@ Coming down over an edge while moving along it starts a grind. A trick only star
 lasts long enough to finish it. Tricks score when landed, grinds and manuals by the second; tricks
 in a row multiply, and the combo is banked after a moment of plain rolling. Coming down faster than 12 m/s, or with a
 rotation unfinished, is a bail: the combo is lost and the rider steps off. Water, death, a seat or
-a vehicle also end the ride. Nothing is read from the keyboard while the cursor is free (console,
-chat, inventory).
+a vehicle also end the ride. Nothing is read from keyboard or controller while the cursor is free
+(console, chat, inventory).
+
+### The controller
+
+Inside the game a controller is keys and a mouse: Steam Input stands between it and the game, and
+no stick can be read there. A process that Steam did not start sees the controller itself.
+[`tools/sticks.ps1`](tools/sticks.ps1) is such a process: every session starts it beside the
+client, and it shares the controller's state (XInput) with the plugin in a named block of memory,
+every change with the reader's own clock, so that a flick between two frames of the game is not
+lost. The plugin feeds the right stick to the shared flick module change by change.
+
+- The controller rides from the moment it is touched. The keyboard rides again when a riding key
+  goes down while the controller has been at rest for half a second.
+- Steam's layout for the owner's `RustClient` shortcut keeps sending keys and mouse for the same
+  controller. Off the board that is what walks, looks and uses things, so the layout has to be one
+  that sends keys and mouse (Steam's "Keyboard (WASD) and Mouse" template): with the layout
+  "Gamepad" the controller does nothing in Rust. On the board the plugin ignores those keys while
+  the controller rides; the game still gets them.
+- While the camera is behind the rider, the item in the player's hands is kept out of its way.
+- The reader's block is named `ShortcutSkatePad`; its layout is in `SkatePad.cs` and in
+  `sticks.ps1` and has to be the same in both.
+
+## The score display
+
+Drawn with the engine's immediate GUI: the session's score at the top right, counting up when a
+combo is banked; the open combo at the bottom centre, with its tricks in a row, their points, the
+multiplier and a bar that runs out while the board rolls without a trick; the trick that just
+landed, a running manual or grind, or a bail in the upper middle; the speed at the bottom left, and
+the controls for the first seconds on the board. A client build keeps only the engine methods the
+game itself calls, so the condensed system font, the flat panels and the bars are each tried once
+and done without when they are missing; the plugin's log says which (`HUD ...`).
 
 ## Sources
 
@@ -56,13 +104,15 @@ that commit and must match the hash; that is for shared code that is ahead on an
 | --- | --- |
 | `Plugin.cs` | Entry point, steps, log. |
 | `SkateRig.cs` | Finds the local player and its movement body, getting on and off, the per-frame order. |
-| `SkateKeys.cs` | Keys. |
+| `SkateKeys.cs` | Keys and controller as one set of riding inputs; whose hands are on the ride. |
+| `SkatePad.cs` | The controller's state from the reader outside the game; the right stick through the shared flick module. |
+| `SkatePadLog.cs` | What a ride with a controller leaves in the log: every movement of the right stick, the keys Steam's layout sends, whether the stick turns the game's view. |
 | `SkateRide.cs` | Ground, air, grind and bail movement; calls the shared trick module. |
 | `SkateGrind.cs` | Samples the ground around the rider and asks the shared edge module for an edge. |
 | `SkateBoard.cs` | The board, what it is drawn with and where it sits. |
-| `RiderRig.cs` | Writes the shared rider pose onto the player model's skeleton; what is drawn in which view. |
+| `RiderRig.cs` | Writes the shared rider pose onto the player model's skeleton; what is drawn in which view, the held item included. |
 | `SkateCamera.cs` | View from behind. |
-| `SkateHud.cs`, `SkateSfx.cs` | Text and sounds. |
+| `SkateHud.cs`, `SkateSfx.cs` | The score display and the sounds. |
 | `Scenarios.cs` | Scripted checks in a world. |
 
 ### Steps
@@ -74,8 +124,9 @@ file it runs `skate`.
 | --- | --- |
 | `skate` | The mod as the owner plays it. |
 | `ride` | Scripted: ride out, brake, turn round, ride back, get off. |
-| `pose` | Scripted: rider and board in each state, standing still, from fixed cameras; `K` steps on. |
+| `pose` | Scripted: rider and board in each state, standing still, from fixed cameras, then the score display in nine made-up states; `K` steps on. |
 | `trick` | Scripted: ollie, kickflip, heelflip, both spins, a grab, two presses that come too late and a manual. |
+| `pad` | Scripted: the ride with a controller, played into the plugin without one. |
 | `mute` | Turns the whole client down until nothing can be heard. |
 | `nogrind` | No grinding. |
 
@@ -100,11 +151,15 @@ change with a Rust update:
   draws with it takes the world's light and casts a shadow; its colours come from a texture
   (`_MainTex`), its gloss from `_Glossiness`. `Hidden/Internal-Colored` draws vertex colours without
   light and is what the board falls back to.
-- A controller is not visible to the plugin as a gamepad; keys are read from the Input System.
-- In the scripted checks, where nothing touches mouse or keyboard, the first ride after waking is
-  put back several times during its first two to three seconds, also at walking pace and also
-  when it starts eight seconds after waking. Checks whose first movement came forty seconds or
-  more after waking were not put back, nor was a second ride. The cause is not known.
+- A controller is not visible to the plugin as a gamepad; keys and mouse buttons are read from the
+  Input System, the controller from outside the game.
+- The item in the player's hands is drawn by an object with a `BaseViewModel` component. Switching
+  its renderers off does not hide it; scaling that object down every frame does.
+- On a server without `ShortcutSkate`, in the scripted checks, where nothing touches mouse or
+  keyboard, the first ride after waking is put back several times during its first two to three
+  seconds, also at walking pace and also when it starts eight seconds after waking. Checks whose
+  first movement came forty seconds or more after waking were not put back, nor was a second ride.
+  The cause is not known.
 - Engine methods the game never calls can be missing from the client and throw when called.
 
 ## Playing it: the owner's launcher
@@ -126,7 +181,8 @@ installed. After a Rust update it refuses to start and says so, until the mod ha
 the two desktop files and the folder `Downloads\claude-loader-probe`.
 
 On the server, [`ShortcutSkate`](../plugins/SKATE.md) accepts the rider's speed and supplies a
-practice area. Without it the server allows a rider the pace of a player who walks, about
-10 km/h and a little more downhill, and puts a faster one back. The client finds that limit from
-being put back, holds it, tries a little more now and then, and shows it on screen as
-`server limit`.
+practice area. The client asks it for nothing: the plugin accepts a rider by itself after a moment
+of ordinary movement. Without it the server allows a rider the pace of a player who walks, about
+10 km/h and a little more downhill, and puts a faster one back. The client learns a limit from
+being put back twice within a second, holds it, tries a little more now and then, and says on
+screen what the server is holding the board back to.

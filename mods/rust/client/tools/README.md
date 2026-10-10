@@ -52,8 +52,10 @@ PC reliably from a distance.
 | `build` | Compiles the plugin from [`../sources.txt`](../sources.txt) at the head of the branch, or at `$pcommit`. |
 | `session` | One bounded run of the client with the loader; see below. Normally started by one of the next five. |
 | `play` | Build, then a session to play in, started directly, sound on. |
-| `pad` | The same through the owner's Steam shortcut, so that the controller layout applies. |
-| `ride`, `pose`, `tricks` | Build, then a muted session that runs one scripted check in the world and ends by itself. |
+| `pad` | The same through the owner's Steam shortcut, so that the controller layout applies off the board; the owner joins his server from the menu. |
+| `ride`, `pose`, `tricks`, `flick` | Build, then a muted session that runs one scripted check in the world and ends by itself. `flick` plays a controller into the plugin without one. |
+| `sticks` | Watches the controller from outside the game for `$pwatch` seconds and says what it saw in each slot. The same script is the reader that a session starts beside the client. |
+| `flicks` | The last session's right-stick movements, one row each: where the rider was, what came of it, and the shape of the movement. `$pshow` prints one of them point by point. |
 | `log`, `logall` | The plugin's log of the last session, without or with its once-a-second status lines. `$pinc` filters. |
 | `file` | Another file of the last session, by default the game's `Player.log`. |
 | `more` | The next page of whatever was shown last. |
@@ -88,6 +90,13 @@ is left alone. The loader's archive is unpacked beside the stage and renamed whe
 A client that comes up behind another window never gets the keyboard, so `session` brings the
 game's window to the front once it exists. A scripted check keeps it there (`$pkeep`).
 
+Before the client, `session` starts [`sticks.ps1`](sticks.ps1) as a hidden process of its own: the
+reader that shares the controller with the plugin
+([why](../README.md#the-controller)). Steam must not have started it, or it would see no more of
+the controller than the game does. It ends by itself once the client has come and gone, or when no
+client came within ten minutes, and writes one line to `sticks.log` in the staging folder. Only one
+reader shares the controller at a time.
+
 The plugin reads its steps from `plugins\steps.txt`, which `session` writes from `$psteps`; they are
 listed in the [client's README](../README.md#steps). A scripted check ends the session by writing
 `plugins\skate.done`; otherwise the session ends when Rust is closed or after `$pdone` seconds.
@@ -108,8 +117,8 @@ moves to another Unity version needs both changed, and the base libraries for th
 1. Verify the head of the branch in the game.
 2. Put that commit in `release.txt` and push.
 3. `zz launcher` builds exactly that commit, keeps the plugin in `play\`, saves `skate.ps1`,
-   `session.ps1`, `watch.ps1` and `clean.ps1` of that commit in `launcher\` and writes two files on
-   the desktop. The launcher uses only these local copies, so later changes in the repository do
+   `session.ps1`, `watch.ps1`, `clean.ps1` and `sticks.ps1` of that commit in `launcher\` and writes
+   two files on the desktop. The launcher uses only these local copies, so later changes in the repository do
    not reach the owner until the next `zz launcher`.
 4. `zz launchertest`.
 
@@ -132,6 +141,9 @@ Set by the scripts for one another; `sv name value` sets one by hand.
 | `$psteam`, `$pshortcut` | `session` | Start through the Steam shortcut of that name. |
 | `$pconnect` | `session` | Join the server in `server.txt` at start (direct start only). |
 | `$pkeep` | `session` | Keep the game's window in front for the whole session; without it the window is brought to the front once. |
+| `$psticks` | `session` | Path of the controller reader to start; without it the reader is fetched from the branch. |
+| `$pwatch`, `$pserve` | `sticks` | Seconds to watch; or the name of the process to share the controller with until it has come and gone. |
+| `$pshow` | `flicks` | Number of the movement to print point by point instead of the table. |
 | `$plast`, `$pfile` | `log`, `file`, `more`, `last` | The last session's folder (`last` sets it to the newest one on the PC), the file being paged. |
 | `$pinc`, `$pname` | `log`, `file` | Filter expression, file name. |
 | `$pt`, `$pp`, `$pfind` | `survey` | Type names, member filter, type-name search. |

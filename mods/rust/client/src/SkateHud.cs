@@ -243,7 +243,7 @@ public static class SkateHud
             Score(v, now, w, k);
             Speed(v, h, k);
             if (v.Cap < SkateRide.MaxSpeed - 0.25f)
-                Text(40f * k, h - 336f * k, w - 80f * k, "This server holds the board back to " + (v.Cap * 3.6f).ToString("F0") + " km/h: it has no skate plugin", (int)(18 * k), Amber, 0, 1f);
+                Text(40f * k, h - 336f * k, w - 80f * k, "The server is holding the board back to " + (v.Cap * 3.6f).ToString("F0") + " km/h", (int)(18 * k), Amber, 0, 1f);
             Combo(v, now, w, h, k);
             if (v.Hints) Hints(v, w, h, k);
         }
