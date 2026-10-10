@@ -10,9 +10,12 @@ public static class SkateBoard
 {
     public const float TipDegrees = 15f, Axle = 0.23f;
     public const string LitShader = "Rust/Standard", PlainShader = "Hidden/Internal-Colored";
-    public const float Gloss = 0.2f;
+    public const float Gloss = 0.2f, BailTurn = 0.5f, BailBehind = 0.9f, BailRest = 0.045f, PopMost = 0.22f, LieSeconds = 6f;
     public static string Drawn = "";
-    public static float ShowLift, Tip;
+    public static float ShowLift, Tip, Pop;
+    private static Vector3 bailFrom, bailTravel, bailNose, bailUp;
+    private static float bailStamp = -1f, bailRoll, lieUntil = -1f;
+    private static bool lying;
     private static void Say(string m) { Out.Say("SKATE " + m); }
 
     public static GameObject Build()
@@ -21,7 +24,7 @@ public static class SkateBoard
         catch (Exception e) { Say("shared mesh unavailable (" + e.GetType().Name + ": " + e.Message + "); using primitives"); return FromPrimitives(); }
     }
 
-    public static Vector3 Contact(Transform playerT) { return playerT.position + Vector3.up * ShowLift; }
+    public static Vector3 Contact(Transform playerT) { return playerT.position + Vector3.up * (ShowLift + Pop); }
 
     // A manual lifts the end that leads: the board, and the rider's footing with it, pitches about
     // the ground under the trailing axle.
@@ -40,9 +43,16 @@ public static class SkateBoard
 
     public static void Follow(GameObject board, Transform playerT)
     {
-        var show = SkateRide.On && playerT != null;
+        var now = Time.realtimeSinceStartup;
+        var riding = SkateRide.On && playerT != null;
+        // A bail ends on foot: the board stays where it came to rest for a while, or until the
+        // rider gets on again.
+        if (riding) lying = SkateRide.Mode == RideMode.Bail;
+        else if (lying) { lying = false; lieUntil = now + LieSeconds; }
+        var show = riding || now < lieUntil;
         if (board.activeSelf != show) board.SetActive(show);
-        if (!show) return;
+        if (!riding) return;
+        lieUntil = -1f;
         var n = SkateRide.ViewNormal;
         var at = Contact(playerT);
         Tilt(ref at, ref n);
@@ -54,14 +64,24 @@ public static class SkateBoard
         var nose = SkateRide.Dir(SkateRide.NoseYaw);
         nose = nose - up * Vector3.Dot(nose, up);
         nose = nose.sqrMagnitude > 0.0001f ? nose.normalized : travel;
-        var flip = (float)SkateRide.FlipDeg;
+        var flip = (float)SkateRide.FlipDeg; var askew = 0f;
         if (SkateRide.Mode == RideMode.Bail)
         {
-            var t = Time.realtimeSinceStartup - SkateRide.ModeAt;
-            flip = t * 540f;
-            at = at + travel * (t * 1.6f) + Vector3.up * (0.25f * (float)Math.Sin(Math.Min(1f, t / SkateRide.BailSeconds) * Math.PI));
+            // The rider goes on and down. The board is on its own from the moment of the bail: it
+            // turns over once and comes to rest behind where the rider will stop, on its deck.
+            if (bailStamp != SkateRide.ModeAt)
+            {
+                bailStamp = SkateRide.ModeAt; bailFrom = at; bailTravel = travel; bailNose = nose; bailUp = up;
+                var speed = Math.Abs(SkateRide.Speed);
+                bailRoll = (SkateRide.Speed < 0f ? -1f : 1f) * (speed * speed / (2f * SkateRide.BailDecel)) - BailBehind;
+            }
+            var t = now - SkateRide.ModeAt;
+            var over = SkateRide.Clamp(t / BailTurn, 0f, 1f); over = over * over * (3f - 2f * over);
+            flip += 180f * over; askew = 35f * over;
+            travel = bailTravel; nose = bailNose; up = bailUp;
+            at = bailFrom + travel * (bailRoll * over) + Vector3.up * (0.22f * (float)Math.Sin(over * Math.PI)) - up * ((RiderRig.DeckTop - BailRest) * over);
         }
-        var rot = Quaternion.LookRotation(nose, up) * SkateRide.Turn(flip, Vector3.forward);
+        var rot = SkateRide.Turn(askew, up) * Quaternion.LookRotation(nose, up) * SkateRide.Turn(flip, Vector3.forward);
         // A flip turns the board about the middle of the deck, not about the wheels.
         board.transform.rotation = rot;
         board.transform.position = at + up * RiderRig.DeckTop - (rot * Vector3.up) * RiderRig.DeckTop;

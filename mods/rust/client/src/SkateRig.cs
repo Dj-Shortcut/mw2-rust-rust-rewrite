@@ -154,6 +154,16 @@ public class SkateRig : MonoBehaviour
         SkateCamera.Sample();
         if (!SkateKeys.Scripted) SkateKeys.LookYaw = SkateCamera.LookYaw;
         SkateBoard.Tip += ((SkateRide.On && SkateRide.Manual ? 1f : 0f) - SkateBoard.Tip) * SkateRide.Clamp(frame * 9f, 0f, 1f);
+        // In a jump the knees come up: the board rises toward the rider around the top and is back
+        // at the legs' full reach when it moves at take-off speed, going up or coming down. The
+        // player itself is where the game has it; only the board and the feet are drawn higher.
+        var rise = 0f;
+        if (SkateRide.On && SkateRide.Mode == RideMode.Air && SkateRide.Jumped && !SkateRide.Frozen)
+        {
+            var v = SkateRide.VSpeed / SkateRide.OlliePop;
+            rise = SkateBoard.PopMost * SkateRide.Clamp(1f - v * v, 0f, 1f);
+        }
+        SkateBoard.Pop += (rise - SkateBoard.Pop) * SkateRide.Clamp(frame * 18f, 0f, 1f);
         if (board != null)
         {
             try { SkateBoard.Follow(board, LocalT); }
@@ -166,7 +176,7 @@ public class SkateRig : MonoBehaviour
         var feet = at; var up = SkateRide.ViewNormal;
         SkateBoard.Tilt(ref feet, ref up);
         RiderRig.Frame(feet, up, !third, frame);
-        SkateCamera.Apply(at);
+        SkateCamera.Apply(at - Vector3.up * SkateBoard.Pop);
     }
 
     private void OnGUI()
