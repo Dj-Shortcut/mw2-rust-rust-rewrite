@@ -1,9 +1,10 @@
 // Player-facing text: English only.
 // The score display is drawn with the engine's immediate GUI, which is all a plugin can rely on
 // here. A client build keeps only the engine methods the game itself calls, so everything beyond a
-// plain label is tried once and done without when it is missing: the system's condensed font, the
-// flat panels and bars, their fading. What is left then is the same layout in the default font.
-// The layout follows the game's own: flat dark panels, condensed capitals, one warm accent.
+// plain label is tried once and done without when it is missing: the flat panels and bars, and the
+// condensed face of the game's own interface, which is taken from the fonts the game has loaded.
+// What is left then is the same layout in the engine's default font.
+// The layout follows the game's own: flat dark panels, condensed letters, one warm accent.
 //   top right     the session's score, counting up when a combo is banked
 //   bottom centre the open combo: its tricks in a row, their points and the multiplier, and a bar
 //                 that runs out while the board rolls without a trick
@@ -12,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Il2CppInterop.Runtime;
 using Shortcut.RustMod;
 using UnityEngine;
 
@@ -57,7 +59,14 @@ public static class SkateHud
 
     public static void Bailed(long lost) { line.Clear(); lostPoints = lost; bailAt = Time.realtimeSinceStartup; popAt = -99f; }
 
-    public static void Clear() { line.Clear(); popAt = bankAt = bailAt = countAt = -99f; }
+    public static void Clear()
+    {
+        line.Clear(); popAt = bankAt = bailAt = countAt = -99f;
+        // Getting on is a moment to look for the game's font again: at the first look, while the
+        // game was still loading, it may not have been there, and one that was can be gone.
+        if (!ReferenceEquals(font, null) && font == null) { font = null; styles.Clear(); }
+        if (ReferenceEquals(font, null) && fontTries > 0 && fontTries < MostFontTries) FindFont();
+    }
 
     // For the pose check: a combo's tricks without riding them.
     public static void StageLine(string[] names) { line.Clear(); for (var i = 0; i < names.Length; i++) line.Add(names[i]); }
@@ -66,28 +75,42 @@ public static class SkateHud
     private static readonly Dictionary<int, GUIStyle> styles = new Dictionary<int, GUIStyle>();
     private static readonly Dictionary<int, Texture2D> fills = new Dictionary<int, Texture2D>();
     private static readonly Dictionary<int, GUIStyle> fillStyles = new Dictionary<int, GUIStyle>();
+    // Looks in a row that may come back without the game's font before the looking ends.
+    private const int MostFontTries = 4;
+    // Compared the engine's way, the font is null once the game has let it go.
     private static Font font;
-    private static bool fontTried, anchors = true, drawTexture = true, background = true, texture = true, said;
+    private static bool fontBold, anchors = true, drawTexture = true, background = true, texture = true;
+    private static int fontTries;
+    private static string fontSaid = "";
 
-    private static Font TheFont()
+    // The fonts the game has in memory are told apart by name: nothing here names a type of the game.
+    private static void FindFont()
     {
-        if (fontTried) return font;
-        fontTried = true;
+        fontTries++;
+        string said;
         try
         {
-            var have = Font.GetOSInstalledFontNames();
-            string pick = null;
-            foreach (var want in new[] { "Bahnschrift", "Impact", "Arial Narrow" })
+            var all = Resources.FindObjectsOfTypeAll(Il2CppType.Of<Font>());
+            var names = new StringBuilder(); Font best = null; var rank = 0;
+            for (var i = 0; i < all.Length; i++)
             {
-                for (var i = 0; i < have.Length && pick == null; i++) if (have[i] == want) pick = want;
-                if (pick != null) break;
+                var f = all[i] == null ? null : all[i].TryCast<Font>();
+                if (f == null) continue;
+                var name = f.name ?? ""; var sizable = Sizable(f);
+                if (names.Length < 240) names.Append(names.Length > 0 ? ", " : "").Append(name).Append(sizable ? "" : " (one size)");
+                var low = name.ToLowerInvariant();
+                var r = low.IndexOf("condensed", StringComparison.Ordinal) < 0 ? 0 : low.IndexOf("bold", StringComparison.Ordinal) >= 0 ? 2 : 1;
+                if (r > rank && sizable) { rank = r; best = f; }
             }
-            if (pick != null) font = Font.CreateDynamicFontFromOSFont(pick, 32);
-            Out.Say("HUD font: " + (font != null ? pick : "the default one; none of the condensed fonts is on this PC"));
+            if (best != null) { font = best; fontBold = rank == 2; fontTries = 1; styles.Clear(); said = best.name + ", the game's own"; }
+            else said = "the default one; the game has no condensed one loaded (" + (names.Length > 0 ? names.ToString() : "none at all") + ")";
         }
-        catch (Exception e) { font = null; Out.Say("HUD font: the default one; the system's fonts cannot be asked for here (" + e.GetType().Name + ")"); }
-        return font;
+        catch (Exception e) { fontTries = MostFontTries; said = "the default one; the game's fonts cannot be listed here (" + e.GetType().Name + ")"; }
+        if (said != fontSaid) { fontSaid = said; Out.Say("HUD font: " + said); }
     }
+
+    // A font that was imported at one size ignores the sizes asked of it.
+    private static bool Sizable(Font f) { try { return f.dynamic; } catch (Exception) { return true; } }
 
     private static GUIStyle Style(int size, int anchor)
     {
@@ -96,8 +119,12 @@ public static class SkateHud
         if (styles.TryGetValue(key, out s)) return s;
         s = new GUIStyle(GUI.skin.label);
         s.fontSize = size; s.fontStyle = FontStyle.Bold;
-        var f = TheFont();
-        if (f != null) { try { s.font = f; } catch (Exception e) { font = null; Out.Say("HUD font: the default one; a style takes no other here (" + e.GetType().Name + ")"); } }
+        if (font != null)
+        {
+            // A face that is bold already is not thickened once more.
+            try { s.font = font; if (fontBold) s.fontStyle = FontStyle.Normal; }
+            catch (Exception e) { font = null; fontTries = MostFontTries; Out.Say("HUD font: the default one; a style takes no other here (" + e.GetType().Name + ")"); }
+        }
         if (anchor != 0 && anchors)
         {
             try { s.alignment = anchor == 1 ? TextAnchor.UpperCenter : TextAnchor.UpperRight; }
@@ -228,7 +255,7 @@ public static class SkateHud
         if (!Scenarios.Active && !v.Riding && !recent && !onFoot) return;
         float w = Screen.width, h = Screen.height;
         var k = h / 1080f; if (k < 0.75f) k = 0.75f;
-        if (!said) { said = true; TheFont(); }
+        if (fontTries == 0) FindFont();
 
         if (Scenarios.Active) Text(40f * k, 110f * k, w - 80f * k, "SKATE TEST  " + Scenarios.Phase, (int)(19 * k), Ink, 0, 1f);
         if (onFoot)
