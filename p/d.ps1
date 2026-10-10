@@ -1,10 +1,12 @@
 # Compile the loader probe plugin on Shadow with the staged SDK's Roslyn compiler.
 $dl = "$HOME\Downloads"; $probe = "$dl\claude-loader-probe"
 $sdk = "$dl\codex-bep788-probe\interop-nested-build-20261007-c5ab5f\source-build\sdk"
-$gen = "$dl\codex-bep788-probe\interop-callee-generated-20261009-007748-v1\generation\generated"
-# Prefer an interop set generated for the installed build, when one exists.
+# The interop set must have been generated for the installed Steam build. A set from another build
+# resolves wrappers to the wrong native methods and crashes (issue #289, 9 October 2026), so there
+# is no fallback: generate first with `zz m`.
 $pb = ((gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf' | sls '"buildid"').Line -split '"')[3]
-if (Test-Path "$dl\claude-loader-probe\gen-$pb\out\Assembly-CSharp.dll") { $gen = "$dl\claude-loader-probe\gen-$pb\out" }
+$gen = "$dl\claude-loader-probe\gen-$pb\out"
+if (-not ((Test-Path "$gen\Assembly-CSharp.dll") -and (sls -Path "$dl\claude-loader-probe\gen-$pb\gen.log" -Pattern 'GEN DONE' -Quiet))) { Write-Host "ABORT: no completed interop set for installed build $pb; run zz m first"; return }
 $core = "$probe\bep788\BepInEx\core"; $fx = "$probe\bep788\dotnet"
 New-Item -ItemType Directory -Force "$probe\plugin","$probe\src" | Out-Null
 $src = "$probe\src\Probe.cs"
