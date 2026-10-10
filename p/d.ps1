@@ -13,7 +13,7 @@ $src = "$probe\src\Probe.cs"
 (zg Probe.cs) | Out-File $src -Encoding utf8
 $refs = @()
 $refs += ls $fx -Filter *.dll | ? { ($_.Name -like 'System*' -or $_.Name -in 'mscorlib.dll','netstandard.dll','Microsoft.CSharp.dll') -and $_.Name -notlike '*.Native.dll' } | % FullName
-$refs += 'BepInEx.Core.dll','BepInEx.Unity.IL2CPP.dll','BepInEx.Unity.Common.dll','Il2CppInterop.Runtime.dll','Il2CppInterop.Common.dll' | % { "$core\$_" }
+$refs += 'BepInEx.Core.dll','BepInEx.Unity.IL2CPP.dll','BepInEx.Unity.Common.dll','Il2CppInterop.Runtime.dll','Il2CppInterop.Common.dll','0Harmony.dll' | % { "$core\$_" }
 # All generated interop assemblies, so game and engine types resolve without a hand-kept list.
 $refs += ls $gen -Filter *.dll | % FullName
 $rsp = "$probe\src\probe.rsp"

@@ -7,20 +7,21 @@ using System.Runtime.InteropServices;
 using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
+using HarmonyLib;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Attributes;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
-[BepInPlugin("claude.loaderprobe", "Loader Probe", "0.5.0")]
+[BepInPlugin("claude.loaderprobe", "Loader Probe", "0.6.0")]
 public class ProbePlugin : BasePlugin
 {
     internal static PLog L = new PLog();
+    internal static ProbePlugin Instance;
     private static long lo, hi;
 
     public override void Load()
     {
-        L.Inner = Log;
+        L.Inner = Log; Instance = this;
         var path = System.IO.Path.Combine(Paths.PluginPath, "steps.txt");
         var steps = System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path).Trim() : "";
         L.LogMessage("PROBE load entered steps=" + steps);
@@ -120,33 +121,39 @@ public class ProbeBehaviour : MonoBehaviour
 }
 
 // In-world movement probe. The game's own members are obfuscated in the client, so this uses only
-// Unity engine API and game type names. Run X (10 October 2026) showed that the local player is
-// moved by a separate root object, assets/prefabs/player/player_movement.prefab, which carries
-// PlayerWalkMovement, a dynamic Rigidbody and a CapsuleCollider; the BasePlayer object only follows
-// it. BaseMovement has a Unity FixedUpdate, so disabling the walk component should free the body.
-// This probe drives that body directly and reports whether the game and the server accept it.
-// Timeline, in seconds after the player stands up:
-//   2 capability checks, 4-14 key window (hold W), then six pushes of 3 s each at 16/28/40/52/64/76:
-//   1 = 5 m/s with the walk component on, 2 = 5 m/s with it off, 3 and 4 = 8 m/s (faster than
-//   sprinting) with it off, 5 = 5 m/s plus an upward kick, 6 = one 6 m/s shove and then coasting.
-//   90 gamepad read, 94 done.
+// Unity engine API, game type names and Unity message names. What earlier runs established
+// (10 October 2026, build 25824447):
+//   - The local player is moved by a separate root object, assets/prefabs/player/player_movement.prefab:
+//     PlayerWalkMovement, a dynamic Rigidbody (mass 0.5, no engine gravity, rotation frozen) and a
+//     CapsuleCollider (height 1.8, radius 0.5). The BasePlayer object only follows it.
+//   - With the walk component enabled, a velocity written from an ordinary FixedUpdate is gone by
+//     the next step: the game's own fixed step runs later and cancels it.
+//   - With the walk component disabled the body keeps the velocity, but the player is pulled back
+//     toward where the component was switched off, several times a second.
+// So this run keeps the walk component on and writes the velocity after the game's fixed step, in
+// two ways: from a component created after the walk component exists, and from a Harmony postfix
+// on BaseMovement.FixedUpdate. Timeline, in seconds after the player stands up:
+//   push 1 at 6 (late component), patch at 16, push 2 at 18 (postfix), then with whichever moved
+//   the player further: 3 at 30 (walking pace), 4 at 42 (faster than sprinting), 5 at 54 (upward
+//   kick), 6 at 66 (one shove, then left to the game). Done at 80.
 public class MoveProbe : MonoBehaviour
 {
     public MoveProbe(IntPtr p) : base(p) { }
 
     public static bool Mute;
-    private static readonly string[] Modes = { "", "5 m/s, walk component on", "5 m/s, walk component off", "8 m/s, walk component off",
-        "8 m/s, walk component off", "5 m/s plus upward kick, walk component off", "single 6 m/s shove then coast, walk component off" };
-    private static readonly float[] Speeds = { 0f, 5f, 5f, 8f, 8f, 5f, 6f };
+    private static readonly string[] Modes = { "", "5 m/s from a late component", "5 m/s from a postfix on the walk step", "2.5 m/s, walking pace",
+        "8 m/s, faster than sprinting", "5 m/s plus upward kick", "one 5 m/s shove, then left to the game" };
+    private static readonly float[] Speeds = { 0f, 5f, 5f, 2.5f, 8f, 5f, 5f };
+    private readonly float[] movedBy = new float[7];
     private float nextTick, nextTrace, lastTraceAt, wakeAt = -1f, pushEnd = -1f, verdictAt = -1f;
-    private int ticks, standTicks, stage, mode, lastMode, fixedSteps;
+    private int ticks, standTicks, stage, lastMode;
     private BasePlayer local;
     private Transform localT, moveT;
     private PlayerWalkMovement walk;
     private Rigidbody body;
     private GameObject board;
-    private bool keysOk = true, wDown, trace, done, padDone;
-    private Vector3 dir, camBefore, camAfter, lastTraceCam;
+    private bool trace, done, patched, lateAdded;
+    private Vector3 camBefore, camAfter, lastTraceCam;
 
     private static void Say(string m) { ProbePlugin.L.LogMessage("MOVE " + m); }
     private static string V(Vector3 v) { return v.x.ToString("F2") + "," + v.y.ToString("F2") + "," + v.z.ToString("F2"); }
@@ -157,22 +164,12 @@ public class MoveProbe : MonoBehaviour
     private void Update()
     {
         var now = Time.realtimeSinceStartup;
-        if (keysOk && wakeAt > 0f)
-        {
-            try
-            {
-                var kb = Keyboard.current;
-                var w = kb != null && kb.wKey.isPressed;
-                if (w != wDown) { wDown = w; Say("KEY W=" + w + " t=" + Rel(now)); }
-            }
-            catch (Exception e) { keysOk = false; Say("KEY read threw " + e.GetType().Name + ": " + e.Message); }
-        }
         try
         {
             if (pushEnd > 0f && now >= pushEnd) EndPush(now);
             if (trace && now >= nextTrace) { nextTrace = now + 0.25f; Trace(now); }
         }
-        catch (Exception e) { Say("update threw: " + e.GetType().Name + ": " + e.Message); Release(); }
+        catch (Exception e) { Say("update threw: " + e.GetType().Name + ": " + e.Message); Driver.Active = false; pushEnd = -1f; }
         if (now < nextTick) return;
         nextTick = now + 1f; ticks++;
         try { Tick(now); }
@@ -207,7 +204,7 @@ public class MoveProbe : MonoBehaviour
             }
             if (w == null || wd > 4f) { if (ticks % 5 == 0) Say("player found but no walk component near the camera yet (count=" + walks.Length + ")"); return; }
             local = best; localT = best.transform; walk = w; moveT = w.transform; body = w.gameObject.GetComponent<Rigidbody>();
-            Say("LOCAL found player=" + V(localT.position) + " movement object=" + w.gameObject.name + " at " + V(moveT.position) + " body=" + (body != null) + " cam=" + V(cp));
+            Say("LOCAL found player=" + V(localT.position) + " movement object at " + V(moveT.position) + " body=" + (body != null) + " cam=" + V(cp));
             MakeBoard(cam);
             return;
         }
@@ -216,36 +213,36 @@ public class MoveProbe : MonoBehaviour
         {
             standTicks = up > 1.0f ? standTicks + 1 : 0;
             if (ticks % 10 == 0) Say("waiting for the player to stand: camera height=" + up.ToString("F2"));
-            if (standTicks >= 2) { wakeAt = now; Say("AWAKE camera height=" + up.ToString("F2") + " player=" + V(localT.position)); }
+            if (standTicks >= 2) { wakeAt = now; trace = true; Say("AWAKE camera height=" + up.ToString("F2") + " player=" + V(localT.position)); }
             return;
         }
         if (body == null) { if (!done) { done = true; Say("no rigidbody on the movement object; nothing to push"); Finish(); } return; }
         var t = now - wakeAt;
         if (verdictAt > 0f && now >= verdictAt) Verdict(cam);
-        if (stage == 0 && t >= 2f) { Caps.Run(cam, body, moveT, walk); trace = true; stage = 1; Say("KEY WINDOW open until t=14 (hold W)"); }
-        else if (stage >= 1 && stage <= 6 && t >= 16f + (stage - 1) * 12f) { StartPush(stage, cam, now); stage++; }
-        else if (stage == 7 && t >= 90f && !padDone)
+        if (!lateAdded && t >= 3f)
         {
-            padDone = true;
-            Say("PAD read begins");
-            Caps.Pad();
+            lateAdded = true;
+            Say("LATE component: adding");
+            try { Say("LATE component: added=" + (ProbePlugin.Instance.AddComponent<LateDriver>() != null)); }
+            catch (Exception e) { Say("LATE component threw " + e.GetType().Name + ": " + e.Message); }
         }
-        else if (stage == 7 && t >= 94f && !done) { done = true; trace = false; Finish(); }
+        if (!patched && t >= 16f)
+        {
+            patched = true;
+            Say("PATCH: applying a postfix to BaseMovement.FixedUpdate");
+            Driver.Patch();
+            Say("PATCH: " + Driver.Patched);
+        }
+        if (stage <= 5 && t >= 6f + stage * 12f) { stage++; StartPush(stage, cam, now); }
+        else if (stage == 6 && t >= 80f && !done) { done = true; trace = false; Finish(); }
     }
 
     [HideFromIl2Cpp]
     private void Finish()
     {
-        Release();
+        Driver.Active = false;
         System.IO.File.WriteAllText(System.IO.Path.Combine(Paths.PluginPath, "probe.done"), "done");
-        Say("DONE");
-    }
-
-    [HideFromIl2Cpp]
-    private void Release()
-    {
-        mode = 0; pushEnd = -1f;
-        try { if (walk != null && !walk.enabled) walk.enabled = true; } catch (Exception e) { Say("could not re-enable the walk component: " + e.Message); }
+        Say("DONE late component calls=" + Driver.LateCalls + " postfix calls=" + Driver.PatchCalls);
     }
 
     [HideFromIl2Cpp]
@@ -255,25 +252,27 @@ public class MoveProbe : MonoBehaviour
         var cp = cam.transform.position;
         if (Vector3.Distance(cp, lastTraceCam) < 0.05f && now - lastTraceAt < 4f) return;
         lastTraceCam = cp; lastTraceAt = now;
-        Say("  t=" + Rel(now) + " cam=" + V(cp) + " player=" + V(localT.position) + " mover=" + V(moveT.position) + (body != null ? " vel=" + V(body.linearVelocity) + (body.isKinematic ? " KINEMATIC" : "") : "") + (walk.enabled ? "" : " walk-off"));
+        Say("  t=" + Rel(now) + " cam=" + V(cp) + " player=" + V(localT.position) + " mover=" + V(moveT.position) + (body != null ? " vel=" + V(body.linearVelocity) : ""));
     }
 
     [HideFromIl2Cpp]
     private void StartPush(int m, Camera cam, float now)
     {
         var f = Quaternion.Euler(0f, cam.transform.eulerAngles.y, 0f) * Vector3.forward;
-        dir = m % 2 == 1 ? f : -f;
-        camBefore = cam.transform.position; fixedSteps = 0; lastMode = m; mode = m; pushEnd = now + (m == 6 ? 4f : 3f);
-        Say("PUSH " + m + " (" + Modes[m] + ") start t=" + Rel(now) + " cam=" + V(camBefore) + " dir=" + V(dir) + " vel=" + V(body.linearVelocity) + " kinematic=" + body.isKinematic);
+        var kind = m == 1 ? 1 : m == 2 ? 2 : movedBy[2] > movedBy[1] + 0.5f ? 2 : 1;
+        camBefore = cam.transform.position; lastMode = m; pushEnd = now + 3f;
+        Say("PUSH " + m + " (" + Modes[m] + ") start t=" + Rel(now) + " via " + (kind == 1 ? "late component" : "postfix") + " cam=" + V(camBefore) + " yaw=" + cam.transform.eulerAngles.y.ToString("F0") + " vel=" + V(body.linearVelocity));
+        Driver.Begin(body, (m % 2 == 1 ? f : -f) * Speeds[m], kind, m == 5 ? 6f : 0f, m == 6);
     }
 
     [HideFromIl2Cpp]
     private void EndPush(float now)
     {
+        Driver.Active = false;
         var cam = Camera.main; camAfter = cam != null ? cam.transform.position : camBefore;
-        Say("PUSH " + lastMode + " end: camera moved " + H(camBefore, camAfter).ToString("F2") + " m, height change " + (camAfter.y - camBefore.y).ToString("F2") + " m, fixed steps=" + fixedSteps + " vel=" + V(body.linearVelocity) + " kinematic=" + body.isKinematic);
-        Release();
-        verdictAt = now + 6f;
+        movedBy[lastMode] = H(camBefore, camAfter);
+        Say("PUSH " + lastMode + " end: camera moved " + movedBy[lastMode].ToString("F2") + " m, height change " + (camAfter.y - camBefore.y).ToString("F2") + " m, velocity writes=" + Driver.Steps + " backward jumps=" + Driver.Resets + " vel=" + V(body.linearVelocity));
+        pushEnd = -1f; verdictAt = now + 6f;
     }
 
     [HideFromIl2Cpp]
@@ -282,26 +281,6 @@ public class MoveProbe : MonoBehaviour
         var moved = H(camBefore, camAfter); var kept = H(camBefore, cam.transform.position);
         Say("PUSH " + lastMode + " verdict: moved=" + moved.ToString("F1") + " m, 6 s later " + kept.ToString("F1") + " m from start => " + (moved < 1f ? "NO MOVEMENT" : kept > moved * 0.7f ? "KEPT" : "SNAPPED BACK"));
         verdictAt = -1f;
-    }
-
-    private void FixedUpdate()
-    {
-        if (mode < 1 || body == null) return;
-        try
-        {
-            if (Time.realtimeSinceStartup >= pushEnd) return;
-            fixedSteps++;
-            var cur = body.linearVelocity;
-            if (fixedSteps <= 4 || fixedSteps == 20 || fixedSteps == 60) Say("  fixed#" + fixedSteps + " before set: vel=" + V(cur) + " pos=" + V(body.position) + " kinematic=" + body.isKinematic + " walkEnabled=" + walk.enabled);
-            if (mode >= 2 && walk.enabled) walk.enabled = false;
-            if (mode == 6 && fixedSteps > 1) return;
-            var v = dir * Speeds[mode];
-            // With the walk component off nothing may be applying gravity, so add it here.
-            v.y = mode == 1 ? cur.y : cur.y - 9.81f * Time.fixedDeltaTime;
-            if (mode == 5 && fixedSteps == 1) v.y = 5f;
-            body.linearVelocity = v;
-        }
-        catch (Exception e) { Say("push threw: " + e.GetType().Name + ": " + e.Message); Release(); }
     }
 
     private void LateUpdate()
@@ -349,47 +328,76 @@ public class MoveProbe : MonoBehaviour
     }
 }
 
-// Capability checks for the skate controller. Kept outside the injected MonoBehaviour so that the
-// compiler-generated lambda methods are not registered with the game runtime. Each check stands
-// alone, so one stripped engine method does not hide the rest.
-public static class Caps
+// Writes the wanted velocity into the movement body. Called either from LateDriver.FixedUpdate
+// (Kind 1) or from the Harmony postfix on BaseMovement.FixedUpdate (Kind 2).
+public static class Driver
 {
+    public static Rigidbody Body;
+    public static Vector3 Velocity, LastPos;
+    public static bool Active, Once;
+    public static int Kind, Steps, Resets, LateCalls, PatchCalls;
+    public static float Kick;
+    public static string Patched = "not attempted";
+
     private static void Say(string m) { ProbePlugin.L.LogMessage("MOVE " + m); }
     private static string V(Vector3 v) { return v.x.ToString("F2") + "," + v.y.ToString("F2") + "," + v.z.ToString("F2"); }
 
-    public static string Try(Func<string> f)
+    public static void Begin(Rigidbody body, Vector3 velocity, int kind, float kick, bool once)
     {
-        try { return f(); }
-        catch (Exception e) { return "unavailable(" + (e.Message != null && e.Message.Contains("unstripping") ? "stripped" : e.GetType().Name) + ")"; }
+        Body = body; Velocity = velocity; Kind = kind; Kick = kick; Once = once; Steps = 0; Resets = 0; Active = true;
     }
 
-    public static void Run(Camera cam, Rigidbody body, Transform moveT, PlayerWalkMovement walk)
+    public static void Patch()
     {
-        Say("CAPS body: kinematic=" + Try(() => body.isKinematic.ToString()) + " mass=" + Try(() => body.mass.ToString("F1")) + " useGravity=" + Try(() => body.useGravity.ToString())
-            + " constraints=" + Try(() => body.constraints.ToString()) + " interpolation=" + Try(() => body.interpolation.ToString()) + " linearDamping=" + Try(() => body.linearDamping.ToString("F2"))
-            + " freezeRotation=" + Try(() => body.freezeRotation.ToString()) + " collisionDetection=" + Try(() => body.collisionDetectionMode.ToString()));
-        var go = moveT.gameObject;
-        Say("CAPS capsule: " + Try(() => go.GetComponent<CapsuleCollider>() != null ? "present" : "none") + " height=" + Try(() => go.GetComponent<CapsuleCollider>().height.ToString("F2")) + " radius=" + Try(() => go.GetComponent<CapsuleCollider>().radius.ToString("F2"))
-            + " center=" + Try(() => V(go.GetComponent<CapsuleCollider>().center)) + " material=" + Try(() => { var m = go.GetComponent<CapsuleCollider>().sharedMaterial; return m == null ? "none" : m.name; }));
-        Say("CAPS walk: enabled=" + walk.enabled + " zeroFriction=" + Try(() => { var m = walk.zeroFrictionMaterial; return m == null ? "none" : m.name + " dyn=" + m.dynamicFriction.ToString("F2") + " static=" + m.staticFriction.ToString("F2"); })
-            + " highFriction=" + Try(() => { var m = walk.highFrictionMaterial; return m == null ? "none" : m.name + " dyn=" + m.dynamicFriction.ToString("F2") + " static=" + m.staticFriction.ToString("F2"); }));
-        var origin = moveT.position + Vector3.up * 1.0f;
-        var mask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
-        Say("CAPS raycast (origin, direction, out hit, distance, mask, triggers): " + Try(() => { RaycastHit h; var ok = Physics.Raycast(origin, Vector3.down, out h, 4f, mask, QueryTriggerInteraction.Ignore); return ok + " dist=" + h.m_Distance.ToString("F2") + " normal=" + V(h.m_Normal) + " point=" + V(h.m_Point); }));
-        Say("CAPS raycast (origin, direction, out hit, distance, mask): " + Try(() => { RaycastHit h; var ok = Physics.Raycast(origin, Vector3.down, out h, 4f, mask); return ok + " dist=" + h.m_Distance.ToString("F2") + " normal=" + V(h.m_Normal); }));
-        Say("CAPS raycast (ray, out hit, distance, mask): " + Try(() => { RaycastHit h; var ok = Physics.Raycast(new Ray(origin, Vector3.down), out h, 4f, mask); return ok + " dist=" + h.m_Distance.ToString("F2") + " normal=" + V(h.m_Normal); }));
-        Say("CAPS spherecast: " + Try(() => { RaycastHit h; var ok = Physics.SphereCast(origin, 0.2f, Vector3.down, out h, 4f, mask, QueryTriggerInteraction.Ignore); return ok + " dist=" + h.m_Distance.ToString("F2") + " normal=" + V(h.m_Normal); }));
-        foreach (var n in new[] { "Standard", "Rust/Standard", "Legacy Shaders/Diffuse", "Unlit/Color", "Sprites/Default", "Hidden/Internal-Colored" })
-            Say("CAPS shader " + n + ": " + Try(() => Shader.Find(n) != null ? "found" : "missing"));
-        Say("CAPS cylinder primitive: " + Try(() => { var g = GameObject.CreatePrimitive(PrimitiveType.Cylinder); var ok = g != null; UnityEngine.Object.Destroy(g); return ok.ToString(); }));
-        Say("CAPS keyboard: " + Try(() => Keyboard.current == null ? "none" : "present w=" + Keyboard.current.wKey.isPressed + " space=" + Keyboard.current.spaceKey.isPressed));
-        Say("CAPS gamepad present: " + Try(() => (Gamepad.current != null).ToString()));
-        Say("CAPS camera yaw=" + cam.transform.eulerAngles.y.ToString("F0") + " fixedDt=" + Time.fixedDeltaTime.ToString("F4"));
+        try
+        {
+            var target = AccessTools.Method(typeof(BaseMovement), "FixedUpdate");
+            if (target == null) { Patched = "BaseMovement.FixedUpdate not found"; return; }
+            var post = typeof(Driver).GetMethod("AfterWalk", BindingFlags.Public | BindingFlags.Static);
+            new Harmony("claude.loaderprobe").Patch(target, null, new HarmonyMethod(post));
+            Patched = "ok";
+        }
+        catch (Exception e) { Patched = "threw " + e.GetType().Name + ": " + e.Message; }
     }
 
-    public static void Pad()
+    public static void AfterWalk()
     {
-        Say("PAD " + Try(() => { var g = Gamepad.current; if (g == null) return "no gamepad"; return "left stick up=" + g.leftStick.up.isPressed + " down=" + g.leftStick.down.isPressed + " south=" + g.buttonSouth.isPressed; }));
-        Say("PAD analog " + Try(() => { var g = Gamepad.current; if (g == null) return "no gamepad"; return "x=" + g.leftStick.x.ReadValue().ToString("F2") + " y=" + g.leftStick.y.ReadValue().ToString("F2"); }));
+        PatchCalls++;
+        if (Kind == 2) Apply();
+    }
+
+    public static void Apply()
+    {
+        if (!Active || Body == null) return;
+        try
+        {
+            var cur = Body.linearVelocity; var pos = Body.position;
+            Steps++;
+            if (Steps > 1 && Vector3.Dot(pos - LastPos, Velocity.normalized) < -0.05f)
+            {
+                Resets++;
+                if (Resets <= 5) Say("  backward jump " + Resets + " at write " + Steps + ": " + V(LastPos) + " -> " + V(pos));
+            }
+            if (Steps <= 4 || Steps == 20 || Steps == 60) Say("  write#" + Steps + " found vel=" + V(cur) + " pos=" + V(pos));
+            LastPos = pos;
+            if (Once && Steps > 1) return;
+            var v = Velocity; v.y = cur.y;
+            if (Kick != 0f) { v.y = Kick; Kick = 0f; }
+            Body.linearVelocity = v;
+        }
+        catch (Exception e) { Active = false; Say("driver threw " + e.GetType().Name + ": " + e.Message); }
+    }
+}
+
+// Created only after the game's walk component exists, so that its FixedUpdate is queued behind
+// the game's when both have the default script order.
+public class LateDriver : MonoBehaviour
+{
+    public LateDriver(IntPtr p) : base(p) { }
+
+    private void FixedUpdate()
+    {
+        Driver.LateCalls++;
+        if (Driver.Kind == 1) Driver.Apply();
     }
 }
