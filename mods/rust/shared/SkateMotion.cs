@@ -103,6 +103,7 @@ namespace Shortcut.RustMod
         public const double MaximumLandingFallSpeed = 8;
         public const double RotationRate = 360;
         public const double FlipRate = 720;
+        public const double ShoveRate = 720;
         public const double Skin = 0.002;
         public const double WalkableNormalY = 0.7071067811865476;
         public static readonly SkateHull MountedHull = new SkateHull(new SkateVector(0.55, 0.95, 0.55), new SkateVector(0, 0.8, 0));
