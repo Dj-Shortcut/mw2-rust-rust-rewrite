@@ -15,6 +15,9 @@
 #   $psteam   start the client through the owner's non-Steam shortcut instead of the executable,
 #             so that the Steam Input layout made for that shortcut applies (controller support)
 #   $pshortcut  name of that shortcut (default 'RustClient')
+#   $pconnect when the client is started directly: join the private test server at start. Its
+#             address is read from server.txt in the staging folder, a local file that is never
+#             committed.
 $ErrorActionPreference = 'Stop'
 if (-not $ptag) { $ptag = 'A' }
 if ($null -eq $plisten) { $plisten = $false }
@@ -85,7 +88,13 @@ try {
     while (-not $p -and ((Get-Date) - $w0).TotalSeconds -lt 90) { Start-Sleep 2; $p = Get-Process RustClient -ErrorAction SilentlyContinue | select -First 1 }
     if (-not $p) { throw 'RustClient did not start through Steam within 90 s' }
   } else {
-    $p = Start-Process -FilePath (Join-Path $rust 'RustClient.exe') -WorkingDirectory $rust -PassThru
+    $go = @{ FilePath = (Join-Path $rust 'RustClient.exe'); WorkingDirectory = $rust; PassThru = $true }
+    if ($pconnect) {
+      if (-not (Test-Path "$probe\server.txt")) { throw 'no server.txt in the staging folder; start without $pconnect instead' }
+      $go.ArgumentList = '+connect', (Get-Content "$probe\server.txt" -First 1).Trim()
+      say 'joining the server named in server.txt at start'
+    }
+    $p = Start-Process @go
   }
   $log = "$bx\LogOutput.log"
   $t0 = Get-Date; $seen = $null; $state = 'timeout-before-chainloader'
