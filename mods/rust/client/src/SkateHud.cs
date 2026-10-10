@@ -121,8 +121,9 @@ public static class SkateHud
         s.fontSize = size; s.fontStyle = FontStyle.Bold;
         if (font != null)
         {
-            // A face that is bold already is not thickened once more.
-            try { s.font = font; if (fontBold) s.fontStyle = FontStyle.Normal; }
+            // The property's setter is stripped from this client and throws; the engine call behind it
+            // is there. A face that is bold already is not thickened once more.
+            try { GUIStyle.set_font_Injected(s.Pointer, font.Pointer); if (fontBold) s.fontStyle = FontStyle.Normal; }
             catch (Exception e) { font = null; fontTries = MostFontTries; Out.Say("HUD font: the default one; a style takes no other here (" + e.GetType().Name + ")"); }
         }
         if (anchor != 0 && anchors)
