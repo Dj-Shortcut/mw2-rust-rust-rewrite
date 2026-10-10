@@ -83,7 +83,17 @@ public static class SkateSfx
         return peak;
     }
 
-    public static string Heard { get { return deaf ? "unreadable" : "roll " + RollHeard.ToString("F4") + " grind " + GrindHeard.ToString("F4") + " one-shots " + ShotsHeard.ToString("F4") + " at listener volume " + AudioListener.volume.ToString("F3"); } }
+    // The engine reports the output after the listener's volume; the figures are scaled back to full volume.
+    public static string Heard
+    {
+        get
+        {
+            if (deaf) return "unreadable";
+            var listener = AudioListener.volume;
+            if (listener < 0.0001f) return "nothing, the listener is at zero";
+            return "roll " + (RollHeard / listener).ToString("F3") + " grind " + (GrindHeard / listener).ToString("F3") + " one-shots " + (ShotsHeard / listener).ToString("F3") + " of full scale (listener at " + listener.ToString("F3") + ")";
+        }
+    }
 
     public static void Update(float frameSeconds)
     {
