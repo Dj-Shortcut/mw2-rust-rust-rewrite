@@ -5,5 +5,9 @@ mods/rust/client/src/Plugin.cs
 mods/rust/client/src/SkateRig.cs
 mods/rust/client/src/SkateRide.cs
 mods/rust/client/src/SkateBoard.cs
+mods/rust/client/src/RiderRig.cs
+mods/rust/client/src/SkateCamera.cs
+mods/rust/client/src/GameConsole.cs
+mods/rust/client/src/Scenarios.cs
 mods/rust/client/src/Probes.cs
 mods/rust/shared/SkateBoardMesh.cs 68ddb15c0090ce880693942823d40e8d69fa8ea2 6391708873a9da2e3b295edee8aff9507d8d0780460af5b1eeaa71d503dbffdc

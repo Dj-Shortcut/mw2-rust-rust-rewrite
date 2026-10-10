@@ -1,8 +1,10 @@
 // Entry point of the Shortcut skate client, a BepInEx IL2CPP plugin for the Rust PC client.
 // The launch script writes plugins\steps.txt (comma separated) to choose what runs:
 //   skate        the playable controller
-//   skatetest    a scripted ride that ends the session by itself
-//   modelprobe   diagnostics for the rider model, a console route, cameras, sound and text
+//   skatetest    a scripted ride, out and back, that ends the session by itself
+//   posetest     a scripted ride that shows the rider pose from a side camera and the chase camera
+//                and tries the console command route
+//   modeldump    log what the rider model is made of
 //   mute         silence the game
 //   api, ptr, max, uver, prod, frame, plat, log, inject   loader diagnostics from issue #289
 // Every line also goes straight to plugins\probe.log, so a native crash cannot lose it.
@@ -38,8 +40,9 @@ public class SkatePlugin : BasePlugin
         switch (s)
         {
             case "skate": return "added=" + (AddComponent<SkateRig>() != null);
-            case "skatetest": SkateRig.Test = true; return "added=" + (AddComponent<SkateRig>() != null);
-            case "modelprobe": SkateRig.Quiet = true; return "added=" + (AddComponent<SkateRig>() != null && AddComponent<ModelProbe>() != null);
+            case "skatetest": Scenarios.Name = "ride"; return "added=" + (AddComponent<SkateRig>() != null);
+            case "posetest": Scenarios.Name = "pose"; return "added=" + (AddComponent<SkateRig>() != null);
+            case "modeldump": Scenarios.Name = "dump"; return "added=" + (AddComponent<SkateRig>() != null);
             case "mute": SkateRig.Mute = true; AudioListener.volume = 0f; return "volume=" + AudioListener.volume;
             default: return LoaderSteps.Run(this, s);
         }

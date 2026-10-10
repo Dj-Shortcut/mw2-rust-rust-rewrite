@@ -22,7 +22,8 @@ public static class SkateRide
     public static readonly int GroundMask = ~((1 << 12) | (1 << 17) | (1 << 18) | (1 << 4) | (1 << 10) | (1 << 9) | (1 << 2));
     public static bool On, Synth, SynthPush, SynthBrake, Grounded;
     public static float Speed, Yaw, Lean, SynthYaw, Actual, Top, Cap = MaxSpeed;
-    public static Vector3 Normal = Vector3.up;
+    public static Vector3 Normal = Vector3.up, Tangent = Vector3.forward;
+    public static bool Braking;
     public static int Steps, Resets;
     private static Rigidbody body;
     private static Vector3 lastPos, lastDir;
@@ -61,8 +62,8 @@ public static class SkateRide
             if (Synth) { push = SynthPush; brake = SynthBrake; look = SynthYaw; }
             else
             {
-                var cam = Camera.main;
-                if (cam != null) look = cam.transform.eulerAngles.y;
+                // The view direction is sampled late in the previous frame, before the chase camera moved the camera.
+                look = SkateCamera.LookYaw;
                 var kb = Keyboard.current;
                 if (kb != null)
                 {
@@ -96,6 +97,7 @@ public static class SkateRide
             var dir = Dir(Yaw);
             var tangent = dir - Normal * Vector3.Dot(dir, Normal);
             tangent = tangent.sqrMagnitude > 0.0001f ? tangent.normalized : dir;
+            Tangent = tangent; Braking = brake;
             if (Grounded)
             {
                 Speed += Vector3.Dot(Physics.gravity, tangent) * SlopeGain * dt;
@@ -133,6 +135,10 @@ public class LateDriver : MonoBehaviour
 
     private void LateUpdate()
     {
-        ModelProbeCode.Late();
+        SkateCamera.Sample();
+        var t = SkateRig.LocalT;
+        if (SkateRide.On && t != null)
+            RiderRig.Apply(t.position, SkateRide.Tangent, SkateRide.Normal, SkateRide.Lean, SkateRide.Braking ? 0.4f : 0.15f, !SkateCamera.Chase && !SideCamera.On);
+        SkateCamera.Apply(t);
     }
 }
