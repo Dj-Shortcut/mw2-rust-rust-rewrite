@@ -7,18 +7,21 @@ public static class Scenarios
 {
     public static string Name = "", Phase = "";
     public static bool Active { get { return Name != ""; } }
-    private static float startAt = -1f, yaw0;
+    // A check that plays a controller rides through the plugin's own input, getting on and off included.
+    public static bool Plays { get { return Name == "pad"; } }
+    private static float startAt = -1f, startGame, yaw0;
     private static int phase, next, lands;
     private static bool done;
 
     private static void Say(string m) { Out.Say("SCENARIO " + m); }
 
-    public static void Abort() { Restore(); Name = ""; }
+    public static void Abort() { Restore(); SkatePad.FeedEnd(); Name = ""; }
 
     private static void Restore()
     {
         SkateKeys.Scripted = false; SkateKeys.Reset();
-        SkateCamera.Fixed = false; SkateCamera.Chase = true; SkateRide.Frozen = false; SkateRide.Manual = false; SkateBoard.ShowLift = 0f;
+        SkateCamera.Fixed = false; SkateCamera.Chase = true; SkateRide.Frozen = false; SkateRide.Manual = SkateRide.NoseManual = false; SkateRide.ShoveDeg = 0; SkateBoard.ShowLift = 0f;
+        SkateHud.Staged = false; SkateHud.Clear();
     }
 
     public static void Update(float now)
@@ -27,16 +30,19 @@ public static class Scenarios
         if (startAt < 0f)
         {
             if (now - SkateRig.AwakeAt < 4f) return;
-            startAt = now; yaw0 = SkateCamera.LookYaw;
+            startAt = now; startGame = Time.time; yaw0 = SkateCamera.LookYaw;
             SkateKeys.Scripted = true; SkateKeys.Reset(); SkateKeys.LookYaw = yaw0;
             Say(Name + " begins, view yaw=" + yaw0.ToString("F0") + " at " + Out.V1(SkateRig.LocalT.position));
         }
-        var s = now - startAt;
+        // The checks that ride are timed in the game's own seconds: a client that draws few frames
+        // runs slower than the clock, and presses timed by the clock would come before their turn.
+        var s = now - startAt; var game = Time.time - startGame;
         SkateSfx.Listen();
         if (SkateRide.Lands != lands) { lands = SkateRide.Lands; Say("landed: " + SkateRide.LastAir + " | mode=" + SkateRide.Mode + " switch=" + SkateRide.Trick.Switch + " pos=" + Out.V1(SkateRide.Position)); }
-        if (Name == "ride") Ride(s);
+        if (Name == "ride") Ride(game);
         else if (Name == "pose") Pose(s, now);
-        else Trick(s);
+        else if (Name == "pad") Pad(game, now);
+        else Trick(game);
     }
 
     private static bool Enter(int to, string label)
@@ -55,8 +61,9 @@ public static class Scenarios
         done = true; Phase = "done";
         SkateRide.Dismount("the scenario ended"); Restore();
         System.IO.File.WriteAllText(System.IO.Path.Combine(BepInEx.Paths.PluginPath, "skate.done"), "done");
-        Say("DONE top speed=" + SkateRide.Top.ToString("F1") + " pull-backs=" + SkateRide.Resets + " late calls=" + LateDriver.Calls + " pops=" + SkateRide.Pops + " lands=" + SkateRide.Lands + " bails=" + SkateRide.Bails
-            + " refused presses=" + SkateRide.Refused + " score=" + SkateRide.Trick.TotalPoints + " grind scans=" + SkateGrind.Scans + " audio=" + SkateSfx.State + " | loudest output: " + SkateSfx.Heard);
+        var real = Time.realtimeSinceStartup - startAt;
+        Say("DONE pace=" + (real > 0.5f ? (Time.time - startGame) / real : 1f).ToString("F2") + " top speed=" + SkateRide.Top.ToString("F1") + " pull-backs=" + SkateRide.Resets + " late calls=" + LateDriver.Calls + " pops=" + SkateRide.Pops + " lands=" + SkateRide.Lands + " bails=" + SkateRide.Bails
+            + " refused presses=" + SkateRide.Refused + " score=" + SkateRide.Trick.TotalPoints + " grind scans=" + SkateGrind.Scans + " flicks=" + SkatePad.Flicks + " audio=" + SkateSfx.State + " | loudest output: " + SkateSfx.Heard);
     }
 
     private static void Ride(float s)
@@ -77,7 +84,8 @@ public static class Scenarios
         public View(string label, float bearing, string state, float value) { Label = label; Bearing = bearing; State = state; Value = value; }
     }
 
-    // Value is the point in the push for a push view, the board's flip in degrees for a flip view
+    // Value is the point in the push for a push view, the board's flip in degrees for a flip view,
+    // the kind of grab for a grab view, the board's turn under the feet in degrees for a shove view
     // and the part of the bail that has passed for a bail view.
     private static readonly View[] views = {
         new View("stance, seen from the rider's front", 90f, "stance", 0f), new View("stance, seen along the board from behind", 180f, "stance", 0f),
@@ -86,15 +94,51 @@ public static class Scenarios
         new View("push, foot coming down", 90f, "push", 0.2f), new View("push, foot on the ground", 90f, "push", 0.45f),
         new View("push, foot on the ground, seen from behind", 180f, "push", 0.45f), new View("push, foot leaving the ground", 90f, "push", 0.7f),
         new View("air, half a kickflip", 120f, "flip", 180f), new View("air, quarter flip", 90f, "flip", 90f),
-        new View("air with a grab", 90f, "grab", 0f), new View("air with a grab, seen from behind", 180f, "grab", 0f),
-        new View("bail, a moment in", 90f, "bail", 0.15f), new View("bail, halfway", 90f, "bail", 0.5f),
+        new View("air with a backside grab", 90f, "grab", (float)SkateGrabKind.Backside), new View("air with a backside grab, seen from behind", 180f, "grab", (float)SkateGrabKind.Backside),
+        new View("air with a nose grab", 90f, "grab", (float)SkateGrabKind.Nose), new View("air with a melon", 90f, "grab", (float)SkateGrabKind.Melon),
+        new View("air with a tailbone", 90f, "grab", (float)SkateGrabKind.Tailbone), new View("air with both hands on the board", 90f, "grab", (float)SkateGrabKind.Double),
+        new View("air, the board a quarter round under the feet", 120f, "shove", 90f),
+        new View("bail, stumbling", 90f, "bail", 0.2f), new View("bail, going down", 90f, "bail", 0.45f),
+        new View("bail, down", 90f, "bail", 0.62f), new View("bail, getting up", 90f, "bail", 0.85f),
         new View("switch stance", 90f, "switch", 0f), new View("grind", 90f, "grind", 0f),
-        new View("manual", 90f, "manual", 0f), new View("manual, seen from behind", 180f, "manual", 0f),
+        new View("manual", 90f, "manual", 0f), new View("manual, seen from behind", 180f, "manual", 0f), new View("nose manual", 90f, "nose", 0f),
         new View("first person", 90f, "first", 0f),
+        new View("score display: rolling", 180f, "hud", 1f), new View("score display: a trick landed", 180f, "hud", 2f),
+        new View("score display: a combo of four", 180f, "hud", 3f), new View("score display: a long combo, in a manual", 180f, "hud", 4f),
+        new View("score display: a grind", 180f, "hud", 5f), new View("score display: banked", 180f, "hud", 6f),
+        new View("score display: a bail", 180f, "hud", 7f), new View("score display: held back by the server, keyboard", 180f, "hud", 8f),
+        new View("score display: controller", 180f, "hud", 9f),
         new View("moving, pushing off", 115f, "move", 0f), new View("moving, turning round", 115f, "turn", 0f),
         new View("finish", 90f, "end", 0f) };
-    private static float stepAt;
+    private static float stepAt, nearAt, hudAt;
     private static bool keyWas;
+
+    // The score display in each of its states, with made-up numbers. What fades is shown again
+    // every few seconds, so that it is there whenever the view is looked at.
+    private static void Hud(int state, float now)
+    {
+        var again = now - hudAt > 2.6f;
+        if (again) hudAt = now;
+        var s = new SkateHud.Shown(); s.Riding = true; s.Cap = SkateRide.MaxSpeed; s.Score = 12450; s.Speed = 6.2f;
+        if (state == 1) { s.Speed = 8.1f; if (again) SkateHud.StageLine(new string[0]); }
+        if (state == 2) { s.Base = 300; s.Count = 1; s.Window = 0.2f; if (again) { SkateHud.StageLine(new string[0]); SkateHud.Landed("Backside 180 Kickflip Grab", 300); } }
+        if (state == 3)
+        {
+            s.Base = 900; s.Count = 4; s.Window = 0.7f; s.Switch = true;
+            if (again) { SkateHud.StageLine(new[] { "Kickflip", "Manual", "Ollie Grab" }); SkateHud.Landed("Frontside 180 Heelflip", 250); }
+        }
+        if (state == 4)
+        {
+            s.Base = 1650; s.Count = 6; s.Live = "MANUAL"; s.LiveSeconds = 2.3f; s.LivePoints = 230;
+            if (again) SkateHud.StageLine(new[] { "Ollie", "Kickflip", "Grind", "Backside 180", "Heelflip Grab", "Frontside 180 Kickflip" });
+        }
+        if (state == 5) { s.Base = 400; s.Count = 2; s.Live = "GRIND"; s.LiveSeconds = 1.4f; s.LivePoints = 140; if (again) SkateHud.StageLine(new[] { "Kickflip", "Frontside 180" }); }
+        if (state == 6) { s.Score = 15750; if (again) SkateHud.Banked(3300, 15750); }
+        if (state == 7) { if (again) SkateHud.Bailed(2400); }
+        if (state == 8) { s.Cap = 2.6f; s.Speed = 2.6f; s.Hints = true; if (again) SkateHud.StageLine(new string[0]); }
+        if (state == 9) { s.Speed = 0f; s.Hints = true; s.Pad = true; if (again) SkateHud.StageLine(new string[0]); }
+        SkateHud.Stage = s; SkateHud.Staged = true;
+    }
 
     private static void Pose(float s, float now)
     {
@@ -103,10 +147,12 @@ public static class Scenarios
         catch (Exception) { }
         var state = phase == 0 ? "" : views[phase - 1].State;
         var moving = state == "move" || state == "turn";
-        if (now - stepAt > (moving ? 7f : 45f)) advance = true;
+        if (now - stepAt > (moving ? 7f : state == "hud" ? 12f : 45f)) advance = true;
+        if (state == "hud") Hud((int)views[phase - 1].Value, now);
         // The moving views hold walking pace, which the server accepts without its skate plugin.
         if (moving) SkateKeys.Push = SkateRide.Speed < 2.4f;
         if (state == "bail") SkateRide.ModeAt = now - views[phase - 1].Value * SkateRide.BailSeconds;
+        if (now >= nearAt) { nearAt = now + 1f; RiderRig.Near(); }
         if (!advance) return;
         stepAt = now;
         var v = views[phase];
@@ -114,15 +160,18 @@ public static class Scenarios
         Enter(phase + 1, v.Label + (still ? "   (K: next)" : ""));
         if (phase == 1) { SkateRig.MountNow(yaw0); SkateRide.Frozen = true; }
         if (v.State == "end") { Finish(); return; }
+        hudAt = -99f; SkateHud.Clear(); SkateHud.Staged = false;
+        if (v.State == "hud") Hud((int)v.Value, now);
         SkateCamera.Fixed = v.State != "first"; SkateCamera.Chase = v.State != "first";
         SkateCamera.Bearing = v.Bearing;
         SkateCamera.FixedHeight = v.State == "above" ? 2.9f : 1.15f; SkateCamera.FixedDistance = v.State == "above" ? 1.6f : 2.7f;
-        var air = v.State == "flip" || v.State == "grab";
+        var air = v.State == "flip" || v.State == "grab" || v.State == "shove";
         SkateRide.Mode = air ? RideMode.Air : v.State == "bail" ? RideMode.Bail : v.State == "grind" ? RideMode.Grind : RideMode.Ground;
         SkateRide.PushPhase = v.State == "push" ? v.Value : 0f;
         SkateRide.FlipDeg = v.State == "flip" ? (int)v.Value : 0;
-        SkateRide.Grab = v.State == "grab";
-        SkateRide.Manual = v.State == "manual";
+        SkateRide.Grab = v.State == "grab" ? (SkateGrabKind)(int)v.Value : SkateGrabKind.None;
+        SkateRide.ShoveDeg = v.State == "shove" ? v.Value : 0;
+        SkateRide.Manual = v.State == "manual"; SkateRide.NoseManual = v.State == "nose";
         SkateBoard.ShowLift = air ? 0.7f : 0f;
         SkateRide.Trick = new SkateTrickState(v.State == "switch");
         if (v.State == "bail") SkateRide.ModeAt = now - v.Value * SkateRide.BailSeconds;
@@ -130,8 +179,74 @@ public static class Scenarios
         if (v.State == "turn") SkateKeys.LookYaw = yaw0 + 180f;
     }
 
-    private static readonly float[] trickAt = { 3f, 6f, 8.9f, 9f, 9.4f, 11f, 14f, 16.9f, 17f, 17.5f, 20f, 20.12f, 23f, 23.45f, 24.6f, 26.2f, 28f, 30.5f };
-    private static readonly string[] trickDo = { "ollie", "ollie+kick", "left", "ollie", "release", "turn", "ollie+heel", "right+grab", "ollie", "release", "ollie+kick", "kick", "ollie", "kick", "manual", "release", "brake", "finish" };
+    // The ride with a controller, without one: its states are played into the plugin as the reader
+    // outside the game would share them, and the keyboard is left to itself. The pace is walking
+    // pace, which the server accepts without its skate plugin.
+    private const string OlliePath = "0:0,-100 250:0,-20 262:0,60 274:0,100 330:0,0", KickflipPath = "0:0,-100 250:-20,-30 262:-55,45 274:-70,70 330:0,0",
+        HeelflipPath = "0:0,-100 250:20,-30 262:55,45 274:70,70 330:0,0",
+        // Held back and rolled a quarter round the rim to the left: the board turns half round under the feet.
+        ShovePath = "0:0,-100 250:0,-100 262:-38,-92 274:-71,-71 286:-92,-38 298:-100,0 340:-100,0 380:0,0",
+        // Held at the back right and flicked straight across to the front left: the same with a kickflip in it.
+        VarialPath = "0:71,-71 250:71,-71 262:20,-20 274:-45,45 286:-64,64 300:-64,64 340:0,0";
+    private static readonly float[] padAt = { 1f, 2f, 4.5f, 5.5f, 6.5f, 8f, 10.5f, 13f, 15.5f, 16.9f, 17.6f, 17.75f, 18.4f, 20.5f, 23f, 25.4f, 25.5f, 25.95f, 28f, 28.15f, 28.8f, 30.5f, 32f, 33.5f, 35.5f, 36.5f };
+    private static readonly string[] padDo = { "y", "push", "right", "left", "straight", "ollie", "kickflip", "heelflip", "manual", "release", "ollie", "grab", "release", "shove", "varial", "left", "ollie", "straight",
+        "ollie", "nose grab", "release", "nose manual", "release", "brake", "y", "finish" };
+    private static long padUs = 1000000;
+    private static float padLast, padX, padRightY, padTrigger, padTapUntil;
+    private static bool padPush, padBrake;
+
+    private static void Pad(float s, float now)
+    {
+        if (phase == 0)
+        {
+            Enter(1, "controller");
+            SkateKeys.Scripted = false; padLast = now;
+            SkateCamera.Fixed = false; SkateCamera.Chase = true;
+        }
+        padUs += (long)((now - padLast) * 1000000f); padLast = now;
+        while (next < padAt.Length && s >= padAt[next])
+        {
+            var what = padDo[next++];
+            Phase = (next + 1) + " " + what;
+            Say("controller " + what + " | " + SkateRide.Status() + " rides=" + (SkateKeys.Pad ? "controller" : "keyboard") + " flicks=" + SkatePad.Flicks);
+            if (what == "y") padTapUntil = now + 0.12f;
+            if (what == "push") padPush = true;
+            if (what == "right") padX = 0.7f;
+            if (what == "left") padX = -0.7f;
+            if (what == "straight") padX = 0f;
+            if (what == "ollie") Flick(OlliePath, now);
+            if (what == "kickflip") Flick(KickflipPath, now);
+            if (what == "heelflip") Flick(HeelflipPath, now);
+            if (what == "shove") Flick(ShovePath, now);
+            if (what == "varial") Flick(VarialPath, now);
+            if (what == "manual") padRightY = -0.45f;
+            if (what == "nose manual") padRightY = 0.45f;
+            if (what == "grab") padTrigger = 1f;
+            // The trigger first, then the stick: a stick that is already there would still be the board's.
+            if (what == "nose grab") { padTrigger = 1f; SkatePad.Feed(padUs, 0, 0f, padTrigger, padX, 0f, 0f, 0f, now); padRightY = -0.9f; }
+            if (what == "release") { padRightY = 0f; padTrigger = 0f; }
+            if (what == "brake") { padBrake = true; padPush = false; }
+            if (what == "finish") { SkatePad.FeedEnd(); Finish(); return; }
+        }
+        var buttons = (padPush && SkateRide.On && SkateRide.Mode == RideMode.Ground && SkateRide.Speed < 2.2f ? SkatePad.A : 0) | (padBrake ? SkatePad.B : 0) | (now < padTapUntil ? SkatePad.Y : 0);
+        SkatePad.Feed(padUs, buttons, 0f, padTrigger, padX, 0f, 0f, padRightY, now);
+    }
+
+    // The right stick along a path, milliseconds:x,y in percent, played between two frames.
+    private static void Flick(string path, float now)
+    {
+        var start = padUs;
+        foreach (var part in path.Split(' '))
+        {
+            var a = part.Split(':'); var xy = a[1].Split(',');
+            padUs = start + long.Parse(a[0]) * 1000;
+            SkatePad.Feed(padUs, 0, 0f, padTrigger, padX, 0f, int.Parse(xy[0]) / 100f, int.Parse(xy[1]) / 100f, now);
+        }
+    }
+
+    private static readonly float[] trickAt = { 3f, 6f, 8.9f, 9f, 9.4f, 11f, 14f, 16.9f, 17f, 17.5f, 20f, 20.12f, 23f, 23.45f, 25f, 27f, 29f, 30.6f, 32.2f, 34f, 36.5f };
+    private static readonly string[] trickDo = { "ollie", "ollie+kick", "left", "ollie", "release", "turn", "ollie+heel", "right+grab", "ollie", "release", "ollie+kick", "kick", "ollie", "kick",
+        "ollie+shove", "ollie+kick+shove", "ollie+kick+shove+shove", "manual", "release", "brake", "finish" };
 
     private static void Trick(float s)
     {
@@ -147,14 +262,19 @@ public static class Scenarios
             var what = trickDo[next++];
             Phase = (next + 1) + " " + what;
             Say("press " + what + " | " + SkateRide.Status());
-            if (what.Contains("ollie")) SkateKeys.JumpPressed = true;
-            if (what.Contains("kick")) SkateKeys.FlipUp = true;
-            if (what.Contains("heel")) SkateKeys.FlipDown = true;
-            if (what.Contains("left")) { SkateKeys.Left = true; SkateKeys.LeftPressed = true; }
-            if (what.Contains("right")) { SkateKeys.Right = true; SkateKeys.RightPressed = true; }
-            if (what.Contains("grab")) SkateKeys.Crouch = true;
+            var flip = (what.Contains("kick") ? 1 : 0) - (what.Contains("heel") ? 1 : 0);
+            // With the pop: the flip and the board's turn under the feet, a backside half turn for each "shove".
+            if (what.Contains("ollie"))
+            {
+                SkateKeys.JumpPressed = true; SkateKeys.PopKind = SkatePopKind.Ollie; SkateKeys.PopScale = 1f; SkateKeys.PopFlip = flip;
+                SkateKeys.PopShove = what.EndsWith("shove+shove") ? -360f : what.Contains("shove") ? -180f : 0f;
+            }
+            else SkateKeys.LateFlip += flip;
+            if (what.Contains("left")) { SkateKeys.Spin = -1f; SkateKeys.SpinPressed = true; }
+            if (what.Contains("right")) { SkateKeys.Spin = 1f; SkateKeys.SpinPressed = true; }
+            if (what.Contains("grab")) SkateKeys.Grab = SkateGrabKind.Legacy;
             if (what == "manual") SkateKeys.Manual = true;
-            if (what == "release") SkateKeys.Left = SkateKeys.Right = SkateKeys.Crouch = SkateKeys.Manual = false;
+            if (what == "release") { SkateKeys.Spin = 0f; SkateKeys.Grab = SkateGrabKind.None; SkateKeys.Manual = false; }
             if (what == "turn") SkateKeys.LookYaw = yaw0 + 180f;
             if (what == "brake") SkateKeys.Brake = true;
             if (what == "finish") Finish();

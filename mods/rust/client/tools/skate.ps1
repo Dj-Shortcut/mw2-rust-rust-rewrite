@@ -40,13 +40,13 @@ while ($account -eq 0 -and ((Get-Date) - $w0).TotalSeconds -lt 120) {
 }
 if ($account -eq 0) { line '  Steam is not signed in. Sign in to Steam, then start this again.'; return }
 line '  Starting Rust with the skate mod. In the main menu pick your own server under QUICK JOIN.'
-line '  On the server: K or two quick jumps gets you on the board.'
+line '  On the server: Y on the controller, K, or two quick jumps gets you on the board.'
 line '  Keep this window open. When you quit Rust, the mod is removed from the Rust folder again.'
 line ''
 # A second, hidden helper takes the loader out after Rust closes even if this window is closed first.
 Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$L\watch.ps1`""
 $global:ptag = 'P'; $global:plisten = $false; $global:prt = "$probe\rt"; $global:pplug = "$probe\play"; $global:psteps = 'skate'
-$global:pwait = 30; $global:pdone = 43200; $global:ppreload = $false; $global:ptail = 3; $global:psteam = $true; $global:pshortcut = $null; $global:pconnect = $false; $global:pkeep = $false
+$global:pwait = 30; $global:pdone = 43200; $global:ppreload = $false; $global:ptail = 3; $global:psteam = $true; $global:pshortcut = $null; $global:pconnect = $false; $global:pkeep = $false; $global:psticks = "$L\sticks.ps1"
 . "$L\session.ps1"
 line ''
 $left = @('BepInEx','dotnet','winhttp.dll','doorstop_config.ini','.doorstop_version','changelog.txt' | ? { Test-Path -LiteralPath (Join-Path $rust $_) })

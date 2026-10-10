@@ -14,15 +14,14 @@ $gen = "$dl\claude-loader-probe\gen-$pb\out"
 if (-not ((Test-Path "$gen\Assembly-CSharp.dll") -and (sls -Path "$dl\claude-loader-probe\gen-$pb\gen.log" -Pattern 'GEN DONE.* errors=0( |$)' -Quiet))) { Write-Host "ABORT: no complete, error-free interop set for installed build $pb; run zz interop first"; return }
 $core = "$probe\bep788\BepInEx\core"; $fx = "$probe\bep788\dotnet"
 New-Item -ItemType Directory -Force "$probe\plugin","$probe\src" | Out-Null
-$repo = 'Dj-Shortcut/mw2-rust-rust-rewrite'
 # One API request for the head of the branch; every file then comes from the raw host at that
 # exact commit, which cannot be stale.
 $ref = 'main'; if ($pref) { $ref = $pref }
 $head = "$pcommit"
-if (-not $head) { $head = ("" + (irm -Headers @{ Accept = 'application/vnd.github.sha' } "https://api.github.com/repos/$repo/commits/$ref")).Trim() }
+if (-not $head) { $head = ("" + (irm -Headers @{ Accept = 'application/vnd.github.sha' } "https://api.github.com/repos/$prepo/commits/$ref")).Trim() }
 if ($head -notmatch '^[0-9a-f]{40}$') { Write-Host 'ABORT: could not read the commit to build'; return }
 $global:pbuilt = $null
-$list = ("" + (irm "https://raw.githubusercontent.com/$repo/$head/mods/rust/client/sources.txt")) -split "`n"
+$list = ("" + (irm (zu 'mods/rust/client/sources.txt' $head))) -split "`n"
 Remove-Item "$probe\src\*.cs" -ErrorAction SilentlyContinue
 $files = @()
 foreach ($line in $list) {
@@ -30,7 +29,7 @@ foreach ($line in $list) {
   $parts = $t -split '\s+'
   $commit = $head; if ($parts.Count -ge 3) { $commit = $parts[1] }
   $dst = "$probe\src\" + (Split-Path $parts[0] -Leaf)
-  Invoke-WebRequest -Uri ("https://raw.githubusercontent.com/$repo/$commit/" + $parts[0]) -OutFile $dst -UseBasicParsing
+  Invoke-WebRequest -Uri (zu $parts[0] $commit) -OutFile $dst -UseBasicParsing
   if ($parts.Count -ge 3 -and (Get-FileHash $dst -Algorithm SHA256).Hash.ToLower() -ne $parts[2]) { Write-Host ("ABORT: " + $parts[0] + " does not match its pinned hash"); return }
   $files += $dst
 }

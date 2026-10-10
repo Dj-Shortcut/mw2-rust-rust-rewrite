@@ -23,6 +23,16 @@ public static class RiderRig
     private static Vector3 lSole, rSole;
     private static bool failed;
 
+    // The module answers every frame from that frame's state alone. Between two states (rolling, a
+    // push, the air, a grab, a bail) the joints ease over, in the board's own frame so that a turning
+    // or tipping board does not leave them behind.
+    public const float EaseSeconds = 0.07f;
+    private const int PelvisJ = 0, LHipJ = 1, RHipJ = 2, LKneeJ = 3, RKneeJ = 4, LAnkleJ = 5, RAnkleJ = 6, LToeJ = 7, RToeJ = 8, ChestJ = 9, NeckJ = 10, HeadJ = 11,
+        LShoulderJ = 12, RShoulderJ = 13, LElbowJ = 14, RElbowJ = 15, LHandJ = 16, RHandJ = 17, Points = 18,
+        PelvisForwardJ = 18, PelvisUpJ = 19, ChestForwardJ = 20, ChestUpJ = 21, HeadForwardJ = 22, All = 23;
+    private static readonly Vector3[] eased = new Vector3[All], joint = new Vector3[All];
+    private static float easedAt = -99f;
+
     // The game draws the local player's model twice: the full body casts shadows only, and a second
     // set of skinned meshes named "leg-..." is what first person shows, with the upper body folded
     // out of view. A camera behind the rider needs the full body drawn and that set hidden; both
@@ -34,9 +44,166 @@ public static class RiderRig
     private static float nextScan, lookRetryAt;
     public static string LookState = "first person";
 
+    // The item in the hands and the first-person arms are drawn right in front of the camera,
+    // wherever it is: behind the rider they would cover him. The game makes a new set for every
+    // item taken in hand, so the set is looked for again several times a second.
+    // Switching the parts off is not enough in this client: with a rock in hand they stayed on the
+    // screen. So the set is also made too small to see. The game may set the size again at any
+    // time, so it is made small again every frame, and the size the game last gave is put back.
+    public const float HeldEvery = 0.15f, HeldSmall = 0.0001f;
+    private const int HeldTries = 5, HeldScans = 3;
+
+    // One thing of the set: the object that carries it (Root) or one drawn part of it (Part). What
+    // was changed on it stays noted until it has been put back, each thing on its own: one that
+    // throws is tried again later and never leaves the others small or off. A thing of a set that
+    // has been replaced is only ever put back (Old).
+    private sealed class HeldThing
+    {
+        public Transform Root; public Renderer Part;
+        public Vector3 Size; public bool Was, Changed, Forced, Old;
+        public int Tries;
+    }
+    private static HeldThing[] held = new HeldThing[0];
+    private static long heldSet;
+    private static float nextHeld;
+    private static bool heldForced = true;
+    private static int heldScanFailures;
+
+    private static void Held(bool wantThird, float now)
+    {
+        if (wantThird && now >= nextHeld && heldScanFailures < HeldScans)
+        {
+            nextHeld = now + HeldEvery;
+            try
+            {
+                var models = UnityEngine.Object.FindObjectsOfType<BaseViewModel>();
+                var found = new System.Collections.Generic.List<HeldThing>(); long set = models.Length; var names = ""; var parts = 0;
+                for (var i = 0; i < models.Length; i++)
+                {
+                    if (models[i] == null) continue;
+                    found.Add(new HeldThing { Root = models[i].transform }); set = set * 31 + models[i].Pointer.ToInt64();
+                    if (i < 3) names += (names == "" ? "" : ", ") + models[i].gameObject.name;
+                    var drawn = models[i].GetComponentsInChildren<Renderer>(true);
+                    for (var k = 0; k < drawn.Length; k++) { found.Add(new HeldThing { Part = drawn[k] }); set = set * 31 + drawn[k].Pointer.ToInt64(); parts++; }
+                }
+                if (set != heldSet)
+                {
+                    HeldRestore(false);
+                    HeldKeep(found);
+                    held = found.ToArray(); heldSet = set;
+                    if (parts > 0 || names != "") Say("held item: " + names + ", " + parts + " parts out of the camera's way");
+                }
+                heldScanFailures = 0;
+            }
+            catch (Exception e)
+            {
+                heldScanFailures++;
+                Say("held item: looking for it threw " + e.GetType().Name + ": " + e.Message + (heldScanFailures >= HeldScans ? "; given up until the rider is found anew" : ""));
+            }
+        }
+        if (wantThird) HeldHide();
+        HeldRestore(wantThird);
+    }
+
+    // What could not be put back yet goes along with the next set, to be tried again.
+    private static void HeldKeep(System.Collections.Generic.List<HeldThing> into)
+    {
+        for (var i = 0; i < held.Length; i++)
+            if (held[i].Changed) { held[i].Old = true; into.Add(held[i]); }
+    }
+
+    private static void HeldHide()
+    {
+        for (var i = 0; i < held.Length; i++)
+        {
+            var t = held[i];
+            if (t.Old || t.Tries >= HeldTries) continue;
+            try
+            {
+                if (t.Root != null)
+                {
+                    var size = t.Root.localScale;
+                    if (Math.Abs(size.x) > HeldSmall * 2f || Math.Abs(size.y) > HeldSmall * 2f || Math.Abs(size.z) > HeldSmall * 2f)
+                    { t.Size = size; t.Changed = true; t.Root.localScale = Vector3.one * HeldSmall; }
+                }
+                else if (t.Part != null && !t.Changed)
+                {
+                    // Off without touching what the game itself switches on and off. A client build
+                    // without that setter switches the part itself off and remembers how it was.
+                    if (heldForced)
+                    {
+                        try { t.Part.forceRenderingOff = true; t.Forced = true; t.Changed = true; continue; }
+                        catch (Exception e) { heldForced = false; Say("held item: no rendering switch in this client (" + e.GetType().Name + "); the parts are switched off instead"); }
+                    }
+                    t.Was = t.Part.enabled; t.Forced = false; t.Changed = true; t.Part.enabled = false;
+                }
+            }
+            catch (Exception e) { HeldTrouble(t, "taking it out of the way", e); }
+        }
+    }
+
+    // oldOnly: while the view is behind the rider, only what is left of a replaced set is put back.
+    private static void HeldRestore(bool oldOnly)
+    {
+        for (var i = 0; i < held.Length; i++)
+        {
+            var t = held[i];
+            if (!t.Changed || (oldOnly && !t.Old)) continue;
+            try
+            {
+                if (!ReferenceEquals(t.Root, null)) { if (t.Root != null) t.Root.localScale = t.Size; }
+                else if (t.Part != null) { if (t.Forced) t.Part.forceRenderingOff = false; else t.Part.enabled = t.Was; }
+                t.Changed = false; t.Tries = 0;
+            }
+            catch (Exception e)
+            {
+                HeldTrouble(t, "putting it back", e);
+                // Given up: an object the engine no longer lets anyone touch has nothing left to put back.
+                if (t.Tries >= HeldTries) t.Changed = false;
+            }
+        }
+    }
+
+    private static void HeldTrouble(HeldThing t, string doing, Exception e)
+    {
+        t.Tries++;
+        if (t.Tries == 1 || t.Tries == HeldTries)
+            Say("held item: " + doing + " threw " + e.GetType().Name + ": " + e.Message + (t.Tries >= HeldTries ? "; left alone from here on" : "; tried again"));
+    }
+
+    // For the scripted pose check: what is drawn within arm's length of the camera, the way to find
+    // out what a client build puts in front of a camera that has left the player's eyes.
+    private static string nearSaid = "";
+
+    public static void Near()
+    {
+        try
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+            var at = cam.transform.position;
+            var all = UnityEngine.Object.FindObjectsOfType<Renderer>();
+            var text = ""; var n = 0;
+            for (var i = 0; i < all.Length; i++)
+            {
+                var r = all[i];
+                if (r == null || !r.enabled) continue;
+                var b = r.bounds;
+                if ((b.center - at).sqrMagnitude > 1.44f || b.extents.sqrMagnitude > 9f) continue;
+                n++;
+                if (n <= 10) text += " | " + r.gameObject.name + " layer=" + r.gameObject.layer + " size=" + r.transform.lossyScale.x.ToString("F4") + " seen=" + r.isVisible + " under " + Out.Chain(r.transform);
+            }
+            var line = n + " drawn parts within 1.2 m of the camera" + text;
+            if (line == nearSaid) return;
+            nearSaid = line; Say("near: " + line);
+        }
+        catch (Exception e) { Say("near threw " + e.GetType().Name + ": " + e.Message); }
+    }
+
     public static void Look(bool wantThird)
     {
         var now = Time.realtimeSinceStartup;
+        Held(wantThird, now);
         if (!Bound || Root == null || lookFailures >= 3 || now < lookRetryAt) return;
         try
         {
@@ -77,6 +244,10 @@ public static class RiderRig
     public static void Unbind()
     {
         try { Show(false, true); } catch (Exception) { }
+        // What cannot be put back now is kept, and tried again from the next frame on.
+        HeldRestore(false);
+        var left = new System.Collections.Generic.List<HeldThing>(); HeldKeep(left);
+        held = left.ToArray(); heldSet = 0; heldScanFailures = 0; nextHeld = 0f;
         Bound = false; body = new SkinnedMeshRenderer[0]; legSet = new SkinnedMeshRenderer[0]; skinSet = 0;
     }
 
@@ -207,48 +378,78 @@ public static class RiderRig
 
             var now = Time.realtimeSinceStartup;
             var mode = SkateRide.Mode;
-            var want = mode == RideMode.Air ? (SkateRide.Grab ? 0.95f : 0.5f) : mode == RideMode.Grind ? 0.38f : SkateRide.Braking ? 0.4f : 0.18f;
+            // In a jump the legs fold by as much as the board has come up, so the body keeps its line.
+            var inAir = SkateRide.Grabbing ? 0.95f : SkateRide.Jumped ? 0.2f + SkateBoard.Pop / (float)SkatePose.CrouchDrop : 0.45f;
+            var want = mode == RideMode.Air ? inAir : mode == RideMode.Grind ? 0.38f : SkateRide.Braking ? 0.4f : 0.18f;
+            // A right stick held back is the rider gathering for the pop.
+            if (SkateKeys.Charging && mode == RideMode.Ground) want = Math.Max(want, 0.3f + 0.3f * SkateKeys.Charge);
             var since = now - SkateRide.LandAt;
             if (mode == RideMode.Ground && since < 0.35f) want += (1f - since / 0.35f) * SkateRide.Clamp(SkateRide.LandImpact / 8f, 0.2f, 1f) * 0.45f;
             Crouch += (SkateRide.Clamp(want, 0f, 1f) - Crouch) * SkateRide.Clamp(frameSeconds * 14f, 0f, 1f);
+            // The board's rise is eased already; the legs follow it at once, or the body would bob.
+            if (mode == RideMode.Air && SkateRide.Jumped && !SkateRide.Grabbing && Crouch < want) Crouch = want;
             // The module leans toward the board's own right; the ride leans toward the right of travel.
             var lean = SkateRide.Clamp(SkateRide.Trick.Switch ? -SkateRide.Lean : SkateRide.Lean, -(float)SkatePose.MaximumLean, (float)SkatePose.MaximumLean);
             var speed = Math.Min((float)SkateMotion.MaximumGroundSpeed, Math.Abs(SkateRide.Speed));
             var input = new SkateRiderInput(new SkateVector(plane.x, plane.y, plane.z), new SkateVector(fx, fy, fz), new SkateVector(ux, uy, uz), SkateStance.Regular, SkateRide.TailFirst,
                 speed, lean, Crouch, mode == RideMode.Air, mode == RideMode.Ground && SkateRide.PushPhase > 0f, SkateRide.Clamp(SkateRide.PushPhase, 0f, 1f),
-                SkateRide.FlipDeg, SkateRide.Grab, mode == RideMode.Bail, SkateKeys.LookYaw % 360f, SkatePose.FootLift - AnkleHeight);
+                SkateRide.FlipDeg, mode == RideMode.Air ? SkateRide.Grab : SkateGrabKind.None, mode == RideMode.Bail, SkateKeys.LookYaw % 360f, SkatePose.FootLift - AnkleHeight,
+                DeckTop, mode == RideMode.Bail ? SkateRide.Clamp((now - SkateRide.ModeAt) / SkateRide.BailSeconds, 0f, 1f) : 0f);
             SkateRiderPose pose; string error;
             if (!SkateRider.TryCreate(Rig, input, out pose, out error))
             {
                 if (Refusals++ == 0 || error != Error) Say("pose refused: " + error);
                 Error = error; return;
             }
-            // The module keeps the pushing foot at deck height; the ground is a deck lower.
-            var phase = input.PushPhase; var down = 0f;
-            if (input.Pushing) down = phase < 0.25 ? Smooth((float)phase / 0.25f) : phase < 0.85 ? 1f : 1f - Smooth(((float)phase - 0.85f) / 0.15f);
-            Apply(pose, upV, legsOnly, down * DeckTop, SkateRide.TailFirst);
+            Ease(pose, plane, toToes, upV, new Vector3((float)fx, (float)fy, (float)fz), now, frameSeconds);
+            Apply(upV, legsOnly);
             Applied++;
         }
         catch (Exception e) { failed = true; Say("pose threw " + e.GetType().Name + ": " + e.Message); }
     }
 
-    private static float Smooth(float t) { t = t < 0f ? 0f : t > 1f ? 1f : t; return t * t * (3f - 2f * t); }
+    private static void Ease(SkateRiderPose p, Vector3 origin, Vector3 x, Vector3 y, Vector3 z, float now, float frameSeconds)
+    {
+        joint[PelvisJ] = V(p.Pelvis); joint[LHipJ] = V(p.LeftHip); joint[RHipJ] = V(p.RightHip); joint[LKneeJ] = V(p.LeftKnee); joint[RKneeJ] = V(p.RightKnee);
+        joint[LAnkleJ] = V(p.LeftAnkle); joint[RAnkleJ] = V(p.RightAnkle); joint[LToeJ] = V(p.LeftToe); joint[RToeJ] = V(p.RightToe);
+        joint[ChestJ] = V(p.Chest); joint[NeckJ] = V(p.Neck); joint[HeadJ] = V(p.Head); joint[LShoulderJ] = V(p.LeftShoulder); joint[RShoulderJ] = V(p.RightShoulder);
+        joint[LElbowJ] = V(p.LeftElbow); joint[RElbowJ] = V(p.RightElbow); joint[LHandJ] = V(p.LeftHand); joint[RHandJ] = V(p.RightHand);
+        joint[PelvisForwardJ] = V(p.PelvisForward); joint[PelvisUpJ] = V(p.PelvisUp); joint[ChestForwardJ] = V(p.ChestForward); joint[ChestUpJ] = V(p.ChestUp); joint[HeadForwardJ] = V(p.HeadForward);
+        // After a pause (getting on, a new player model) there is nothing to ease from.
+        var share = now - easedAt > 0.25f ? 1f : 1f - (float)Math.Exp(-frameSeconds / EaseSeconds);
+        easedAt = now;
+        for (var i = 0; i < All; i++)
+        {
+            var fresh = joint[i];
+            var w = i < Points ? fresh - origin : fresh;
+            var local = new Vector3(Vector3.Dot(w, x), Vector3.Dot(w, y), Vector3.Dot(w, z));
+            eased[i] = eased[i] + (local - eased[i]) * share;
+            var back = x * eased[i].x + y * eased[i].y + z * eased[i].z;
+            joint[i] = i < Points ? origin + back : back.sqrMagnitude > 0.0001f ? back.normalized : fresh;
+        }
+        // Halfway between two poses the back would come out shorter than it is: the chest, the neck
+        // and the head are put back on the eased line of the back, at the module's distances.
+        var hips = (joint[LHipJ] + joint[RHipJ]) * 0.5f; var line = joint[ChestUpJ];
+        joint[ChestJ] = hips + line * (float)Rig.SpineLength;
+        joint[NeckJ] = hips + line * (float)(Rig.SpineLength * 1.12);
+        joint[HeadJ] = joint[NeckJ] + line * (float)Rig.NeckToHeadLength;
+    }
 
-    private static void Apply(SkateRiderPose p, Vector3 up, bool legsOnly, float pushDrop, bool pushLeft)
+    private static void Apply(Vector3 up, bool legsOnly)
     {
         var hipsNow = RHip.position - LHip.position; var upNow = spine[0].position - Pelvis.position;
         if (hipsNow.sqrMagnitude > 0.000001f && upNow.sqrMagnitude > 0.000001f)
         {
             var from = Quaternion.LookRotation(Vector3.Cross(hipsNow.normalized, upNow.normalized), upNow.normalized);
-            var to = Quaternion.LookRotation(V(p.PelvisForward), V(p.PelvisUp));
+            var to = Quaternion.LookRotation(joint[PelvisForwardJ], joint[PelvisUpJ]);
             Pelvis.rotation = to * Quaternion.Inverse(from) * Pelvis.rotation;
         }
-        Pelvis.position = Pelvis.position + ((V(p.LeftHip) + V(p.RightHip)) * 0.5f - (LHip.position + RHip.position) * 0.5f);
+        Pelvis.position = Pelvis.position + ((joint[LHipJ] + joint[RHipJ]) * 0.5f - (LHip.position + RHip.position) * 0.5f);
 
         Miss = 0f; MissAt = "";
         if (!legsOnly)
         {
-            var chestUp = V(p.ChestUp);
+            var chestUp = joint[ChestUpJ];
             // The module folds the body at the hip joints; the skeleton's spine starts above them, on
             // the pelvis bone. So the pelvis tips about the line through the hips until the spine's
             // root is where the module's straight back passes, or the neck would be out of reach.
@@ -267,9 +468,18 @@ public static class RiderRig
                 }
             }
             for (var i = 0; i < spine.Length; i++) Aim(spine[i], i + 1 < spine.Length ? spine[i + 1] : Neck, chestUp);
-            Aim(spine[0], Neck, V(p.Neck) - spine[0].position);
-            Aim(Neck, Head, V(p.Head) - V(p.Neck));
-            var chestForward = V(p.ChestForward); var headForward = V(p.HeadForward);
+            // The module turns the chest further toward travel than the pelvis: the spine twists,
+            // bone by bone, until the shoulders are across the module's.
+            var across = RUpper.position - LUpper.position; across = across - chestUp * Vector3.Dot(across, chestUp);
+            var wanted = joint[RShoulderJ] - joint[LShoulderJ]; wanted = wanted - chestUp * Vector3.Dot(wanted, chestUp);
+            if (across.sqrMagnitude > 0.0001f && wanted.sqrMagnitude > 0.0001f)
+            {
+                var twist = (float)(Math.Atan2(Vector3.Dot(Vector3.Cross(across, wanted), chestUp), Vector3.Dot(across, wanted)) * 180.0 / Math.PI);
+                for (var i = 0; i < spine.Length; i++) spine[i].rotation = SkateRide.Turn(twist / spine.Length, chestUp) * spine[i].rotation;
+            }
+            Aim(spine[0], Neck, joint[NeckJ] - spine[0].position);
+            Aim(Neck, Head, joint[HeadJ] - joint[NeckJ]);
+            var chestForward = joint[ChestForwardJ]; var headForward = joint[HeadForwardJ];
             var cf = chestForward - chestUp * Vector3.Dot(chestForward, chestUp); var hf = headForward - chestUp * Vector3.Dot(headForward, chestUp);
             if (cf.sqrMagnitude > 0.0001f && hf.sqrMagnitude > 0.0001f)
             {
@@ -289,19 +499,16 @@ public static class RiderRig
                 Neck.rotation = SkateRide.Turn(lift * 0.35f, foldAxis) * Neck.rotation;
                 Head.rotation = SkateRide.Turn(lift * 0.65f, foldAxis) * Head.rotation;
             }
-            Note(Neck, V(p.Neck), "neck");
-            Limb(LUpper, LFore, LHand, V(p.LeftHand), V(p.LeftElbow), UpperArm, Forearm, "left hand");
-            Limb(RUpper, RFore, RHand, V(p.RightHand), V(p.RightElbow), UpperArm, Forearm, "right hand");
+            Note(Neck, joint[NeckJ], "neck");
+            Limb(LUpper, LFore, LHand, joint[LHandJ], joint[LElbowJ], UpperArm, Forearm, "left hand");
+            Limb(RUpper, RFore, RHand, joint[RHandJ], joint[RElbowJ], UpperArm, Forearm, "right hand");
         }
 
-        // The rear foot pushes on the ground beside the board (the front one when rolling tail first).
-        var lower = up * pushDrop;
-        var la = V(p.LeftAnkle) - (pushLeft ? lower : Vector3.zero); var ra = V(p.RightAnkle) - (pushLeft ? Vector3.zero : lower);
-        Limb(LHip, LKnee, LFoot, la, V(p.LeftKnee), Thigh, Shin, "left ankle");
-        Limb(RHip, RKnee, RFoot, ra, V(p.RightKnee), Thigh, Shin, "right ankle");
+        Limb(LHip, LKnee, LFoot, joint[LAnkleJ], joint[LKneeJ], Thigh, Shin, "left ankle");
+        Limb(RHip, RKnee, RFoot, joint[RAnkleJ], joint[RKneeJ], Thigh, Shin, "right ankle");
         var drop = up * (AnkleHeight - ToeHeight);
-        Aim(LFoot, LToe, V(p.LeftToe) - (pushLeft ? lower : Vector3.zero) - drop - LFoot.position);
-        Aim(RFoot, RToe, V(p.RightToe) - (pushLeft ? Vector3.zero : lower) - drop - RFoot.position);
+        Aim(LFoot, LToe, joint[LToeJ] - drop - LFoot.position);
+        Aim(RFoot, RToe, joint[RToeJ] - drop - RFoot.position);
         Roll(LFoot, (LToe.position - LFoot.position).normalized, lSole, up);
         Roll(RFoot, (RToe.position - RFoot.position).normalized, rSole, up);
     }

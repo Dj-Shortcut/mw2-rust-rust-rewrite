@@ -3,7 +3,6 @@
 # on the desktop: "Rust Skate.cmd" and "Rust Skate - remove mod files.cmd". The launcher itself
 # needs no network and never builds anything, so what the owner plays is exactly this commit.
 $probe = "$HOME\Downloads\claude-loader-probe"; $L = "$probe\launcher"
-$repo = 'Dj-Shortcut/mw2-rust-rust-rewrite'
 $rel = ("" + (zg 'release.txt')).Trim() -split "`n" | ? { $_ -match '^[0-9a-f]{40}$' } | select -First 1
 if (-not $rel) { 'ABORT: release.txt names no commit'; return }
 $global:pcommit = $rel; $global:pnext = $null
@@ -12,8 +11,8 @@ $global:pcommit = $null
 if ($pbuilt -ne $rel) { 'ABORT: the released commit did not build; the launcher was left as it was'; return }
 $enc = New-Object Text.UTF8Encoding($false)
 $files = @{}
-foreach ($f in 'session.ps1', 'skate.ps1', 'watch.ps1', 'clean.ps1') {
-  $t = "" + (irm "https://raw.githubusercontent.com/$repo/$rel/mods/rust/client/tools/$f")
+foreach ($f in 'session.ps1', 'skate.ps1', 'watch.ps1', 'clean.ps1', 'sticks.ps1') {
+  $t = "" + (irm (zu "mods/rust/client/tools/$f" $rel))
   if ($t.Length -lt 200) { "ABORT: could not fetch $f at the released commit; the launcher was left as it was"; return }
   $files[$f] = $t
 }

@@ -8,7 +8,7 @@ using UnityEngine;
 [BepInPlugin("shortcut.skate.client", "Shortcut Skate Client", SkatePlugin.Version)]
 public class SkatePlugin : BasePlugin
 {
-    public const string Version = "0.14.0";
+    public const string Version = "0.15.0";
     internal static SkatePlugin Instance;
 
     public override void Load()
@@ -31,7 +31,7 @@ public class SkatePlugin : BasePlugin
         switch (s)
         {
             case "skate": return "added=" + (AddComponent<SkateRig>() != null);
-            case "ride": case "pose": case "trick": Scenarios.Name = s; return "added=" + (AddComponent<SkateRig>() != null);
+            case "ride": case "pose": case "trick": case "pad": Scenarios.Name = s; return "added=" + (AddComponent<SkateRig>() != null);
             case "nogrind": SkateGrind.Enabled = false; return "grinding off";
             case "mute": SkateRig.Mute = true; AudioListener.volume = SkateRig.MuteVolume; return "volume=" + AudioListener.volume;
             default: return "unknown step";
