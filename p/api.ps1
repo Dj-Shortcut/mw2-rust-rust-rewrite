@@ -20,7 +20,7 @@ foreach ($n in 'Il2CppInterop.Common','Il2CppInterop.Runtime') { [void][Reflecti
   foreach ($d in $Gen, $Core) { $p = Join-Path $d "$n.dll"; if (Test-Path $p) { return [Reflection.Assembly]::LoadFrom($p) } }
   return $null })
 function TypesOf($asm) { try { $asm.GetTypes() } catch { $_.Exception.InnerException.Types | ? { $_ } } }
-function Short($t) { if ($null -eq $t) { return '?' }; $n = $t.Name; if ($t.IsGenericType) { $n = ($n -replace '`\d+','') + '<' + (($t.GetGenericArguments() | % { Short $_ }) -join ',') + '>' }; $n }
+function Short($t) { if ($null -eq $t) { return '?' }; $n = $t.Name; if ($n -eq 'Object') { $n = $t.FullName }; if ($t.IsGenericType) { $n = ($n -replace '`\d+','') + '<' + (($t.GetGenericArguments() | % { Short $_ }) -join ',') + '>' }; $n }
 $lines = New-Object Collections.Generic.List[string]
 if ($Find) {
   foreach ($f in (ls $Gen -Filter *.dll)) {
@@ -39,13 +39,20 @@ if ($Find) {
     $hits = @($all | ? { $_.Name -eq $w -or $_.FullName -eq $w })
     if (-not $hits) { $lines.Add("== $w : NOT FOUND"); continue }
     foreach ($t in $hits) {
-      $lines.Add('== ' + $t.FullName + ' : ' + (Short $t.BaseType) + ' [' + $t.Assembly.GetName().Name + ']')
-      $props = $t.GetProperties($flags) | ? { $_.Name -match $Pat } | sort Name | % { $(if (($_.GetGetMethod($true), $_.GetSetMethod($true) | ? { $_ } | select -First 1).IsStatic) { 'static ' } else { '' }) + $_.Name + ':' + (Short $_.PropertyType) + $(if ($_.CanWrite) { '' } else { '{get}' }) }
-      if ($props) { $lines.Add('P ' + ($props -join ' | ')) }
-      $meth = $t.GetMethods($flags) | ? { -not $_.IsSpecialName -and $_.Name -match $Pat } | sort Name | % { $(if ($_.IsStatic) { 'static ' } else { '' }) + $_.Name + '(' + (($_.GetParameters() | % { (Short $_.ParameterType) + ' ' + $_.Name }) -join ', ') + '):' + (Short $_.ReturnType) }
-      if ($meth) { $lines.Add('M ' + ($meth -join ' | ')) }
-      $flds = $t.GetFields($flags) | ? { $_.Name -match $Pat -and $_.Name -notmatch '^Native(Field|Method)InfoPtr_|^__' } | sort Name | % { $(if ($_.IsStatic) { 'static ' } else { '' }) + $_.Name + ':' + (Short $_.FieldType) }
-      if ($flds) { $lines.Add('F ' + ($flds -join ' | ')) }
+      $props = @($t.GetProperties($flags) | ? { $_.Name -match $Pat })
+      $meths = @($t.GetMethods($flags) | ? { -not $_.IsSpecialName -and $_.Name -match $Pat })
+      $lines.Add('== ' + $t.FullName + ' : ' + (Short $t.BaseType) + ' [' + $t.Assembly.GetName().Name + '] props=' + $props.Count + ' methods=' + $meths.Count)
+      $gen = '^(field_|prop_|Method_|method_)'
+      $pdesc = { param($x) $(if (($x.GetGetMethod($true), $x.GetSetMethod($true) | ? { $_ } | select -First 1).IsStatic) { 'static ' } else { '' }) }
+      $real = $props | ? { $_.Name -notmatch $gen } | sort Name | % { (& $pdesc $_) + $_.Name + ':' + (Short $_.PropertyType) }
+      if ($real) { $lines.Add('P ' + ($real -join ' | ')) }
+      $grp = $props | ? { $_.Name -match $gen } | group { (& $pdesc $_) + (Short $_.PropertyType) } | sort Count -Descending | select -First 40 | % { $_.Name + ' x' + $_.Count }
+      if ($grp) { $lines.Add('P(generated names, by type) ' + ($grp -join ' | ')) }
+      $sig = { param($m) $(if ($m.IsStatic) { 'static ' } else { '' }) + '(' + (($m.GetParameters() | % { Short $_.ParameterType }) -join ',') + '):' + (Short $m.ReturnType) }
+      $real = $meths | ? { $_.Name -notmatch $gen } | sort Name | % { $(if ($_.IsStatic) { 'static ' } else { '' }) + $_.Name + '(' + (($_.GetParameters() | % { (Short $_.ParameterType) + ' ' + $_.Name }) -join ', ') + '):' + (Short $_.ReturnType) }
+      if ($real) { $lines.Add('M ' + ($real -join ' | ')) }
+      $grp = $meths | ? { $_.Name -match $gen } | group { & $sig $_ } | sort Count -Descending | select -First 25 | % { $_.Name + ' x' + $_.Count }
+      if ($grp) { $lines.Add('M(generated names, by signature) ' + ($grp -join ' | ')) }
     }
   }
 }
