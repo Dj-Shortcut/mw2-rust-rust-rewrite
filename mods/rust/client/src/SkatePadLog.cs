@@ -172,9 +172,11 @@ public static class SkatePadLog
         Say("layout: " + pair);
     }
 
-    // The game's own view as sampled before the chase camera moves the camera.
+    // The game's own view as sampled before the chase camera moves the camera. It is only sampled
+    // once the player is up: a second without a sample says nothing about the view.
     private static void View(float now)
     {
+        if (now - SkateCamera.SampledAt > 0.25f) { lookKnown = moved = false; turned = 0f; nextView = now + 1f; return; }
         float yaw = SkateCamera.LookYaw, pitch = SkateCamera.LookPitch;
         if (lookKnown) turned += Math.Abs(SkateRide.Delta(lookYaw, yaw)) + Math.Abs(SkateRide.Delta(lookPitch, pitch));
         lookYaw = yaw; lookPitch = pitch; lookKnown = true;

@@ -9,7 +9,7 @@ public static class SkateCamera
 {
     public static bool Chase = true, Fixed;
     public const float FollowPitch = 14f, FollowRate = 3.5f;
-    public static float LookYaw, LookPitch, Distance = 3.4f, Bearing = 180f, FixedDistance = 2.7f, FixedHeight = 1.15f, FollowYaw;
+    public static float LookYaw, LookPitch, SampledAt = -99f, Distance = 3.4f, Bearing = 180f, FixedDistance = 2.7f, FixedHeight = 1.15f, FollowYaw;
     private static float followAt = -99f;
     private static bool failed, ahead = true;
 
@@ -18,6 +18,7 @@ public static class SkateCamera
         var cam = Camera.main;
         if (cam == null) return;
         var e = cam.transform.eulerAngles;
+        SampledAt = Time.realtimeSinceStartup;
         LookYaw = e.y;
         LookPitch = e.x > 180f ? e.x - 360f : e.x;
     }
