@@ -63,11 +63,16 @@ namespace Shortcut.RustMod
 
         public static bool TryStep(SkateTrickState state, SkateTrickInput input, double dt,
                                    out SkateTrickResult result, out string error)
+        { return TryStep(state, input, dt, SkateMotion.MaximumLandingFallSpeed, out result, out error); }
+
+        public static bool TryStep(SkateTrickState state, SkateTrickInput input, double dt, double maximumLandingImpact,
+                                   out SkateTrickResult result, out string error)
         {
             result = new SkateTrickResult(state, state.Spin, state.Flip, state.GrindSeconds, SkateTrickEvents.None, null, 0, 0);
             error = null;
             if (!Valid(state) || !Axis(input.Spin) || !Axis(input.Flip) || !Finite(input.ImpactSpeed) || input.ImpactSpeed < 0 ||
-                input.ImpactSpeed > 100000 || (input.Airborne && input.Grinding) || !Finite(dt) || dt <= 0 || dt > SkateMotion.MaximumStep)
+                input.ImpactSpeed > 100000 || (input.Airborne && input.Grinding) || !Finite(dt) || dt <= 0 || dt > SkateMotion.MaximumStep ||
+                !Finite(maximumLandingImpact) || maximumLandingImpact <= 0 || maximumLandingImpact > 100000)
             { error = "Invalid skate trick step."; return false; }
             double spin = state.Spin, flip = state.Flip, grind = state.GrindSeconds, rolling = state.RollingSeconds;
             long combo = state.ComboBasePoints, total = state.TotalPoints, points = 0, banked = 0;
@@ -88,7 +93,7 @@ namespace Shortcut.RustMod
                 int turns = (int)Math.Round(flip / 360, MidpointRounding.AwayFromZero);
                 int halves = (int)Math.Round(spin / 180, MidpointRounding.AwayFromZero);
                 if (Math.Abs(flip - turns * 360) > FlipTolerance + 1e-8 || Math.Abs(spin - halves * 180) > SpinTolerance + 1e-8 ||
-                    input.ImpactSpeed > SkateMotion.MaximumLandingFallSpeed)
+                    input.ImpactSpeed > maximumLandingImpact)
                 {
                     events |= SkateTrickEvents.Bailed;
                     name = "Bail";
