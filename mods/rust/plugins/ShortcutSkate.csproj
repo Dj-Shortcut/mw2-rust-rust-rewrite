@@ -1,7 +1,7 @@
 <Project>
   <PropertyGroup>
-    <BaseIntermediateOutputPath>../../../context/rust-skate-build/obj/</BaseIntermediateOutputPath>
-    <OutputPath>../../../context/rust-skate-build/bin/</OutputPath>
+    <BaseIntermediateOutputPath>../../../context/rust-skate-plugin-build/obj/</BaseIntermediateOutputPath>
+    <OutputPath>../../../context/rust-skate-plugin-build/bin/</OutputPath>
   </PropertyGroup>
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   <PropertyGroup>
@@ -19,17 +19,12 @@
     <_FullFrameworkReferenceAssemblyPaths>$(RustManagedPath)</_FullFrameworkReferenceAssemblyPaths>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="SkateMotion.cs" />
-    <Compile Include="SkateDrive.cs" />
-    <Compile Include="SkateBoardMesh.cs" />
-    <Compile Include="SkateRails.cs" />
-    <Compile Include="SkateRailBinding.cs" />
-    <Compile Include="SkatePose.cs" />
-    <Reference Include="$(RustManagedPath)/mscorlib.dll"><Private>false</Private></Reference>
+    <Compile Include="ShortcutSkate.cs" />
+    <Reference Include="$(RustManagedPath)/*.dll" Exclude="$(RustManagedPath)/Newtonsoft.Json.dll"><Private>false</Private></Reference>
   </ItemGroup>
-  <Target Name="RequireRealFrameworkReferences" BeforeTargets="PrepareForBuild">
-    <Error Condition="!Exists('$(RustManagedPath)/mscorlib.dll')"
-           Text="Set RustManagedPath to a genuine RustDedicated managed DLL folder. This library has no native adapter." />
+  <Target Name="RequireRealServerReferences" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(RustManagedPath)/Assembly-CSharp.dll') Or !Exists('$(RustManagedPath)/Oxide.Rust.dll') Or !Exists('$(RustManagedPath)/0Harmony.dll') Or !Exists('$(RustManagedPath)/mscorlib.dll')"
+           Text="Set RustManagedPath to the genuine RustDedicated managed DLL folder with matching Oxide and Harmony." />
   </Target>
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 </Project>
