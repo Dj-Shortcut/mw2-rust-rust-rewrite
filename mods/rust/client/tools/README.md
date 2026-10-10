@@ -36,8 +36,9 @@ iex (irm https://raw.githubusercontent.com/Dj-Shortcut/mw2-rust-rust-rewrite/mai
 
 After that `zz name` runs `name.ps1` from this folder and `zg file` returns a file from it. Both
 read the branch named in `$pref`; set it before or after loading `remote.ps1` to work from another
-branch (`sv pref name`). Script names are letters only and settings take plain values, because
-letters, digits and spaces are all that can be typed into the PC reliably from a distance.
+branch (`sv pref name`, or `zz ref` for a name with dashes). Script names are letters only and
+settings take plain values, because letters, digits and spaces are all that can be typed into the
+PC reliably from a distance.
 
 ## Scripts
 
@@ -63,6 +64,7 @@ letters, digits and spaces are all that can be typed into the PC reliably from a
 | `launchertest` | Starts the installed launcher, kills it while Rust runs, closes Rust and reports whether the Rust folder was cleaned all the same. |
 | `ping` | Whether the private test server answers on its game port. |
 | `user` | Opens a PowerShell window without administrator rights, with `zz` loaded, for when the window at hand is an administrator's. |
+| `ref` | Points `zz` and `zg` at another branch: `$pto` holds its name without the dashes and slashes, which cannot be typed from a distance (`sv pto claudeloaderprobe`). |
 
 ## A session
 
@@ -118,6 +120,7 @@ Set by the scripts for one another; `sv name value` sets one by hand.
 | Variable | Used by | Meaning |
 | --- | --- | --- |
 | `$pref` | `zz`, `zg`, `build` | Branch to work from (default `main`). |
+| `$pto` | `ref` | The branch to switch to, written without its dashes and slashes. |
 | `$pcommit` | `build` | Build this commit instead of the head of the branch. |
 | `$pnext` | `build`, `runtime` | Script to run after a successful build; used once, also when the build stops early. |
 | `$ptag` | `session` | Label in the session folder's name. |
