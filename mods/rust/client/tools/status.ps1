@@ -12,6 +12,7 @@ $val = { param($k) (($acf | sls ('"' + $k + '"') | select -First 1).Line -split 
 $pb = & $val 'buildid'
 'rust build=' + $pb + ' stateflags=' + (& $val 'StateFlags') + ' target=' + (& $val 'TargetBuildID')
 $probe = "$HOME\Downloads\claude-loader-probe"
+'read-only key for the repository present=' + (Test-Path -LiteralPath "$probe\github-key.txt")
 'interop for this build=' + ((Test-Path "$probe\gen-$pb\out\Assembly-CSharp.dll") -and [bool](sls -Path "$probe\gen-$pb\gen.log" -Pattern 'GEN DONE.* errors=0( |$)' -Quiet -ErrorAction SilentlyContinue)) + ' | sets: ' + ((ls $probe -Directory -Filter 'gen-*' | % Name) -join ',')
 'last line of its log: ' + $(if (Test-Path "$probe\gen-$pb\gen.log") { $t = "" + (gc "$probe\gen-$pb\gen.log" -Tail 1); if ($t.Length -gt 160) { $t.Substring(0, 160) } else { $t } } else { 'no log' })
 $rust = 'C:\Program Files (x86)\Steam\steamapps\common\Rust'

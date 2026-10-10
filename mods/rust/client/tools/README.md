@@ -23,20 +23,29 @@ The staging folder holds `sdk\` and `generator\` (the copies made by `setup`), `
 unpacked loader), `unity-libs-<version>\` (Unity's base libraries), `gen-<build>\` (one interop set
 per Rust build), `rt\` (the changed runtime library), `plugin\` (the last build), `play\` (the released
 plugin), `launcher\` (the owner's launcher), `run-<tag>-<time>\` (one folder per session with its
-logs and the loader files taken back out of the Rust folder) and `server.txt` (the address of the
-private test server as `ip:port`; it is read by `ping` and `session` and is never committed).
+logs and the loader files taken back out of the Rust folder), `server.txt` (the address of the
+private test server as `ip:port`; it is read by `ping` and `session` and is never committed) and
+`github-key.txt` (see below).
+
+This repository is private, so the PC needs a key to read it. The owner makes a fine-grained
+personal access token on GitHub that covers only this repository with the permission
+"Contents: Read-only", and keeps it as the first line of `github-key.txt` in the staging folder.
+The tools send it with every request for this repository and to no other address; they never
+print it, and it is never committed. `status` says whether the file is there.
 
 ## Starting
 
 In a PowerShell window on the PC, once per window:
 
 ```powershell
-iex (irm https://raw.githubusercontent.com/Dj-Shortcut/mw2-rust-rust-rewrite/main/mods/rust/client/tools/remote.ps1)
+iex (irm -Headers @{ Authorization = 'Bearer ' + (gc "$HOME\Downloads\claude-loader-probe\github-key.txt" -First 1).Trim(); Accept = 'application/vnd.github.raw' } 'https://api.github.com/repos/Dj-Shortcut/mw2-rust-skate-rewrite/contents/mods/rust/client/tools/remote.ps1?ref=main')
 ```
 
 After that `zz name` runs `name.ps1` from this folder and `zg file` returns a file from it. Both
 read the branch named in `$pref`; set it before or after loading `remote.ps1` to work from another
-branch (`sv pref name`, or `zz ref` for a name with dashes). Script names are letters only and
+branch (`sv pref name`, or `zz ref` for a name with dashes). Everything the tools take from this
+repository comes through GitHub's contents API with the key: the scripts at the head of the
+branch, the plugin's sources at the commit that is built. Script names are letters only and
 settings take plain values, because letters, digits and spaces are all that can be typed into the
 PC reliably from a distance.
 

@@ -5,7 +5,7 @@ braking and carving, rolling on slopes, ollies, kickflips and heelflips, half sp
 switch stance, grabs, manuals, grinding along edges, bails, a score with combos, a rider pose on
 the game's own player model, a view from behind, sounds and a score display. It is ridden with a
 controller, laid out as in the skate. games, or with keys. It belongs to
-[#337](https://github.com/Dj-Shortcut/mw2-rust-rust-rewrite/issues/337) and the
+[#337](https://github.com/Dj-Shortcut/mw2-rust-skate-rewrite/issues/337) and the
 [complete flow](../../../docs/RUST-MW2-SKATE.md); the calculations it shares with the server
 plugin are in [`../shared`](../shared/README.md).
 
@@ -21,7 +21,8 @@ nothing to the server: to the server the rider is a player who moves.
 - The mod loader is in the Rust folder only while one session runs. Every way of starting a
   session here puts it there and takes it out again; see [the tools](tools/README.md#a-session).
   Rust must not be started normally while the loader is in its folder.
-- The server address, game files, built binaries and logs stay out of this repository.
+- The server address, the key with which the PC reads this repository, game files, built binaries
+  and logs stay out of this repository.
 
 ## Controls
 
