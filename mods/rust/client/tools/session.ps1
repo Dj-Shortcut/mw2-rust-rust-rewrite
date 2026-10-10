@@ -18,6 +18,8 @@
 #   $pconnect when the client is started directly: join the private test server at start. Its
 #             address is read from server.txt in the staging folder, a local file that is never
 #             committed.
+#   $pkeep    keep the client's window in front for the whole session, not only bring it there
+#             once: for a scripted check that nobody watches
 $ErrorActionPreference = 'Stop'
 if (-not $ptag) { $ptag = 'A' }
 if ($null -eq $plisten) { $plisten = $false }
@@ -38,6 +40,24 @@ $roots = 'BepInEx','dotnet','winhttp.dll','doorstop_config.ini','.doorstop_versi
 # moves a loader out only then: one that somebody installed for another mod is left alone.
 $mark = "$probe\loader-in-rust-folder.txt"
 function say($m) { Write-Host $m }
+# A client that comes up behind the window these tools run in never gets the keyboard. Its window
+# is brought to the front once; after that the player switches windows as he likes. Windows lets a
+# program take the foreground only right after a key press, and a tap of Alt counts as one.
+function Front($proc) {
+  try {
+    if (-not ('ShortcutSkate.Front' -as [type])) {
+      Add-Type -Namespace ShortcutSkate -Name Front -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr h); [DllImport("user32.dll")] public static extern System.IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern void keybd_event(byte k, byte s, uint f, System.UIntPtr e);'
+    }
+    $proc.Refresh(); $h = $proc.MainWindowHandle
+    if ($h -eq [IntPtr]::Zero) { return $null }
+    if ([ShortcutSkate.Front]::GetForegroundWindow() -eq $h) { return 'in front' }
+    [ShortcutSkate.Front]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero); [ShortcutSkate.Front]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+    [ShortcutSkate.Front]::SetForegroundWindow($h) | Out-Null
+    Start-Sleep -Milliseconds 400
+    if ([ShortcutSkate.Front]::GetForegroundWindow() -eq $h) { return 'brought to the front' }
+    return 'still behind another window'
+  } catch { return 'not brought to the front: ' + $_.Exception.Message }
+}
 # Steam keeps non-Steam shortcuts in a binary file. Returns the 64-bit id that steam://rungameid
 # expects for the shortcut with this name, plus its target, or nothing when there is none.
 function Find-Shortcut($name) {
@@ -101,7 +121,7 @@ try {
     $p = Start-Process @go
   }
   $log = "$bx\LogOutput.log"
-  $t0 = Get-Date; $seen = $null; $state = 'timeout-before-chainloader'
+  $t0 = Get-Date; $seen = $null; $state = 'timeout-before-chainloader'; $front = $null; $fronts = 0
   $limit = 240; if ($pdone) { $limit = [int]$pdone }
   while (((Get-Date) - $t0).TotalSeconds -lt $limit) {
     Start-Sleep 3
@@ -109,6 +129,10 @@ try {
     if (-not $seen -and (Test-Path $log)) {
       $txt = Get-Content $log -Raw -ErrorAction SilentlyContinue
       if ($txt -match 'Chainloader startup complete') { $seen = Get-Date }
+    }
+    if ($seen -and ($pkeep -or ($front -notin 'in front','brought to the front' -and $fronts -lt 20))) {
+      $was = $front; $now = Front $p
+      if ($now) { $front = $now; $fronts++; if ($front -ne $was) { say ('the game window: ' + $front) } }
     }
     if ($pdone -and (Test-Path "$bx\plugins\skate.done")) { $state = 'plugin reported done at ' + [int]((Get-Date) - $t0).TotalSeconds + 's; responding=' + $p.Responding; break }
     if (-not $pdone -and $seen -and ((Get-Date) - $seen).TotalSeconds -ge $pwait) { $state = 'alive ' + $pwait + 's after chainloader; responding=' + $p.Responding; break }

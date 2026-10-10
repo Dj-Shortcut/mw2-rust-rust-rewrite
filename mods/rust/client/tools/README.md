@@ -77,6 +77,9 @@ The client is started directly (`RustClient.exe`, which does not start the anti-
 the owner's non-Steam shortcut `RustClient` for the same executable. With `$pconnect` a directly
 started client joins the server in `server.txt`; nothing has to be typed in the game.
 
+A client that comes up behind another window never gets the keyboard, so `session` brings the
+game's window to the front once it exists. A scripted check keeps it there (`$pkeep`).
+
 The plugin reads its steps from `plugins\steps.txt`, which `session` writes from `$psteps`; they are
 listed in the [client's README](../README.md#steps). A scripted check ends the session by writing
 `plugins\skate.done`; otherwise the session ends when Rust is closed or after `$pdone` seconds.
@@ -119,6 +122,7 @@ Set by the scripts for one another; `sv name value` sets one by hand.
 | `$pgentest` | `interop` | Generate into a folder of its own instead of the one sessions use. |
 | `$psteam`, `$pshortcut` | `session` | Start through the Steam shortcut of that name. |
 | `$pconnect` | `session` | Join the server in `server.txt` at start (direct start only). |
+| `$pkeep` | `session` | Keep the game's window in front for the whole session; without it the window is brought to the front once. |
 | `$plast`, `$pfile` | `log`, `file`, `more` | The last session's folder, the file being paged. |
 | `$pinc`, `$pname` | `log`, `file` | Filter expression, file name. |
 | `$pt`, `$pp`, `$pfind` | `survey` | Type names, member filter, type-name search. |
