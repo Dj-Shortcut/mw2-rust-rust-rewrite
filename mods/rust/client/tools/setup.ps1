@@ -27,4 +27,14 @@ foreach ($j in $jobs) {
   ('copied from ' + $j.From.Replace($dl, '~') + ' on ' + (Get-Date -Format 's')) | Out-File "$to\origin.txt" -Encoding utf8
   $j.Name + ': ' + (Size $to) + ' MB copied from ' + $j.From.Replace($dl, '~') + $(if ($skipped) { ', ' + @($skipped).Count + ' files left out (path too long)' })
 }
+# An interop set made before the base libraries were kept per Unity version carries its own copy of
+# them. The set for the installed build was made for this client, so its copy is of this version.
+$rust = 'C:\Program Files (x86)\Steam\steamapps\common\Rust'
+$pb = ((gc 'C:\Program Files (x86)\Steam\steamapps\appmanifest_252490.acf' | sls '"buildid"').Line -split '"')[3]
+$uv = ''; if ("" + (gi "$rust\UnityPlayer.dll").VersionInfo.ProductVersion -match '^(\d+\.\d+\.\d+)') { $uv = $Matches[1] }
+if ($uv -and -not (Test-Path "$probe\unity-libs-$uv\UnityEngine.CoreModule.dll") -and (Test-Path "$probe\gen-$pb\unity-libs\UnityEngine.CoreModule.dll")) {
+  Copy-Item "$probe\gen-$pb\unity-libs" "$probe\unity-libs-$uv" -Recurse
+  "unity base libraries for $uv taken from the set of build $pb"
+}
+'unity ' + $uv + ' base libraries present=' + (Test-Path "$probe\unity-libs-$uv\UnityEngine.CoreModule.dll")
 'sdk compiler present=' + [bool](ls "$probe\sdk\sdk" -Directory -ErrorAction SilentlyContinue | ? { Test-Path "$($_.FullName)\Roslyn\bincore\csc.dll" }) + ' generator host present=' + (Test-Path "$probe\generator\dotnet-host\dotnet.exe") + ' free MB=' + [int]((Get-PSDrive C).Free / 1MB)
