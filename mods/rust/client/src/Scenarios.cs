@@ -9,7 +9,7 @@ public static class Scenarios
     public static bool Active { get { return Name != ""; } }
     // A check that plays a controller rides through the plugin's own input, getting on and off included.
     public static bool Plays { get { return Name == "pad"; } }
-    private static float startAt = -1f, yaw0;
+    private static float startAt = -1f, startGame, yaw0;
     private static int phase, next, lands;
     private static bool done;
 
@@ -29,17 +29,19 @@ public static class Scenarios
         if (startAt < 0f)
         {
             if (now - SkateRig.AwakeAt < 4f) return;
-            startAt = now; yaw0 = SkateCamera.LookYaw;
+            startAt = now; startGame = Time.time; yaw0 = SkateCamera.LookYaw;
             SkateKeys.Scripted = true; SkateKeys.Reset(); SkateKeys.LookYaw = yaw0;
             Say(Name + " begins, view yaw=" + yaw0.ToString("F0") + " at " + Out.V1(SkateRig.LocalT.position));
         }
-        var s = now - startAt;
+        // The checks that ride are timed in the game's own seconds: a client that draws few frames
+        // runs slower than the clock, and presses timed by the clock would come before their turn.
+        var s = now - startAt; var game = Time.time - startGame;
         SkateSfx.Listen();
         if (SkateRide.Lands != lands) { lands = SkateRide.Lands; Say("landed: " + SkateRide.LastAir + " | mode=" + SkateRide.Mode + " switch=" + SkateRide.Trick.Switch + " pos=" + Out.V1(SkateRide.Position)); }
-        if (Name == "ride") Ride(s);
+        if (Name == "ride") Ride(game);
         else if (Name == "pose") Pose(s, now);
-        else if (Name == "pad") Pad(s, now);
-        else Trick(s);
+        else if (Name == "pad") Pad(game, now);
+        else Trick(game);
     }
 
     private static bool Enter(int to, string label)
@@ -58,7 +60,8 @@ public static class Scenarios
         done = true; Phase = "done";
         SkateRide.Dismount("the scenario ended"); Restore();
         System.IO.File.WriteAllText(System.IO.Path.Combine(BepInEx.Paths.PluginPath, "skate.done"), "done");
-        Say("DONE top speed=" + SkateRide.Top.ToString("F1") + " pull-backs=" + SkateRide.Resets + " late calls=" + LateDriver.Calls + " pops=" + SkateRide.Pops + " lands=" + SkateRide.Lands + " bails=" + SkateRide.Bails
+        var real = Time.realtimeSinceStartup - startAt;
+        Say("DONE pace=" + (real > 0.5f ? (Time.time - startGame) / real : 1f).ToString("F2") + " top speed=" + SkateRide.Top.ToString("F1") + " pull-backs=" + SkateRide.Resets + " late calls=" + LateDriver.Calls + " pops=" + SkateRide.Pops + " lands=" + SkateRide.Lands + " bails=" + SkateRide.Bails
             + " refused presses=" + SkateRide.Refused + " score=" + SkateRide.Trick.TotalPoints + " grind scans=" + SkateGrind.Scans + " flicks=" + SkatePad.Flicks + " audio=" + SkateSfx.State + " | loudest output: " + SkateSfx.Heard);
     }
 
