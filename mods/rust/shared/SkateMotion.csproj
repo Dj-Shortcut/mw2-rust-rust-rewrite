@@ -22,6 +22,7 @@
     <Compile Include="SkateMotion.cs" />
     <Compile Include="SkateDrive.cs" />
     <Compile Include="SkateTricks.cs" />
+    <Compile Include="SkateRider.cs" />
     <Compile Include="SkateBoardMesh.cs" />
     <Compile Include="SkateRails.cs" />
     <Compile Include="SkateRailBinding.cs" />

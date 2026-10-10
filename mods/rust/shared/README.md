@@ -37,6 +37,20 @@ Events: `Landed`, `Bailed`, `GrindEnded`, `ComboBanked`. `TrickName`/`Points` id
 
 Private execution of the actual compiled net48 DLL passes 2,439 assertions for all named spin/flip/grab variants, tolerance and impact boundaries, switch reversal, chaining/timeout, grind duration/capture, explicit and touchdown bails, atomic rejection, plus zero measured bytes across 100,000 valid steps on Mac net8. This does not establish Unity/IL2CPP behavior, controller feel or actual impact sensing.
 
+## Rider joint API
+
+`SkateRiderRig(pelvisHeight, hipWidth, thighLength, shinLength, footLength, spineLength, shoulderWidth, upperArmLength, forearmLength, neckToHeadLength)` stores finite metre measurements in [0.01,5]. Widths are full spans; foot is ankle-to-toe, spine pelvis-to-chest, head neck-to-head. Neck is 0.12*spine above chest. These require the real skeleton's measurements; no Rust dimensions are presumed.
+
+`SkateRiderInput(boardPosition, boardForward, boardUp, stance, ridingSwitch, speed, leanDegrees, crouch, airborne, pushing, pushPhase, flipDegrees, grab, bailed, lookYawDegrees)` uses contact centre within +/-100,000 m, board **nose** forward including spin, and **unflipped** support up (Y>0). The frame is near-unit/perpendicular (squared-length/dot tolerance 0.0001). Pass flip independently; a visual flipped BoardUp would wrongly rotate the rider. Speed [0,14], lean [-20,20] degrees, crouch/phase [0,1], flip/look magnitude <=3,600,000 degrees. Yaw zero looks +Z; positive turns +X.
+
+`SkateRider.TryCreate(rig,input,out pose,out error)` returns world-space value-type `SkateRiderPose`: Pelvis; Left/RightHip, Knee, Ankle, Toe; Chest, Neck, Head; Left/RightShoulder, Elbow, Hand; unit PelvisForward/Up, ChestForward/Up and HeadForward. Failure returns default pose/static English error. The adapter converts chains into bone rotations. The ground plane passes through BoardPosition along BoardUp; a tilted board can place a joint lower in world Y while above that plane.
+
+Regular places left ankle at +SkatePose.FootOffset, goofy at -offset; the other ankle mirrors. Sideways toes retain exact FootLength. Switch keeps anchors fixed relative to the nose, reverses travel and chooses the rear pushing foot. Closed push phase 0/1 matches the deck; the foot swings beside/behind it using SkatePose offsets. Airborne/bail suppress push. Non-whole air flips lift feet up to FlipFootLift; whole flips return them. Grab aims a rear hand toward the deck subject to arm reach. Bail supplies a protective pose; body/ragdoll/lifecycle transitions remain the adapter's job.
+
+Crouch lowers requested pelvis height; a common height interval keeps both legs reachable. Root-to-ankle distance uses the conservative shell sqrt(abs(thigh²-shin²))+1e-6 through thigh+shin-1e-6, avoiding folds through an endpoint. Impossible fixed-foot rig spans reject. Hands clamp into the arm triangle shell; exceptional proportions use a ground-safe horizontal balance target. Analytic two-bone IK preserves exact segment lengths and adjusts poles to keep knees/elbows above the plane. Grabs need not touch the board if unreachable. Every call is allocation-free after initialization.
+
+Root reran the integrated net48 DLL: 4,085,197 assertions, 49,744 accepted random rig/input cases, 256 rejected impossible spans; 512 accepted/512 rejected min/max corners; exact limb/span/ground/orientation, stance/switch, seams and 2,000 continuity pairs. One million valid and one million invalid warm calls each allocated zero measured bytes on Mac net8. Independent geometry review passes. Actual skeleton application, IL2CPP allocation and in-game pose remain unverified.
+
 ## Verification boundary
 
 Genuine Mono-reference net48/C#7.3 compilation passes with zero warnings/errors. Private Mac net8 execution of the actual net48 library passes 266,150 assertions: flat push to max, coasting distance, braking, downhill gain/uphill stall, wall block, jump/landing and stale support, steering rates, gravity, 360 headings, deterministic sampled steps and board-normal reconstruction. Valid and invalid 100,000-call loops each allocate zero measured bytes after warm-up.
