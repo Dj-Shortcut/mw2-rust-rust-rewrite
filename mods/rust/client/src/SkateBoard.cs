@@ -10,9 +10,9 @@ public static class SkateBoard
 {
     public const float TipDegrees = 15f, Axle = 0.23f;
     public const string LitShader = "Rust/Standard", PlainShader = "Hidden/Internal-Colored";
-    public const float Gloss = 0.2f, BailTurn = 0.5f, BailBehind = 0.9f, BailRest = 0.045f;
+    public const float Gloss = 0.2f, BailTurn = 0.5f, BailBehind = 0.9f, BailRest = 0.045f, PopMost = 0.22f;
     public static string Drawn = "";
-    public static float ShowLift, Tip;
+    public static float ShowLift, Tip, Pop;
     private static void Say(string m) { Out.Say("SKATE " + m); }
 
     public static GameObject Build()
@@ -21,7 +21,7 @@ public static class SkateBoard
         catch (Exception e) { Say("shared mesh unavailable (" + e.GetType().Name + ": " + e.Message + "); using primitives"); return FromPrimitives(); }
     }
 
-    public static Vector3 Contact(Transform playerT) { return playerT.position + Vector3.up * ShowLift; }
+    public static Vector3 Contact(Transform playerT) { return playerT.position + Vector3.up * (ShowLift + Pop); }
 
     // A manual lifts the end that leads: the board, and the rider's footing with it, pitches about
     // the ground under the trailing axle.
